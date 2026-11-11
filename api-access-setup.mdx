@@ -53,7 +53,9 @@ See [Credentials and account selection](/environments-and-credentials#credential
     </Warning>
   </Step>
   <Step title="Find your public IP addresses">
-    Find the public IPv4 address of each server that calls the API. Run the following command on the calling server; the Sandbox API host returns the source address it sees.
+    To test in the Banking portal's **Developer Center** or in these docs, find your computer's public outbound IPv4 address. For server requests, find each calling server's public outbound IPv4 address.
+
+    Run the following command on that computer or server, using the same network or VPN as the test. The Sandbox API host returns the source address it sees.
 
     Developer Center accepts IPv4 addresses and IPv4 CIDR ranges. The `-4` option makes this check use IPv4.
 
@@ -71,14 +73,14 @@ See [Credentials and account selection](/environments-and-credentials#credential
 
     Run the command a few times. If the address changes, your network sends traffic through several public addresses: add each one. Allow a CIDR range only when your network or cloud provider confirms that the range is dedicated to your egress. For a stable list, give your servers a fixed egress IP, such as a NAT gateway with a static address.
 
-    The helper below detects this browser's address, not your server's. Allow that IPv4 address only if you also want to use **Test connection**, **Send to Sandbox**, or the API playground in these docs. A Developer Center test uses a different request path and does not verify your server's access.
+    The helper below detects this browser's public outbound address. Add that IPv4 address to the Sandbox API allowlist to test in the Banking portal's **Developer Center**, or to use **Test connection**, **Send to Sandbox**, or the API playground in these docs. A successful browser test does not verify your server's access; allow and test the server's IP separately.
 
     If the helper detects IPv6, run the generated cURL command with `curl -4` from this computer or use a network with IPv4 access. Browsers cannot be forced to use IPv4 by these docs. Configure your server's HTTP client to use IPv4 as well.
   </Step>
   <Step title="Save the IP allowlist">
     1. In **Test credentials**, select **Edit** under **IP allowlist**.
     2. Copy the saved entries into **Current list in the dashboard** in the helper below to keep existing access.
-    3. Enter the server IPv4 addresses or CIDR ranges in **IP addresses or CIDR ranges to add**. To test from this browser, also select **Add to list** beside its detected IPv4 address.
+    3. Enter the server IPv4 addresses or CIDR ranges in **IP addresses or CIDR ranges to add**. To test from this browser in Developer Center or these docs, also select **Add to list** beside its detected IPv4 address.
     4. Select **Copy**, paste the complete list into Developer Center, and select **Save allowlist**. No MFA code is required.
     5. Check the saved list. Developer Center removes duplicates and stores CIDR entries as network ranges.
 

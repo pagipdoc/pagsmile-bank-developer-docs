@@ -53,7 +53,9 @@ Consulte [Credenciais e seleção de conta](/pt-br/environments-and-credentials#
     </Warning>
   </Step>
   <Step title="Descobrir seus IPs públicos">
-    Identifique o IPv4 público de cada servidor que chama a API. Execute o comando abaixo no servidor que fará as chamadas; o host da API do Sandbox retorna o endereço de origem que ele vê.
+    Para testar na **Central do desenvolvedor** do portal Banking ou nesta documentação, identifique o IPv4 público de saída do seu computador. Para requisições pelo servidor, identifique o IPv4 público de saída de cada servidor que chama a API.
+
+    Execute o comando abaixo nesse computador ou servidor, usando a mesma rede ou VPN do teste. O host da API do Sandbox retorna o endereço de origem que ele vê.
 
     A Central do desenvolvedor aceita endereços IPv4 e faixas CIDR IPv4. A opção `-4` faz esta consulta usar IPv4.
 
@@ -71,14 +73,14 @@ Consulte [Credenciais e seleção de conta](/pt-br/environments-and-credentials#
 
     Execute o comando algumas vezes. Se o endereço mudar, sua rede envia tráfego por vários endereços públicos: adicione cada um. Permita uma faixa CIDR só quando o seu provedor de rede ou de nuvem confirmar que a faixa é exclusiva da sua saída. Para manter a lista estável, use um IP de saída fixo nos servidores, como um NAT gateway com endereço estático.
 
-    O assistente abaixo detecta o endereço deste navegador, não o do servidor. Permita esse IPv4 somente se também quiser usar **Testar conexão**, **Enviar ao Sandbox** ou o Playground da API nesta documentação. Um teste na Central do desenvolvedor usa outro caminho de requisição e não verifica o acesso do seu servidor.
+    O assistente abaixo detecta o endereço público de saída deste navegador. Adicione esse IPv4 à lista de IPs permitidos da API do Sandbox para testar na **Central do desenvolvedor** do portal Banking ou usar **Testar conexão**, **Enviar ao Sandbox** ou o Playground da API nesta documentação. Um teste bem-sucedido pelo navegador não verifica o acesso do servidor; permita e teste o IP do servidor separadamente.
 
     Se o assistente detectar IPv6, execute o comando cURL gerado com `curl -4` neste computador ou use uma rede com acesso IPv4. Esta documentação não consegue forçar o navegador a usar IPv4. Configure também o cliente HTTP do servidor para usar IPv4.
   </Step>
   <Step title="Salvar a lista de IPs permitidos">
     1. Em **Credenciais de teste**, selecione **Editar** em **IPs permitidos**.
     2. Copie as entradas salvas para **Lista atual no painel** no assistente abaixo para manter os acessos existentes.
-    3. Informe os IPv4 ou as faixas CIDR dos servidores em **IPs ou faixas CIDR para adicionar**. Para testar por este navegador, selecione também **Adicionar à lista** ao lado do IPv4 detectado.
+    3. Informe os IPv4 ou as faixas CIDR dos servidores em **IPs ou faixas CIDR para adicionar**. Para testar por este navegador na Central do desenvolvedor ou nesta documentação, selecione também **Adicionar à lista** ao lado do IPv4 detectado.
     4. Selecione **Copiar**, cole a lista completa na Central do desenvolvedor e selecione **Salvar IPs permitidos**. Não é necessário informar um código MFA.
     5. Confira a lista salva. A Central do desenvolvedor remove duplicatas e salva entradas CIDR como faixas de rede.
 

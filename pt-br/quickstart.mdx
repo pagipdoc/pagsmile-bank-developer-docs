@@ -13,6 +13,47 @@ Use o canal de cadastro indicado para sua integração. As capturas de tela ilus
 
 Siga o formulário atual para documentos, verificações e instruções de ativação. As capturas não definem critérios de aprovação nem a validade dos códigos de verificação.
 
+<Accordion title="Cadastro pelo portal Banking" icon="user">
+  <Steps>
+    <Step title="Criar um usuário de acesso">
+      Abra o [portal Banking](https://banking.pagsmile.com.br/login) e selecione **Create Account**. Escolha CPF ou CNPJ e informe o número do documento.
+
+      Informe o celular e o código do país. Solicite o código por SMS e digite os seis dígitos. Defina e confirme a senha, depois selecione **Submit**.
+
+      Use pelo menos oito caracteres, incluindo um dígito, uma letra minúscula, uma maiúscula e um caractere de `!@#$%&*()`.
+
+      <Frame caption="Criar um usuário de acesso">
+        <img src="/images/quickstart/create-a-sign-in-user.png" alt="Criar um usuário de acesso" />
+      </Frame>
+    </Step>
+    <Step title="Entrar no portal">
+      Retorne à tela de acesso e informe suas credenciais. Conclua a confirmação por MFA quando ela aparecer.
+
+      <Accordion title="Capturas da tela de acesso" icon="images">
+        <Frame caption="Entrar com CPF ou celular e senha">
+          <img src="/images/quickstart/sign-in-with-your-cpf-or-mobile-number-and-passwor.png" alt="Entrar com CPF ou celular e senha" />
+        </Frame>
+
+        <Frame caption="Seguir as instruções para concluir o MFA">
+          <img src="/images/quickstart/follow-the-on-screen-instructions-to-complete-goog.png" alt="Seguir as instruções para concluir o MFA" />
+        </Frame>
+      </Accordion>
+    </Step>
+    <Step title="Enviar os dados para verificação da conta">
+      Abra **Account Verification**. Para uma conta empresarial, informe a razão social e o e-mail, depois confirme o código de verificação do e-mail.
+
+      Envie o comprovante de registro da empresa. Informe o endereço de registro e o CEP, depois envie o formulário. Para uma conta pessoal, siga o formulário apresentado.
+
+      <Frame caption="Enviar os dados para verificação da conta empresarial">
+        <img src="/images/quickstart/submit-business-account-verification-information.png" alt="Enviar os dados para verificação da conta empresarial" />
+      </Frame>
+    </Step>
+    <Step title="Conferir o resultado da análise">
+      Siga o resultado da análise apresentado pelo portal antes de configurar a API. Criar um usuário de acesso não conclui a verificação da conta.
+    </Step>
+  </Steps>
+</Accordion>
+
 <Accordion title="Cadastro pelo onboarding empresarial" icon="building-columns">
   <Steps>
     <Step title="Iniciar a solicitação">
@@ -251,47 +292,6 @@ Siga o formulário atual para documentos, verificações e instruções de ativa
   </Steps>
 </Accordion>
 
-<Accordion title="Cadastro pelo portal Banking" icon="user">
-  <Steps>
-    <Step title="Criar um usuário de acesso">
-      Abra o [portal Banking](https://banking.pagsmile.com.br/login) e selecione **Create Account**. Escolha CPF ou CNPJ e informe o número do documento.
-
-      Informe o celular e o código do país. Solicite o código por SMS e digite os seis dígitos. Defina e confirme a senha, depois selecione **Submit**.
-
-      Use pelo menos oito caracteres, incluindo um dígito, uma letra minúscula, uma maiúscula e um caractere de `!@#$%&*()`.
-
-      <Frame caption="Criar um usuário de acesso">
-        <img src="/images/quickstart/create-a-sign-in-user.png" alt="Criar um usuário de acesso" />
-      </Frame>
-    </Step>
-    <Step title="Entrar no portal">
-      Retorne à tela de acesso e informe suas credenciais. Conclua a confirmação por MFA quando ela aparecer.
-
-      <Accordion title="Capturas da tela de acesso" icon="images">
-        <Frame caption="Entrar com CPF ou celular e senha">
-          <img src="/images/quickstart/sign-in-with-your-cpf-or-mobile-number-and-passwor.png" alt="Entrar com CPF ou celular e senha" />
-        </Frame>
-
-        <Frame caption="Seguir as instruções para concluir o MFA">
-          <img src="/images/quickstart/follow-the-on-screen-instructions-to-complete-goog.png" alt="Seguir as instruções para concluir o MFA" />
-        </Frame>
-      </Accordion>
-    </Step>
-    <Step title="Enviar os dados para verificação da conta">
-      Abra **Account Verification**. Para uma conta empresarial, informe a razão social e o e-mail, depois confirme o código de verificação do e-mail.
-
-      Envie o comprovante de registro da empresa. Informe o endereço de registro e o CEP, depois envie o formulário. Para uma conta pessoal, siga o formulário apresentado.
-
-      <Frame caption="Enviar os dados para verificação da conta empresarial">
-        <img src="/images/quickstart/submit-business-account-verification-information.png" alt="Enviar os dados para verificação da conta empresarial" />
-      </Frame>
-    </Step>
-    <Step title="Conferir o resultado da análise">
-      Siga o resultado da análise apresentado pelo portal antes de configurar a API. Criar um usuário de acesso não conclui a verificação da conta.
-    </Step>
-  </Steps>
-</Accordion>
-
 ## Habilitar o acesso à API
 
 Após a abertura e a ativação da conta de produção, acesse sua conta de teste do Sandbox pela **Central do desenvolvedor** no [portal Banking](https://banking.pagsmile.com.br/login).
@@ -311,8 +311,15 @@ Após a abertura e a ativação da conta de produção, acesse sua conta de test
 
     Se a preparação estiver em andamento, volte à **Visão geral** mais tarde. Se ela falhar, siga a ação de recuperação exibida. Confira a conta de teste antes de continuar; trocar de conta de produção não altera a conta vinculada às credenciais de teste.
   </Step>
-  <Step title="Preparar o acesso pelo seu servidor">
-    Abra **Credenciais de teste**. O titular pode selecionar **Ver e copiar credenciais**, adicionar o IP público de saída do servidor em **IPs permitidos** e conferir se a credencial está **Ativa**.
+  <Step title="Permitir o acesso à API do Sandbox">
+    Abra **Credenciais de teste**. O titular pode selecionar **Ver e copiar credenciais** e conferir se a credencial está **Ativa**.
+
+    Em **IPs permitidos**, adicione o IP público de saída de cada origem dos testes:
+
+    - **Central do desenvolvedor no portal Banking:** adicione o IP público de saída do computador que você está usando à lista de IPs permitidos da API do Sandbox antes de testar.
+    - **Seu servidor:** adicione o IP público de saída do servidor antes de enviar requisições à API pela sua integração.
+
+    Se usar uma VPN ou rede corporativa, permita o IP público por onde sai o tráfego dos testes. Não informe o endereço privado do computador na rede local. Confira o IP novamente se mudar de rede ou de conexão VPN.
 
     Siga [Configurar acesso à API](/pt-br/api-access-setup) para guardar o par de chaves do Sandbox, identificar o IP correto e configurar seu servidor. Essa página também permite informar credenciais do Sandbox e testar nesta documentação, se você preferir.
 
@@ -321,6 +328,8 @@ Após a abertura e a ativação da conta de produção, acesse sua conta de test
 </Steps>
 
 ## Explorar APIs na Central do desenvolvedor
+
+Antes de testar, confirme que o IP público de saída do computador que você está usando está salvo em **Credenciais de teste → IPs permitidos** para a API do Sandbox.
 
 Em **Visão geral**, encontre **Teste sua integração**. Selecione **Contas e saldos** em **Cenário de integração** e depois **Testar no sandbox** para `POST /v3/bank_account`.
 

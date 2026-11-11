@@ -13,6 +13,47 @@ Use the registration entry point supplied for your integration. The screenshots 
 
 Follow the current form for required documents, verification tasks and activation instructions. The screenshots do not define approval criteria or verification-code validity.
 
+<Accordion title="Banking portal registration" icon="user">
+  <Steps>
+    <Step title="Create a sign-in user">
+      Open the [Banking portal](https://banking.pagsmile.com.br/login) and select **Create Account**. Select CPF or CNPJ, then enter your document number.
+
+      Enter your mobile number and country code. Request the SMS code and enter its six digits. Set and confirm your password, then select **Submit**.
+
+      Use at least eight characters, including a digit, a lowercase letter, an uppercase letter and a character from `!@#$%&*()`.
+
+      <Frame caption="Create a sign-in user">
+        <img src="/images/quickstart/create-a-sign-in-user.png" alt="Create a sign-in user" />
+      </Frame>
+    </Step>
+    <Step title="Sign in">
+      Return to the sign-in page and enter your credentials. Complete the MFA prompt when it appears.
+
+      <Accordion title="Sign-in screenshots" icon="images">
+        <Frame caption="Sign in with your CPF or mobile number and password">
+          <img src="/images/quickstart/sign-in-with-your-cpf-or-mobile-number-and-passwor.png" alt="Sign in with your CPF or mobile number and password" />
+        </Frame>
+
+        <Frame caption="Follow the on-screen instructions to complete Google MFA">
+          <img src="/images/quickstart/follow-the-on-screen-instructions-to-complete-goog.png" alt="Follow the on-screen instructions to complete Google MFA" />
+        </Frame>
+      </Accordion>
+    </Step>
+    <Step title="Submit account verification">
+      Open **Account Verification**. For a business account, enter the company name and email address, then confirm the email verification code.
+
+      Upload the business registration certificate. Enter the registered address and CEP, then submit the form. Follow the form shown for a personal account.
+
+      <Frame caption="Submit business account verification information">
+        <img src="/images/quickstart/submit-business-account-verification-information.png" alt="Submit business account verification information" />
+      </Frame>
+    </Step>
+    <Step title="Check the review outcome">
+      Follow the review outcome shown by the portal before continuing with API configuration. Creating a sign-in user does not complete account verification.
+    </Step>
+  </Steps>
+</Accordion>
+
 <Accordion title="Business onboarding registration" icon="building-columns">
   <Steps>
     <Step title="Start your application">
@@ -251,47 +292,6 @@ Follow the current form for required documents, verification tasks and activatio
   </Steps>
 </Accordion>
 
-<Accordion title="Banking portal registration" icon="user">
-  <Steps>
-    <Step title="Create a sign-in user">
-      Open the [Banking portal](https://banking.pagsmile.com.br/login) and select **Create Account**. Select CPF or CNPJ, then enter your document number.
-
-      Enter your mobile number and country code. Request the SMS code and enter its six digits. Set and confirm your password, then select **Submit**.
-
-      Use at least eight characters, including a digit, a lowercase letter, an uppercase letter and a character from `!@#$%&*()`.
-
-      <Frame caption="Create a sign-in user">
-        <img src="/images/quickstart/create-a-sign-in-user.png" alt="Create a sign-in user" />
-      </Frame>
-    </Step>
-    <Step title="Sign in">
-      Return to the sign-in page and enter your credentials. Complete the MFA prompt when it appears.
-
-      <Accordion title="Sign-in screenshots" icon="images">
-        <Frame caption="Sign in with your CPF or mobile number and password">
-          <img src="/images/quickstart/sign-in-with-your-cpf-or-mobile-number-and-passwor.png" alt="Sign in with your CPF or mobile number and password" />
-        </Frame>
-
-        <Frame caption="Follow the on-screen instructions to complete Google MFA">
-          <img src="/images/quickstart/follow-the-on-screen-instructions-to-complete-goog.png" alt="Follow the on-screen instructions to complete Google MFA" />
-        </Frame>
-      </Accordion>
-    </Step>
-    <Step title="Submit account verification">
-      Open **Account Verification**. For a business account, enter the company name and email address, then confirm the email verification code.
-
-      Upload the business registration certificate. Enter the registered address and CEP, then submit the form. Follow the form shown for a personal account.
-
-      <Frame caption="Submit business account verification information">
-        <img src="/images/quickstart/submit-business-account-verification-information.png" alt="Submit business account verification information" />
-      </Frame>
-    </Step>
-    <Step title="Check the review outcome">
-      Follow the review outcome shown by the portal before continuing with API configuration. Creating a sign-in user does not complete account verification.
-    </Step>
-  </Steps>
-</Accordion>
-
 ## Enable API access
 
 After your production account has been opened and activated, use **Developer Center** in the [Banking portal](https://banking.pagsmile.com.br/login) to access your Sandbox test account.
@@ -311,8 +311,15 @@ After your production account has been opened and activated, use **Developer Cen
 
     If preparation is still in progress, return to **Overview** later. If it fails, follow the recovery action shown there. Check the displayed test account before continuing; switching production accounts does not reassign the test credentials.
   </Step>
-  <Step title="Prepare access from your server">
-    Open **Test credentials**. The primary member can select **View and copy credentials**, add the server's public outbound IP under **IP allowlist**, and confirm that the credential is **Enabled**.
+  <Step title="Allow Sandbox API access">
+    Open **Test credentials**. The primary member can select **View and copy credentials** and confirm that the credential is **Enabled**.
+
+    Under **IP allowlist**, add the public outbound IP for each place you will test:
+
+    - **Developer Center in the Banking portal:** add your current computer's public outbound IP to the Sandbox API allowlist before testing.
+    - **Your server:** add the server's public outbound IP before sending API requests from your integration.
+
+    If you use a VPN or company network, allow the public IP through which your test traffic leaves that network. Do not enter your computer's private LAN address. Check the IP again if you change networks or VPN connections.
 
     Follow [Set up API access](/api-access-setup) to save the Sandbox key pair, find the correct IP, and configure your server. That page also provides optional Sandbox credential entry and testing in these docs.
 
@@ -321,6 +328,8 @@ After your production account has been opened and activated, use **Developer Cen
 </Steps>
 
 ## Explore APIs in Developer Center
+
+Before testing, confirm that your current computer's public outbound IP is saved under **Test credentials → IP allowlist** for the Sandbox API.
 
 In **Overview**, find **Test your integration**. Select **Accounts and funds** in **Integration scenario**, then select **Test in sandbox** for `POST /v3/bank_account`.
 
