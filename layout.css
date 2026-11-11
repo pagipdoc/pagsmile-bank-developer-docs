@@ -70,6 +70,11 @@
     flex-wrap: wrap;
     row-gap: 0.5rem;
   }
+
+  .feedback-toolbar div:has(> a) {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
