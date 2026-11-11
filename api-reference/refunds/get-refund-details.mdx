@@ -1,0 +1,82 @@
+---
+title: "Get refund details"
+sidebarTitle: "Get details"
+description: "Look up a refund by its refund or settlement refund ID. Returns its recorded amount, parties and processing status for tracking and reconciliation."
+openapi: "openapi/en.json POST /v3/refunds/details"
+keywords: ["/v3/refunds/details", "Pix refund", "reconciliation", "refund status"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Looks up the recorded details of a refund. The account receiving the refund can only see details after completion.
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the account bound to your AK. You can omit account headers; if you send them, both must match the bound account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send `X-ISPB` and `X-Account-Number` for an account owned by the USER. Include both in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use an ACCOUNT or USER credential for the participating account.</Warning>
+  </Tab>
+</Tabs>
+
+The selected account must send or receive the refund. An account unrelated to the refund receives `4004101`.
+
+For the recipient, non-completed refunds return `4003003`, like a missing refund. Use the sender account to investigate pending states or failures.
+
+## Choose the identifier
+
+Use the identifiers saved from [Initiate Pix refund](/api-reference/refunds/initiate-pix-refund). Send at least one nonempty identifier.
+
+If you send both, `refund_id` takes precedence. `settlement_refund_id` is neither a fallback nor a cross-check for matching identifiers.
+
+If you retrieve an identifier from the [statement](/api-reference/accounts/get-account-statement), select the entry for the refund you want. Do not automatically choose the first entry.
+
+## Read the result
+
+When `code` is `200`, you received the details available to this account. Check `data.details.txn_status` before treating the refund as completed.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `0` UNSPECIFIED | Unknown state | No completion evidence | Check details |
+| `1` PENDING | Request accepted | Acceptance only | Query the same refund |
+| `5` PROCESSING | Outcome not yet confirmed | No completion evidence | Query as refund sender |
+| `2` COMPLETED | Refund completed | Completion recorded | Match amount in statement |
+| `3` FAILED | Refund failed | Failure recorded | Check details and callback |
+
+A completed partial refund also uses status `2` (COMPLETED). Check this refund's amount without assuming the whole original payment was refunded.
+
+## Details limitations
+
+This response does not populate the original or refund settlement IDs. It also returns zero timestamps and empty `rejection_reason`, even after completion or failure.
+
+`pix_details` and `ted_details` are `null`; `source_type` is `0` (SOURCE_TYPE_UNSPECIFIED), including for API-initiated refunds.
+
+Use `parent_txn_id` and `parent_settlement_id` from the matching statement entry to link the original payment. Callbacks also carry that link in `original_txn`.
+
+## Temporary failures
+
+After acceptance, the refund may take time to appear in queries. A single `4003003` does not prove failure or make another refund safe.
+
+Keep the identifiers and query the same refund after a temporary error. Include `xxx-log-id` if you need support.
+
+## Try it in the Playground
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/refunds/details" body={{"refund_id": "refund-example-001"}} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Get refund status" icon="arrows-rotate" href="/api-reference/refunds/get-refund-status">
+    Check and refresh non-terminal states.
+  </Card>
+  <Card title="Get account statement" icon="file-lines" href="/api-reference/accounts/get-account-statement">
+    Match the amount and original payment.
+  </Card>
+</CardGroup>

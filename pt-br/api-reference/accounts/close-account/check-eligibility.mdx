@@ -1,0 +1,91 @@
+---
+title: "Verificar elegibilidade para encerramento da conta"
+sidebarTitle: "Verificar elegibilidade"
+description: "Verifique a elegibilidade atual para encerrar a conta sem criar uma operação. Retorna impedimentos, motivos de espera e indicação de exclusão de chaves Pix."
+openapi: "openapi/pt-br.json POST /v3/bank_account/close/precheck"
+keywords: ["/v3/bank_account/close/precheck", "encerramento de conta", "elegibilidade", "andamento"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Verifica se a conta-alvo pode ser encerrada agora, sem alterar a conta nem excluir chaves Pix. A aprovação não confirma o encerramento posterior.
+
+| Credenciais | Idempotência | Resultado |
+| --- | --- | --- |
+| ACCOUNT, USER | Somente leitura | Elegibilidade atual |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a credencial da conta-alvo. O campo `account_number` da requisição deve corresponder à conta autorizada pela sua credencial.
+
+    Os cabeçalhos da conta-alvo são opcionais. Se os enviar, envie os dois com o ISPB e o número da conta da credencial.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta pertencente ao seu USER. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use uma credencial ACCOUNT ou USER autorizada.</Warning>
+  </Tab>
+</Tabs>
+
+O corpo não seleciona outro ISPB. A credencial e os cabeçalhos da conta-alvo determinam o ISPB; `account_number` deve corresponder à conta selecionada.
+
+Novos encerramentos por solicitação do comerciante aceitam contas gerenciadas MOR, VA e PA com status bancário `1` (ACTIVE), não contas master (`MA_MOR`).
+
+## O que impede o encerramento
+
+Resolva os motivos retornados antes de solicitar o encerramento. As verificações de elegibilidade abrangem estas condições:
+
+| Condição | Códigos dos motivos |
+| --- | --- |
+| Saldo restante ou fundos bloqueados | `NON_ZERO_BALANCE`, `FROZEN_BALANCE` |
+| Chaves Pix ativas sem autorização | `ACTIVE_PIX_KEYS` |
+| Contas filhas abertas | `OPEN_CHILD_ACCOUNTS` |
+| MED ou notificações de infração pendentes | `OPEN_MED_CASE`, `OPEN_INFRACTION` |
+| Cobranças de tarifas não pagas | `UNPAID_BILL` |
+| Pagamento em processamento | `PENDING_PAYMENT` |
+| Devolução em processamento | `PENDING_REFUND` |
+| Disputa em processamento | `PENDING_DISPUTE` |
+| Devolução MED em processamento | `PENDING_MED_REFUND` |
+| Abertura de conta em processamento | `PENDING_CHILD_CREATION` |
+| Cobrança de tarifa em processamento | `PENDING_BILLING` |
+| Pagamento de tarifa não confirmado | `BILLING_RESULT_UNKNOWN` |
+
+O saldo total, o saldo disponível e os fundos bloqueados devem estar zerados. Uma verificação com falha ou sem confirmação não comprova saldo zero.
+
+Conta não aceita, status inválido ou encerramento em andamento geram um motivo impeditivo antes das demais verificações. A autenticação pode recusar o acesso antes disso.
+
+## Chaves Pix ativas
+
+Com `auto_delete_active_pix_keys` igual a `false`, chaves ativas impedem a elegibilidade. Use `true` para avaliar a elegibilidade considerando a exclusão autorizada durante o encerramento.
+
+A pré-verificação não exclui chaves nem salva essa autorização. Envie a opção novamente em [Encerrar conta](/pt-br/api-reference/accounts/close-account/close-account).
+
+## Interpretar o resultado
+
+Quando `code` é `200`, leia `data.eligibility.eligible`. O resultado `false` indica falta de elegibilidade, não falha na requisição HTTP.
+
+Use `kind` de cada motivo para distinguir condições BLOCKING, WAITING, RETRYABLE e MANUAL. Uma verificação indisponível exige nova verificação ou análise da equipe de operações.
+
+O campo `count` pode ser um indicador, não uma quantidade de registros. Zero não indica aprovação; a resposta mantém `references` como `null`.
+
+Um `account_number` inválido ou diferente da conta selecionada retorna o código de negócio `4004003`. Resultados JSON usam HTTP 200; JSON malformado retorna HTTP 400 em texto.
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/bank_account/close/precheck" body={{ account_number: "00012345", auto_delete_active_pix_keys: false }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Encerrar conta" icon="lock" href="/pt-br/api-reference/accounts/close-account/close-account">
+    Envie a solicitação de encerramento.
+  </Card>
+  <Card title="Fluxo de encerramento" icon="diagram-project" href="/pt-br/api-reference/accounts/close-account/overview">
+    Entenda a elegibilidade e a conclusão.
+  </Card>
+</CardGroup>

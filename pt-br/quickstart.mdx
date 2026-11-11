@@ -1,0 +1,758 @@
+---
+title: "Início rápido"
+sidebarTitle: "Início rápido"
+description: "Cadastre sua conta, habilite o acesso à Open API, salve suas credenciais e envie uma requisição assinada no Sandbox para consultar os dados e saldos da conta."
+keywords: ["início rápido", "acesso à API", "AK SK", "primeira requisição"]
+---
+
+Use este guia para cadastrar sua conta Pagsmile e enviar sua primeira consulta de conta assinada. Configure o acesso à Open API antes de chamar a API.
+
+## Cadastrar sua conta
+
+Use o canal de cadastro indicado para sua integração. As capturas de tela ilustram o cadastro, a verificação e a ativação da conta.
+
+Siga o formulário atual para documentos, verificações e instruções de ativação. As capturas não definem critérios de aprovação nem a validade dos códigos de verificação.
+
+<Accordion title="Cadastro pelo onboarding empresarial" icon="building-columns">
+  <Steps>
+    <Step title="Iniciar a solicitação">
+      Abra o [portal de onboarding empresarial](https://banking-onboarding.pagsmile.com.br/onboarding). Preencha os dados de contato e da empresa solicitados pelo formulário.
+
+      <Accordion title="Cadastro pelo celular" icon="images">
+        <Frame caption="Informar o número de celular">
+          <img src="/images/quickstart/enter-your-mobile-number.webp" alt="Informar o número de celular" />
+        </Frame>
+
+        <Frame caption="Confirmar o consentimento e solicitar um código">
+          <img src="/images/quickstart/confirm-consent-and-send-a-verification-code.webp" alt="Confirmar o consentimento e solicitar um código" />
+        </Frame>
+
+        <Frame caption="Confirmar o código recebido por SMS">
+          <img src="/images/quickstart/verify-the-sms-verification-code.webp" alt="Confirmar o código recebido por SMS" />
+        </Frame>
+      </Accordion>
+
+      <Accordion title="Dados da empresa" icon="images">
+        <Frame caption="Informar os dados da empresa">
+          <img src="/images/quickstart/enter-business-information.webp" alt="Informar os dados da empresa" />
+        </Frame>
+
+        <Frame caption="Conferir os dados da empresa">
+          <img src="/images/quickstart/confirm-business-information.webp" alt="Conferir os dados da empresa" />
+        </Frame>
+      </Accordion>
+
+      <Accordion title="Início da verificação" icon="images">
+        <Frame caption="Iniciar a verificação da empresa">
+          <img src="/images/quickstart/start-kyb-verification.webp" alt="Iniciar a verificação da empresa" />
+        </Frame>
+
+        <Frame caption="Abrir a seleção de idioma">
+          <img src="/images/quickstart/open-language-selection.webp" alt="Abrir a seleção de idioma" />
+        </Frame>
+
+        <Frame caption="Selecionar o idioma da verificação">
+          <img src="/images/quickstart/select-the-verification-language.webp" alt="Selecionar o idioma da verificação" />
+        </Frame>
+
+        <Frame caption="Começar a verificação da empresa">
+          <img src="/images/quickstart/start-business-verification.webp" alt="Começar a verificação da empresa" />
+        </Frame>
+      </Accordion>
+    </Step>
+    <Step title="Concluir as verificações da empresa">
+      Siga o fluxo de verificação apresentado na solicitação. Confira os dados da empresa e conclua as seções solicitadas antes de enviar.
+
+      <Accordion title="Dados da empresa" icon="images">
+        <Frame caption="Enviar o contrato social">
+          <img src="/images/quickstart/upload-the-articles-of-association.webp" alt="Enviar o contrato social" />
+        </Frame>
+
+        <Frame caption="Informar os dados da empresa manualmente">
+          <img src="/images/quickstart/enter-business-information-manually.webp" alt="Informar os dados da empresa manualmente" />
+        </Frame>
+
+        <Frame caption="Revisar os dados da empresa">
+          <img src="/images/quickstart/review-business-information.webp" alt="Revisar os dados da empresa" />
+        </Frame>
+      </Accordion>
+
+      <Accordion title="Contatos e endereço" icon="images">
+        <Frame caption="Informar os contatos da empresa">
+          <img src="/images/quickstart/enter-business-contact-details.webp" alt="Informar os contatos da empresa" />
+        </Frame>
+
+        <Frame caption="Informar o endereço da empresa">
+          <img src="/images/quickstart/enter-the-business-address.webp" alt="Informar o endereço da empresa" />
+        </Frame>
+      </Accordion>
+
+      <Accordion title="Atividade e dados financeiros" icon="images">
+        <Frame caption="Selecionar o tipo de entidade">
+          <img src="/images/quickstart/select-the-entity-type.webp" alt="Selecionar o tipo de entidade" />
+        </Frame>
+
+        <Frame caption="Selecionar o modelo de negócio">
+          <img src="/images/quickstart/select-a-business-model.webp" alt="Selecionar o modelo de negócio" />
+        </Frame>
+
+        <Frame caption="Selecionar o setor de atividade">
+          <img src="/images/quickstart/select-an-industry.webp" alt="Selecionar o setor de atividade" />
+        </Frame>
+
+        <Frame caption="Informar os dados comerciais e financeiros">
+          <img src="/images/quickstart/enter-business-and-financial-details.webp" alt="Informar os dados comerciais e financeiros" />
+        </Frame>
+      </Accordion>
+
+      <Accordion title="Documentos da empresa" icon="images">
+        <Frame caption="Enviar os documentos da empresa">
+          <img src="/images/quickstart/upload-business-documents.webp" alt="Enviar os documentos da empresa" />
+        </Frame>
+      </Accordion>
+
+      <Accordion title="Sócios e pessoas relacionadas" icon="images">
+        <Frame caption="Adicionar pessoas relacionadas">
+          <img src="/images/quickstart/add-related-persons.webp" alt="Adicionar pessoas relacionadas" />
+        </Frame>
+
+        <Frame caption="Informar os dados das pessoas relacionadas">
+          <img src="/images/quickstart/enter-related-persons-details.webp" alt="Informar os dados das pessoas relacionadas" />
+        </Frame>
+
+        <Frame caption="Consultar a solicitação de verificação de identidade">
+          <img src="/images/quickstart/related-person-identity-verification-prompt.webp" alt="Consultar a solicitação de verificação de identidade" />
+        </Frame>
+
+        <Frame caption="Abrir a verificação de identidade da pessoa relacionada">
+          <img src="/images/quickstart/open-related-person-identity-verification.webp" alt="Abrir a verificação de identidade da pessoa relacionada" />
+        </Frame>
+      </Accordion>
+
+      <Accordion title="Sócios pessoa jurídica e envio" icon="images">
+        <Frame caption="Informar os dados dos sócios pessoa jurídica e enviar a solicitação">
+          <img src="/images/quickstart/enter-corporate-shareholder-details-and-submit-the.webp" alt="Informar os dados dos sócios pessoa jurídica e enviar a solicitação" />
+        </Frame>
+
+        <Frame caption="Consultar a confirmação de envio da solicitação">
+          <img src="/images/quickstart/business-application-submission-confirmation.webp" alt="Consultar a confirmação de envio da solicitação" />
+        </Frame>
+      </Accordion>
+    </Step>
+    <Step title="Concluir as verificações das pessoas relacionadas">
+      Siga as instruções de verificação de identidade para cada pessoa indicada na solicitação. Retorne à solicitação da empresa para concluir as tarefas restantes.
+
+      <Accordion title="Dados pessoais" icon="images">
+        <Frame caption="Iniciar a verificação de identidade">
+          <img src="/images/quickstart/start-identity-verification.webp" alt="Iniciar a verificação de identidade" />
+        </Frame>
+
+        <Frame caption="Consultar as orientações para a verificação de identidade">
+          <img src="/images/quickstart/review-identity-verification-preparation-steps.webp" alt="Consultar as orientações para a verificação de identidade" />
+        </Frame>
+
+        <Frame caption="Informar os dados pessoais">
+          <img src="/images/quickstart/enter-personal-information.webp" alt="Informar os dados pessoais" />
+        </Frame>
+      </Accordion>
+
+      <Accordion title="Documento de identidade" icon="images">
+        <Frame caption="Selecionar o tipo de documento">
+          <img src="/images/quickstart/select-a-document-type.webp" alt="Selecionar o tipo de documento" />
+        </Frame>
+
+        <Frame caption="Enviar a frente do documento">
+          <img src="/images/quickstart/upload-the-front-of-your-document.webp" alt="Enviar a frente do documento" />
+        </Frame>
+
+        <Frame caption="Conferir a foto do documento">
+          <img src="/images/quickstart/check-the-document-photo.webp" alt="Conferir a foto do documento" />
+        </Frame>
+
+        <Frame caption="Enviar o verso do documento">
+          <img src="/images/quickstart/upload-the-back-of-your-document.webp" alt="Enviar o verso do documento" />
+        </Frame>
+      </Accordion>
+
+      <Accordion title="Selfie, endereço e envio" icon="images">
+        <Frame caption="Concluir a verificação por selfie">
+          <img src="/images/quickstart/complete-selfie-verification.webp" alt="Concluir a verificação por selfie" />
+        </Frame>
+
+        <Frame caption="Informar o endereço residencial">
+          <img src="/images/quickstart/enter-your-residential-address.webp" alt="Informar o endereço residencial" />
+        </Frame>
+
+        <Frame caption="Enviar o comprovante de endereço">
+          <img src="/images/quickstart/upload-proof-of-address.webp" alt="Enviar o comprovante de endereço" />
+        </Frame>
+
+        <Frame caption="Enviar os dados para verificação de identidade">
+          <img src="/images/quickstart/submit-for-identity-verification.webp" alt="Enviar os dados para verificação de identidade" />
+        </Frame>
+      </Accordion>
+    </Step>
+    <Step title="Continuar uma solicitação existente">
+      Se o portal oferecer a opção de retomar uma sessão, use-a para continuar a solicitação existente. Siga as instruções atuais para acessar e atualizar os dados.
+
+      <Accordion title="Retomada e consulta de status" icon="images">
+        <Frame caption="Retomar uma sessão de verificação">
+          <img src="/images/quickstart/resume-an-existing-verification-session.webp" alt="Retomar uma sessão de verificação" />
+        </Frame>
+
+        <Frame caption="Informar o e-mail da sessão">
+          <img src="/images/quickstart/enter-the-session-email-address.webp" alt="Informar o e-mail da sessão" />
+        </Frame>
+
+        <Frame caption="Confirmar o código recebido por e-mail">
+          <img src="/images/quickstart/verify-the-email-verification-code.webp" alt="Confirmar o código recebido por e-mail" />
+        </Frame>
+
+        <Frame caption="Consultar o status da verificação da pessoa">
+          <img src="/images/quickstart/view-the-persons-verification-status.webp" alt="Consultar o status da verificação da pessoa" />
+        </Frame>
+      </Accordion>
+
+      <Accordion title="Atualização das pessoas relacionadas" icon="images">
+        <Frame caption="Editar os dados da pessoa">
+          <img src="/images/quickstart/edit-the-persons-details.webp" alt="Editar os dados da pessoa" />
+        </Frame>
+
+        <Frame caption="Refazer a verificação dos dados da pessoa">
+          <img src="/images/quickstart/reverify-the-persons-details.webp" alt="Refazer a verificação dos dados da pessoa" />
+        </Frame>
+
+        <Frame caption="Gerenciar as pessoas relacionadas">
+          <img src="/images/quickstart/manage-related-persons.webp" alt="Gerenciar as pessoas relacionadas" />
+        </Frame>
+      </Accordion>
+    </Step>
+    <Step title="Conferir o resultado e ativar a conta">
+      Confira o resultado da solicitação antes de configurar o acesso à API. Siga as instruções de ativação fornecidas para sua conta.
+
+      <Accordion title="Análise e ativação" icon="images">
+        <Frame caption="Consultar o status da análise">
+          <img src="/images/quickstart/view-review-status.webp" alt="Consultar o status da análise" />
+        </Frame>
+
+        <Frame caption="Consultar a mensagem de aprovação">
+          <img src="/images/quickstart/approval-message.webp" alt="Consultar a mensagem de aprovação" />
+        </Frame>
+
+        <Frame caption="Consultar o e-mail de ativação da conta">
+          <img src="/images/quickstart/account-activation-email.webp" alt="Consultar o e-mail de ativação da conta" />
+        </Frame>
+
+        <Frame caption="Definir os dados de acesso e ativar a conta">
+          <img src="/images/quickstart/set-login-credentials-and-activate-your-account.webp" alt="Definir os dados de acesso e ativar a conta" />
+        </Frame>
+      </Accordion>
+    </Step>
+  </Steps>
+</Accordion>
+
+<Accordion title="Cadastro pelo portal Banking" icon="user">
+  <Steps>
+    <Step title="Criar um usuário de acesso">
+      Abra o [portal Banking](https://banking.pagsmile.com.br/login) e selecione **Create Account**. Escolha CPF ou CNPJ e informe o número do documento.
+
+      Informe o celular e o código do país. Solicite o código por SMS e digite os seis dígitos. Defina e confirme a senha, depois selecione **Submit**.
+
+      Use pelo menos oito caracteres, incluindo um dígito, uma letra minúscula, uma maiúscula e um caractere de `!@#$%&*()`.
+
+      <Frame caption="Criar um usuário de acesso">
+        <img src="/images/quickstart/create-a-sign-in-user.png" alt="Criar um usuário de acesso" />
+      </Frame>
+    </Step>
+    <Step title="Entrar no portal">
+      Retorne à tela de acesso e informe suas credenciais. Conclua a confirmação por MFA quando ela aparecer.
+
+      <Accordion title="Capturas da tela de acesso" icon="images">
+        <Frame caption="Entrar com CPF ou celular e senha">
+          <img src="/images/quickstart/sign-in-with-your-cpf-or-mobile-number-and-passwor.png" alt="Entrar com CPF ou celular e senha" />
+        </Frame>
+
+        <Frame caption="Seguir as instruções para concluir o MFA">
+          <img src="/images/quickstart/follow-the-on-screen-instructions-to-complete-goog.png" alt="Seguir as instruções para concluir o MFA" />
+        </Frame>
+      </Accordion>
+    </Step>
+    <Step title="Enviar os dados para verificação da conta">
+      Abra **Account Verification**. Para uma conta empresarial, informe a razão social e o e-mail, depois confirme o código de verificação do e-mail.
+
+      Envie o comprovante de registro da empresa. Informe o endereço de registro e o CEP, depois envie o formulário. Para uma conta pessoal, siga o formulário apresentado.
+
+      <Frame caption="Enviar os dados para verificação da conta empresarial">
+        <img src="/images/quickstart/submit-business-account-verification-information.png" alt="Enviar os dados para verificação da conta empresarial" />
+      </Frame>
+    </Step>
+    <Step title="Conferir o resultado da análise">
+      Siga o resultado da análise apresentado pelo portal antes de configurar a API. Criar um usuário de acesso não conclui a verificação da conta.
+    </Step>
+  </Steps>
+</Accordion>
+
+## Habilitar o acesso à API
+
+Entre no [portal Banking](https://banking.pagsmile.com.br/login) e confira a conta que você usará na integração.
+
+<Steps>
+  <Step title="Configurar o MFA da conta">
+    Abra **Settings**, depois **Security**, e selecione **Set Up Account MFA**. Siga as instruções para vincular o autenticador da conta.
+
+    O MFA da conta é obrigatório para habilitar o acesso à Open API ou gerenciar chaves de API.
+
+    <Frame caption="Configurar o MFA da conta em Settings">
+      <img src="/images/quickstart/account-mfa-setup-in-settings.png" alt="Configurar o MFA da conta em Settings" />
+    </Frame>
+  </Step>
+  <Step title="Habilitar a Open API">
+    Abra **Chaves API** (**API Keys**). Em **Credenciais da conta bancária** (**Bank Account Level Credentials**), habilite **API Aberta** (**Open API**) e informe o código solicitado pelo autenticador.
+
+    O controle fica disponível para o titular de uma conta CNPJ. Se você não tiver acesso, peça à Pagsmile que confirme a configuração da conta.
+
+    <Frame caption="Informar o código do autenticador para habilitar a Open API">
+      <img src="/images/quickstart/enter-your-google-authenticator-code-to-enable-ope.png" alt="Informar o código do autenticador para habilitar a Open API" />
+    </Frame>
+  </Step>
+  <Step title="Criar e salvar suas credenciais ACCOUNT">
+    Em **Credenciais da conta bancária** (**Bank Account Level Credentials**), confira a conta selecionada e selecione **Ativar chave de acesso** (**Enable Access Key**). Conclua a confirmação por MFA.
+
+    Salve a chave de acesso (AK) e a chave secreta (SK) em local seguro. Envie a AK em `X-Client-ID`; mantenha a SK no servidor para assinar requisições. O painel mostra as chaves uma única vez. Para testar requisições nesta documentação, informe-as em [Configurar acesso à API](/pt-br/api-access-setup).
+
+    <Accordion title="Criação e armazenamento das credenciais" icon="images">
+      <Frame caption="Conferir a conta selecionada e habilitar a Access Key">
+        <img src="/images/quickstart/confirm-the-current-bank-account-and-enable-access.png" alt="Conferir a conta selecionada e habilitar a Access Key" />
+      </Frame>
+
+      <Frame caption="Salvar as credenciais da API, com as chaves completas ocultas">
+        <img src="/images/quickstart/save-api-credentials-full-keys-masked.png" alt="Salvar as credenciais da API, com as chaves completas ocultas" />
+      </Frame>
+    </Accordion>
+  </Step>
+  <Step title="Configurar a lista de permissões de IP">
+    Edite a **Lista de IPs Permitidos** (**Allow List**) da credencial e adicione o IP de saída do seu servidor de API. Conclua a confirmação solicitada.
+
+    Uma lista vazia bloqueia todas as requisições. Você pode permitir endereços IP específicos ou faixas CIDR. Para descobrir o IP público do servidor e montar a lista, use [Configurar acesso à API](/pt-br/api-access-setup).
+
+    <Frame caption="Editar a lista de permissões e confirmar a alteração">
+      <img src="/images/quickstart/edit-allow-list-and-submit-the-verification-code.png" alt="Editar a lista de permissões e confirmar a alteração" />
+    </Frame>
+  </Step>
+  <Step title="Preparar webhooks para a integração de pagamentos">
+    Na seção da credencial correspondente, selecione **Add Webhook**. Escolha a aplicação e o evento, depois configure a URL de callback e o tipo de conteúdo.
+
+    Veja [Webhooks](/pt-br/api-reference/webhooks/overview) para configurar eventos e [Verificar callbacks](/pt-br/environments-and-credentials#verificar-callbacks) para conferir a assinatura.
+
+    <Frame caption="Adicionar um webhook com aplicação, evento e URL de callback">
+      <img src="/images/quickstart/add-a-webhook-select-an-application-event-and-call.png" alt="Adicionar um webhook com aplicação, evento e URL de callback" />
+    </Frame>
+  </Step>
+</Steps>
+
+A seção **User Level Credentials (OpenVA & Onboarding)** aparece quando a funcionalidade PSP está habilitada. Confirme a disponibilidade com a Pagsmile se sua integração precisar de credenciais USER.
+
+<Accordion title="Configuração de credenciais USER" icon="images">
+  <Frame caption="Abrir a configuração de credenciais USER e webhooks">
+    <img src="/images/quickstart/entry-point-for-user-level-credentials-and-webhook.png" alt="Abrir a configuração de credenciais USER e webhooks" />
+  </Frame>
+</Accordion>
+
+## Enviar sua primeira requisição assinada
+
+Use `POST /v3/bank_account` para consultar a conta-alvo. Envie o objeto JSON vazio `{}`; o corpo da requisição não tem campos de negócio.
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a AK/SK de uma credencial ACCOUNT na primeira chamada. A credencial define a conta, por isso os exemplos abaixo omitem os cabeçalhos de seleção de conta.
+
+    Mantenha esses cabeçalhos omitidos ao executar os exemplos ACCOUNT abaixo.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Selecione uma conta do USER com `X-ISPB` e `X-Account-Number`. Inclua os dois cabeçalhos na assinatura.
+
+    Os exemplos abaixo não incluem esses cabeçalhos. Use a [ferramenta de assinatura](/pt-br/environments-and-credentials#assinar-requisições) para assinar uma requisição USER.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use credenciais ACCOUNT ou credenciais USER com uma conta autorizada.</Warning>
+  </Tab>
+</Tabs>
+
+<Steps>
+  <Step title="Escolher o ambiente e as credenciais">
+    Comece com credenciais configuradas para o Sandbox. A URL base do Sandbox é `https://ebanking-openapi-sandbox.pagsmile.com.br`.
+
+    A URL base de produção é `https://ebanking-openapi.pagsmile.com.br`. Confira o ambiente selecionado antes de enviar uma requisição.
+  </Step>
+  <Step title="Preparar o exemplo">
+    Defina `PAGSMILE_AK` e `PAGSMILE_SK` no ambiente do servidor. Os exemplos usam o Sandbox por padrão; `PAGSMILE_BASE_URL` substitui a URL base. [Configurar acesso à API](/pt-br/api-access-setup) gera essas variáveis para bash e PowerShell.
+
+    Use o ambiente de execução indicado na aba da linguagem. Não incorpore credenciais ao código do navegador, ao controle de versão ou a mensagens de suporte.
+  </Step>
+  <Step title="Assinar e enviar os mesmos bytes">
+    Assine o caminho, os cabeçalhos obrigatórios e o corpo exato da requisição com HMAC-SHA256. Não reformate o JSON depois de assinar.
+
+    Use novos `X-Nonce` e `X-Timestamp` a cada tentativa, inclusive após um erro de assinatura. Confira o IP do servidor na lista de permissões.
+
+    Use a [ferramenta de assinatura](/pt-br/environments-and-credentials#assinar-requisições) para conferir uma requisição antes de enviar.
+  </Step>
+  <Step title="Interpretar o resultado de negócio">
+    Leia `code` antes de usar `data`. Quando `code` é `200`, a consulta da conta funcionou; isso não comprova a conclusão de um pagamento.
+
+    Todo resultado de negócio em JSON retorna HTTP 200, inclusive erros. Um corpo ilegível ou JSON inválido retorna HTTP 400 com texto simples.
+
+    Veja [Dados da conta](/pt-br/api-reference/accounts/get-account-balance) para os campos retornados e [Erros de autenticação](/pt-br/api-reference/error-catalog#erros-de-autenticação) para requisições recusadas.
+
+    Inclua o cabeçalho de resposta `xxx-log-id` nas solicitações de suporte, sem sua SK nem as credenciais completas.
+  </Step>
+</Steps>
+
+Escolha uma linguagem. Cada exemplo assina e envia o mesmo corpo `{}`, inclui `X-Content-Hash` e exibe a resposta.
+
+Defina `PAGSMILE_TIMEOUT_SECONDS` como um inteiro positivo; os exemplos usam 30 segundos por padrão. No Python, o timeout vale para operações bloqueantes de socket; nos demais exemplos, limita a duração total da requisição.
+
+Falhas de conexão e timeouts são exibidos na saída de erro e encerram o programa com erro, separadamente dos resultados de negócio em JSON. Os exemplos não repetem a requisição automaticamente.
+
+<CodeGroup>
+
+```bash cURL
+# Requer curl, OpenSSL e Python 3. Exporte PAGSMILE_SK; o auxiliar HMAC lê a chave do ambiente, nunca dos argumentos de linha de comando. Defina PAGSMILE_AK e PAGSMILE_SK. PAGSMILE_BASE_URL usa o Sandbox por padrão.
+BASE_URL="${PAGSMILE_BASE_URL:-https://ebanking-openapi-sandbox.pagsmile.com.br}"
+REQ_PATH="/v3/bank_account"
+TIMEOUT_SECONDS="${PAGSMILE_TIMEOUT_SECONDS:-30}"
+case "$TIMEOUT_SECONDS" in
+  ''|*[!0-9]*|0*) echo 'PAGSMILE_TIMEOUT_SECONDS must be a positive integer' >&2; exit 1 ;;
+esac
+BODY='{}'
+
+# Assine exatamente os bytes enviados. Use novos nonce e timestamp a cada tentativa.
+TS=$(( $(date +%s) * 1000 ))
+NONCE=$(openssl rand -hex 16)
+HASH=$(printf '%s' "$BODY" | openssl dgst -sha256 -hex | sed 's/^.* //')
+STRING_TO_SIGN=$(printf 'POST\n%s\n\ncontent-type:application/json\nx-client-id:%s\nx-content-hash:%s\nx-nonce:%s\nx-timestamp:%s\n%s\n%s\n%s' \
+  "$REQ_PATH" "$PAGSMILE_AK" "$HASH" "$NONCE" "$TS" "$HASH" "$TS" "$NONCE")
+SIGNATURE=$(printf '%s' "$STRING_TO_SIGN" | python3 -c 'import hashlib, hmac, os, sys; print(hmac.new(os.environ["PAGSMILE_SK"].encode("utf-8"), sys.stdin.buffer.read(), hashlib.sha256).hexdigest())')
+
+curl -sS --connect-timeout "$TIMEOUT_SECONDS" --max-time "$TIMEOUT_SECONDS" -X POST "$BASE_URL$REQ_PATH" \
+  -H "Content-Type: application/json" \
+  -H "User-Agent: your-app/1.0" \
+  -H "X-Client-ID: $PAGSMILE_AK" \
+  -H "X-Timestamp: $TS" \
+  -H "X-Nonce: $NONCE" \
+  -H "X-Content-Hash: $HASH" \
+  -H "X-Signature: $SIGNATURE" \
+  --data-raw "$BODY"
+```
+
+```python Python
+# Defina PAGSMILE_AK e PAGSMILE_SK. PAGSMILE_BASE_URL usa o Sandbox por padrão.
+import hashlib, hmac, json, os, secrets, sys, time, urllib.error, urllib.request
+
+BASE_URL = os.environ.get("PAGSMILE_BASE_URL", "https://ebanking-openapi-sandbox.pagsmile.com.br")
+PATH = "/v3/bank_account"
+AK, SK = os.environ["PAGSMILE_AK"], os.environ["PAGSMILE_SK"]
+TIMEOUT_SECONDS = int(os.environ.get("PAGSMILE_TIMEOUT_SECONDS", "30"))
+if TIMEOUT_SECONDS <= 0:
+    sys.exit("PAGSMILE_TIMEOUT_SECONDS must be a positive integer")
+
+payload = {}
+body = json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+
+# Assine exatamente os bytes enviados. Use novos nonce e timestamp a cada tentativa.
+ts, nonce = str(int(time.time() * 1000)), secrets.token_hex(16)
+content_hash = hashlib.sha256(body).hexdigest()
+string_to_sign = "\n".join([
+    "POST", PATH, "",
+    "content-type:application/json",
+    f"x-client-id:{AK}",
+    f"x-content-hash:{content_hash}",
+    f"x-nonce:{nonce}",
+    f"x-timestamp:{ts}",
+    content_hash, ts, nonce,
+])
+signature = hmac.new(SK.encode(), string_to_sign.encode(), hashlib.sha256).hexdigest()
+
+req = urllib.request.Request(BASE_URL + PATH, data=body, method="POST", headers={
+    "Content-Type": "application/json",
+    "User-Agent": "your-app/1.0",
+    "X-Client-ID": AK,
+    "X-Timestamp": ts,
+    "X-Nonce": nonce,
+    "X-Content-Hash": content_hash,
+    "X-Signature": signature,
+})
+try:
+    with urllib.request.urlopen(req, timeout=TIMEOUT_SECONDS) as resp:
+        print(resp.read().decode("utf-8"))
+except urllib.error.HTTPError as err:
+    print(err.read().decode("utf-8"))
+except (urllib.error.URLError, TimeoutError, OSError) as err:
+    print(f"Transport failure: {err}", file=sys.stderr)
+    sys.exit(1)
+```
+
+```javascript Node.js
+// Node.js 18+. Salve como pagsmile-request.mjs e execute: node pagsmile-request.mjs.
+// Defina PAGSMILE_AK e PAGSMILE_SK. PAGSMILE_BASE_URL usa o Sandbox por padrão.
+import { createHash, createHmac, randomBytes } from "node:crypto";
+
+const BASE_URL = process.env.PAGSMILE_BASE_URL ?? "https://ebanking-openapi-sandbox.pagsmile.com.br";
+const PATH = "/v3/bank_account";
+const { PAGSMILE_AK: AK, PAGSMILE_SK: SK } = process.env;
+const TIMEOUT_SECONDS = Number(process.env.PAGSMILE_TIMEOUT_SECONDS ?? "30");
+if (!Number.isSafeInteger(TIMEOUT_SECONDS) || TIMEOUT_SECONDS <= 0) {
+  throw new Error("PAGSMILE_TIMEOUT_SECONDS must be a positive integer");
+}
+
+const body = JSON.stringify({});
+
+// Assine exatamente os bytes enviados. Use novos nonce e timestamp a cada tentativa.
+const ts = String(Date.now());
+const nonce = randomBytes(16).toString("hex");
+const contentHash = createHash("sha256").update(body, "utf8").digest("hex");
+const stringToSign = [
+  "POST", PATH, "",
+  "content-type:application/json",
+  `x-client-id:${AK}`,
+  `x-content-hash:${contentHash}`,
+  `x-nonce:${nonce}`,
+  `x-timestamp:${ts}`,
+  contentHash, ts, nonce,
+].join("\n");
+const signature = createHmac("sha256", SK).update(stringToSign, "utf8").digest("hex");
+
+try {
+  const res = await fetch(BASE_URL + PATH, {
+    method: "POST",
+    signal: AbortSignal.timeout(TIMEOUT_SECONDS * 1000),
+    headers: {
+      "Content-Type": "application/json",
+      "User-Agent": "your-app/1.0",
+      "X-Client-ID": AK,
+      "X-Timestamp": ts,
+      "X-Nonce": nonce,
+      "X-Content-Hash": contentHash,
+      "X-Signature": signature,
+    },
+    body,
+  });
+  console.log(await res.text());
+} catch (err) {
+  console.error("Transport failure:", err.message);
+  process.exitCode = 1;
+}
+```
+
+```go Go
+// Defina PAGSMILE_AK e PAGSMILE_SK. PAGSMILE_BASE_URL usa o Sandbox por padrão.
+package main
+
+import (
+	"bytes"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+)
+
+func main() {
+	baseURL := os.Getenv("PAGSMILE_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://ebanking-openapi-sandbox.pagsmile.com.br"
+	}
+	path := "/v3/bank_account"
+	ak, sk := os.Getenv("PAGSMILE_AK"), os.Getenv("PAGSMILE_SK")
+	timeoutSeconds := 30
+	if value := os.Getenv("PAGSMILE_TIMEOUT_SECONDS"); value != "" {
+		var err error
+		timeoutSeconds, err = strconv.Atoi(value)
+		if err != nil || timeoutSeconds <= 0 {
+			fmt.Fprintln(os.Stderr, "PAGSMILE_TIMEOUT_SECONDS must be a positive integer")
+			os.Exit(1)
+		}
+	}
+	client := &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second}
+
+	body := []byte(`{}`)
+
+	// Assine exatamente os bytes enviados. Use novos nonce e timestamp a cada tentativa.
+	ts := strconv.FormatInt(time.Now().UnixMilli(), 10)
+	nb := make([]byte, 16)
+	rand.Read(nb)
+	nonce := hex.EncodeToString(nb)
+	sum := sha256.Sum256(body)
+	contentHash := hex.EncodeToString(sum[:])
+	stringToSign := strings.Join([]string{
+		"POST", path, "",
+		"content-type:application/json",
+		"x-client-id:" + ak,
+		"x-content-hash:" + contentHash,
+		"x-nonce:" + nonce,
+		"x-timestamp:" + ts,
+		contentHash, ts, nonce,
+	}, "\n")
+	mac := hmac.New(sha256.New, []byte(sk))
+	mac.Write([]byte(stringToSign))
+	signature := hex.EncodeToString(mac.Sum(nil))
+
+	req, err := http.NewRequest("POST", baseURL+path, bytes.NewReader(body))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Transport failure:", err)
+		os.Exit(1)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "your-app/1.0")
+	req.Header.Set("X-Client-ID", ak)
+	req.Header.Set("X-Timestamp", ts)
+	req.Header.Set("X-Nonce", nonce)
+	req.Header.Set("X-Content-Hash", contentHash)
+	req.Header.Set("X-Signature", signature)
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Transport failure:", err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+	out, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Transport failure:", err)
+		os.Exit(1)
+	}
+	fmt.Println(string(out))
+}
+```
+
+```java Java
+// Java 17+. Defina PAGSMILE_AK e PAGSMILE_SK. PAGSMILE_BASE_URL usa o Sandbox por padrão.
+import java.net.URI;
+import java.net.http.*;
+import java.nio.charset.StandardCharsets;
+import java.security.*;
+import java.time.Duration;
+import java.util.HexFormat;
+import java.util.concurrent.TimeUnit;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
+public class PagsmileRequest {
+    public static void main(String[] args) throws Exception {
+        String baseUrl = System.getenv().getOrDefault("PAGSMILE_BASE_URL", "https://ebanking-openapi-sandbox.pagsmile.com.br");
+        String path = "/v3/bank_account";
+        String ak = System.getenv("PAGSMILE_AK"), sk = System.getenv("PAGSMILE_SK");
+        int timeoutSeconds = Integer.parseInt(System.getenv().getOrDefault("PAGSMILE_TIMEOUT_SECONDS", "30"));
+        if (timeoutSeconds <= 0) throw new IllegalArgumentException("PAGSMILE_TIMEOUT_SECONDS must be a positive integer");
+
+        byte[] body = """
+            {}""".getBytes(StandardCharsets.UTF_8);
+
+        // Assine exatamente os bytes enviados. Use novos nonce e timestamp a cada tentativa.
+        String ts = Long.toString(System.currentTimeMillis());
+        byte[] nb = new byte[16];
+        new SecureRandom().nextBytes(nb);
+        String nonce = HexFormat.of().formatHex(nb);
+        String contentHash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(body));
+        String stringToSign = String.join("\n",
+            "POST", path, "",
+            "content-type:application/json",
+            "x-client-id:" + ak,
+            "x-content-hash:" + contentHash,
+            "x-nonce:" + nonce,
+            "x-timestamp:" + ts,
+            contentHash, ts, nonce);
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(sk.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        String signature = HexFormat.of().formatHex(mac.doFinal(stringToSign.getBytes(StandardCharsets.UTF_8)));
+
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + path))
+            .timeout(Duration.ofSeconds(timeoutSeconds))
+            .header("Content-Type", "application/json")
+            .header("User-Agent", "your-app/1.0")
+            .header("X-Client-ID", ak)
+            .header("X-Timestamp", ts)
+            .header("X-Nonce", nonce)
+            .header("X-Content-Hash", contentHash)
+            .header("X-Signature", signature)
+            .POST(HttpRequest.BodyPublishers.ofByteArray(body))
+            .build();
+        HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(timeoutSeconds)).build();
+        var pending = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+        try {
+            HttpResponse<String> response = pending.get(timeoutSeconds, TimeUnit.SECONDS);
+            System.out.println(response.body());
+        } catch (Exception err) {
+            pending.cancel(true);
+            System.err.println("Transport failure: " + err);
+            System.exit(1);
+        }
+    }
+}
+```
+
+```php PHP
+<?php
+// PHP 8+ with ext-curl. Defina PAGSMILE_AK e PAGSMILE_SK. PAGSMILE_BASE_URL usa o Sandbox por padrão.
+$baseUrl = getenv('PAGSMILE_BASE_URL') ?: 'https://ebanking-openapi-sandbox.pagsmile.com.br';
+$path = '/v3/bank_account';
+$ak = getenv('PAGSMILE_AK');
+$sk = getenv('PAGSMILE_SK');
+$timeoutValue = getenv('PAGSMILE_TIMEOUT_SECONDS');
+$timeoutSeconds = filter_var($timeoutValue === false || $timeoutValue === '' ? '30' : $timeoutValue, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+if ($timeoutSeconds === false) {
+    fwrite(STDERR, "PAGSMILE_TIMEOUT_SECONDS must be a positive integer" . PHP_EOL);
+    exit(1);
+}
+
+$body = <<<'JSON'
+{}
+JSON;
+
+// Assine exatamente os bytes enviados. Use novos nonce e timestamp a cada tentativa.
+$ts = (string) (int) floor(microtime(true) * 1000);
+$nonce = bin2hex(random_bytes(16));
+$contentHash = hash('sha256', $body);
+$stringToSign = implode("\n", [
+    'POST', $path, '',
+    'content-type:application/json',
+    "x-client-id:$ak",
+    "x-content-hash:$contentHash",
+    "x-nonce:$nonce",
+    "x-timestamp:$ts",
+    $contentHash, $ts, $nonce,
+]);
+$signature = hash_hmac('sha256', $stringToSign, $sk);
+
+$ch = curl_init($baseUrl . $path);
+curl_setopt_array($ch, [
+    CURLOPT_POST => true,
+    CURLOPT_POSTFIELDS => $body,
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_CONNECTTIMEOUT => $timeoutSeconds,
+    CURLOPT_TIMEOUT => $timeoutSeconds,
+    CURLOPT_HTTPHEADER => [
+        'Content-Type: application/json',
+        'User-Agent: your-app/1.0',
+        "X-Client-ID: $ak",
+        "X-Timestamp: $ts",
+        "X-Nonce: $nonce",
+        "X-Content-Hash: $contentHash",
+        "X-Signature: $signature",
+    ],
+]);
+$response = curl_exec($ch);
+if ($response === false) {
+    fwrite(STDERR, 'Transport failure: ' . curl_error($ch) . PHP_EOL);
+    curl_close($ch);
+    exit(1);
+}
+curl_close($ch);
+echo $response, PHP_EOL;
+```
+
+</CodeGroup>

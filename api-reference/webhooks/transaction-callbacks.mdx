@@ -1,0 +1,116 @@
+---
+title: "Transaction callbacks"
+sidebarTitle: "Transaction callbacks"
+description: "Receive ACCOUNT and USER payment and refund callbacks. Read the transaction payload, verify its signature and deduplicate deliveries before processing."
+openapi: "openapi/en.json webhook transactionEvent"
+keywords: ["transaction callbacks", "ACCOUNT", "USER", "delivery_id"]
+---
+
+import { WebhookVerifier } from "/snippets/webhook-verifier.jsx";
+
+Transaction callbacks contain payment or refund details directly, without the API response envelope. USER callbacks add `delivery_id`; ACCOUNT callbacks do not.
+
+## Before you receive
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Receive events for the subscribed account. Verify the signature using the SK associated with the received `X-Client-ID`.
+
+    Use the URL-decoded callback path in the signature. Deduplicate by subscription event type and `txn_id` within the receiving account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Receive events through your shared USER subscription for eligible accounts. Verify with the SK associated with the received `X-Client-ID`.
+
+    Preserve URL escaping in the callback path used for the signature. Deduplicate by `delivery_id`, which stays the same across retries.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials do not support transaction subscriptions. Use ACCOUNT or USER credentials.</Warning>
+  </Tab>
+</Tabs>
+
+## Identify the event
+
+The subscription determines the event type. ACCOUNT subscriptions are bound to one account; USER subscriptions can receive events for multiple eligible accounts.
+
+Identify the relevant accounts from `payer` and `payee` fields `bank_code` and `bank_account`, matched against your account inventory.
+
+The body does not add a subscription `event_type` or `event_id` field.
+
+When `txn_type` is `TXN_TYPE_PAYMENT`, read a payment payload. When it is `TXN_TYPE_REFUND`, read a refund payload.
+
+The payer sends the transaction amount; the payee receives it. For a refund, these parties reverse their roles from the original payment.
+
+Enums are strings such as `TXN_STATUS_COMPLETED`, not numbers. Amounts are decimal strings in BRL; populated timestamps are Unix-millisecond strings.
+
+Unset fields are omitted rather than populated with defaults. Top-level `credit_fee` and `debit_fee` are not sent; CPF numbers can be masked.
+
+## Read the result
+
+Callback delivery is not itself proof that a payment or refund succeeded. Check `txn_status` and query details if the result is unclear.
+
+| `txn_status` | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `TXN_STATUS_COMPLETED` | Transaction completed | Recorded completion | Reconcile the transaction |
+| `TXN_STATUS_FAILED` | Transaction failed | Recorded failure | Read the rejection reason |
+| `TXN_STATUS_CANCELLED` | Transaction cancelled | Recorded cancellation | Query details if needed |
+| `TXN_STATUS_PENDING` | Pending | No completion evidence | Query transaction details |
+| `TXN_STATUS_PROCESSING` | Processing | No completion evidence | Query transaction details |
+
+Match payment callbacks using `txn_id`. For refunds, `txn_id` identifies the refund; `original_txn.txn_id` identifies its original payment.
+
+Use [payment details](/api-reference/payout/get-payment-details), [incoming transaction details](/api-reference/payin/get-transaction-details) or [refund details](/api-reference/refunds/get-refund-details) for recovery.
+
+## Verify the signature
+
+Preserve the raw body and all six callback headers. Verify SHA-256 and HMAC-SHA256 before parsing; compare signatures in constant time.
+
+Check `X-Timestamp` against your validity window. After a valid signature, atomically record the `X-Client-ID` and `X-Nonce` pair to prevent replay.
+
+The nonce has 32 lowercase hexadecimal characters. A fresh retry signature does not identify a new transaction or delivery.
+
+For a configured path `/callbacks/a%2Fb`, ACCOUNT signs `/callbacks/a/b`; USER signs `/callbacks/a%2Fb`. Preserve trailing slashes and canonicalize the query separately.
+
+Prefer an ASCII path without percent escapes, such as `/pagsmile/webhooks`. See [Verify callbacks](/environments-and-credentials#verify-callbacks) for the complete signing protocol.
+
+The tool checks the body hash, signature and nonce format, and shows the timestamp age. Your receiver must enforce freshness and replay protection.
+
+Paste the raw body, received headers, associated SK and the signature path for your scope. The calculation runs in your browser without sending or storing the SK.
+
+<Accordion title="Verify a callback you received" icon="shield-check">
+  <WebhookVerifier />
+</Accordion>
+
+## Acknowledge and process
+
+<Steps>
+  <Step title="Verify and deduplicate">
+    Validate the signature and replay checks. Find the delivery or transaction in your durable store before you schedule processing.
+  </Step>
+  <Step title="Store and acknowledge">
+    Store new events reliably, then return HTTP `200`. Return the same status for duplicates already stored.
+
+    Do not wait for business processing. A response-reading error or timeout can trigger another delivery, even after HTTP `200`.
+  </Step>
+  <Step title="Process once and recover by query">
+    Prevent repeated business effects across duplicates, subscriptions and credential scopes. Do not depend on arrival order.
+
+    Query details if an event is missing or conflicts with your stored result. See [delivery and retry rules](/api-reference/webhooks/overview#transaction-delivery-and-retries).
+  </Step>
+</Steps>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Incoming Pix callbacks" icon="arrow-down" href="/api-reference/payin/callbacks">
+    Receive incoming payment notifications.
+  </Card>
+  <Card title="Outgoing Pix callbacks" icon="arrow-up" href="/api-reference/payout/pix/callbacks">
+    Read outgoing payment results.
+  </Card>
+  <Card title="Refund callbacks" icon="rotate-left" href="/api-reference/refunds/callbacks">
+    Match refunds with their original payments.
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/api-reference/webhooks/overview">
+    Configure subscriptions and handle delivery failures.
+  </Card>
+</CardGroup>

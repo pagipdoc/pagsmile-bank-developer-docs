@@ -1,0 +1,136 @@
+---
+title: "Get account statement"
+sidebarTitle: "Statement"
+description: "Query payments, refunds and disputes for an account by initiation time. Returns statement entries, transaction statuses and a cursor for pagination."
+openapi: "openapi/en.json POST /v3/statements"
+keywords: ["/v3/statements", "account statement", "transaction history", "cursor pagination", "reconciliation"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Query an account's payments, refunds and disputes within a time range. Results are newest first; an outgoing entry alone does not prove completion.
+
+| Credentials | Idempotency | Result |
+| --- | --- | --- |
+| ACCOUNT, USER | Read-only query | Synchronous |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Query the account bound to your AK. Omit both `X-ISPB` and `X-Account-Number`, or send both with values matching that account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use ACCOUNT or USER credentials for the account you want to query.</Warning>
+  </Tab>
+</Tabs>
+
+## Choose the time range
+
+Send `start_date` and `end_date` as Unix milliseconds (UTC). Both are required and nonzero; `start_date` must be less than `end_date`.
+
+Use positive timestamps. The range includes both boundaries, but excludes entries at or after the effective `snapshot_timestamp`.
+
+The time filter uses transaction initiation time, which the response calls `created_at`. It does not filter by completion or settlement time.
+
+## Read every page
+
+<Steps>
+  <Step title="Request the first page">
+    Omit `cursor`. Set your time range and filters. `page_size` defaults to `20`; you can request from `1` to `100` entries.
+  </Step>
+  <Step title="Continue with the returned cursor">
+    Send `data.cursor` and `data.snapshot_timestamp` in the next request. Keep the account, time range and filters unchanged.
+
+    Reuse both cursor components, `timestamp` and `id`. A missing ID or nonpositive timestamp disables the cursor boundary.
+  </Step>
+  <Step title="Finish the forward scan">
+    Continue until `data.cursor` is `null`. The response does not populate `data.page` or provide page counts.
+  </Step>
+</Steps>
+
+Entries sort by initiation time descending, then transaction ID descending. The next-page cursor uses `direction` equal to `1` (FORWARD).
+
+The snapshot is a time upper bound, not a frozen result set. For recurring reconciliation, re-query an overlapping interval and deduplicate by `txn_id`.
+
+Update existing records when their status changes. Choose the overlap interval for your reconciliation process; this endpoint defines no lookback recommendation.
+
+## Understand directions and amounts
+
+With `funds_type` equal to `1` (CREDIT), you query entries where the target account is the payee and the underlying transaction is completed.
+
+With `funds_type` equal to `2` (DEBIT), you query entries where the target account is the payer, including entries that have not completed.
+
+Omitting the direction filter or sending `0` includes both groups. A completed incoming payment can display a later status, such as REFUNDED.
+
+Amounts are decimal strings in BRL, for example `"10.50"`. The endpoint does not add a negative sign to debit amounts.
+
+`is_credit` compares the payee's document number with the authenticated entity's document number. For accounts sharing a document, confirm direction from `payer` and `payee` account details.
+
+Do not sum statement amounts to calculate the account's available balance. Use the [balance endpoint](/api-reference/accounts/get-account-balance).
+
+## Read the transaction status
+
+When `code` is `200`, the query succeeded. Check the matching entry's `txn_status` and `txn_type` before treating a payment or refund as completed.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `0` UNSPECIFIED | No status supplied | No completion evidence | Query transaction details |
+| `1` PENDING | Awaiting processing | No completion evidence | Query status |
+| `2` COMPLETED | Transaction completed | This transaction completed | Match identifiers |
+| `3` FAILED | Transaction failed | Failure recorded | Review transaction details |
+| `4` CANCELLED | Transaction cancelled | Cancellation recorded | Review transaction details |
+| `5` PROCESSING | Processing underway | No completion evidence | Query status |
+| `6` REFUNDED | Payment fully refunded | Payment shows full refund | Match refund entries |
+| `7` PARTIALLY_REFUNDED | Payment partly refunded | Payment shows partial refund | Match refund entries |
+| `8` DISPUTED | Payment disputed | Dispute state only | Review linked entries |
+
+For PAYMENT entries, `txn_status` is the displayed payment status. For DISPUTE entries, pending and processing both appear as `5` (PROCESSING).
+
+Refund and dispute entries link to the original payment through `parent_txn_id` and `parent_settlement_id`.
+
+For TED, `settlement_id` stays empty until settlement is complete. An empty identifier alone does not prove failure.
+
+<Note>Match the transaction you need by its identifiers. The first entry is the newest match; do not select it automatically as your target payment.</Note>
+
+## Retries and errors
+
+<AccordionGroup>
+  <Accordion title="The query fails or times out" icon="clock-rotate-left">
+    Retry the read-only query with the same filters, cursor and snapshot. Sign each attempt with a new `X-Nonce` and `X-Timestamp`.
+
+    Invalid date bounds or `page_size` return business code `4001`. Correct the request before you retry.
+  </Accordion>
+  <Accordion title="The transaction type is rejected" icon="filter">
+    Use `0` for all supported types, `1` for PAYMENT, `2` for REFUND or `6` for DISPUTE. Other values return `400` with `txn_type is invalid`.
+  </Accordion>
+  <Accordion title="You need help with a query" icon="life-ring">
+    Include the response's `xxx-log-id`, business `code` and `message` in your support request. See the [error catalog](/api-reference/error-catalog).
+  </Accordion>
+</AccordionGroup>
+
+## Try it in the Playground
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/statements" body={{ start_date: 1791724800000, end_date: 1791811200000, page_size: 20 }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Get account balance" icon="wallet" href="/api-reference/accounts/get-account-balance">
+    Read balances for the target account.
+  </Card>
+  <Card title="Get payment details" icon="receipt" href="/api-reference/payout/get-payment-details">
+    Inspect the payment matching your transaction ID.
+  </Card>
+  <Card title="Get refund details" icon="rotate-left" href="/api-reference/refunds/get-refund-details">
+    Inspect a refund and its original payment.
+  </Card>
+  <Card title="Reconciliation" icon="scale-balanced" href="/api-reference/reconciliation">
+    Match transactions, callbacks and statement entries.
+  </Card>
+</CardGroup>

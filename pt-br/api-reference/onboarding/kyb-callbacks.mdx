@@ -1,0 +1,113 @@
+---
+title: "Receber callbacks KYB"
+sidebarTitle: "Callbacks KYB"
+description: "Receba atualizações de conformidade assinadas para contas gerenciadas. Verifique o callback, deduplique entregas e consulte a conta antes de considerá-la ativa."
+openapi: "openapi/pt-br.json webhook kybStatusChanged"
+keywords: ["VA_ACCOUNT_KYB", "KYB", "conta gerenciada", "callback de conformidade"]
+---
+
+import { WebhookVerifier } from "/snippets/webhook-verifier.jsx";
+
+Os callbacks KYB informam você sobre os resultados de conformidade das contas gerenciadas. Um resultado de conformidade `APPROVED`, por si só, não comprova que a conta está ACTIVE.
+
+## Antes de receber callbacks
+
+<Tabs>
+  <Tab title="USER" icon="user">
+    Crie uma [assinatura de eventos](/pt-br/api-reference/webhooks/create-event-subscription) ativa para `VA_ACCOUNT_KYB` com o USER titular. Configure uma URL de callback e uma credencial de assinatura.
+
+    O campo `user_id` do callback identifica o titular da assinatura de eventos. `subject_type` identifica o modelo: `VA_MOR`, `VA` ou `PA`.
+  </Tab>
+  <Tab title="ACCOUNT" icon="building-columns">
+    <Warning>Assinaturas de eventos de titularidade ACCOUNT não recebem eventos KYB de contas gerenciadas. Crie a assinatura de eventos com a credencial do USER titular.</Warning>
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM não é o titular da assinatura de eventos para `VA_ACCOUNT_KYB`. Use o USER titular da conta gerenciada.</Warning>
+  </Tab>
+</Tabs>
+
+A criação de MOR reutiliza dados de conformidade aprovados, sem iniciar uma nova análise. Não espere um novo callback de resultado KYB apenas por criar uma conta MOR.
+
+Um callback é agendado quando a sessão de conformidade atual aceita uma atualização de resultado. Eventos de resultado duplicados e transições desatualizadas recusadas não geram novas entregas.
+
+## Interpretar o resultado de conformidade
+
+O corpo contém um evento JSON, sem o envelope de resposta da API. Seu `status` é uma string de conformidade, não o status numérico da conta gerenciada.
+
+| `status` | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `PENDING` | Aguardando processamento | Ainda não há aprovação | Consulte os detalhes da conta |
+| `PENDING_SUBMISSION` | Aguardando envio pelo solicitante | O envio ainda é necessário | Conclua o envio pelo link |
+| `REVIEWING` | Análise em andamento | Ainda não há resultado final | Consulte os detalhes da conta |
+| `APPROVED` | Conformidade aprovada | Análise aprovada, não ativação da conta | Consulte os detalhes da conta |
+| `FORCE_APPROVED` | Conformidade aprovada por intervenção | Aprovação, não ativação da conta | Consulte os detalhes da conta |
+| `REJECTED` | Conformidade rejeitada | A análise não foi aprovada | Leia o motivo da falha |
+| `EXPIRED` | Sessão de conformidade expirada | A sessão expirou | Consulte detalhes e contate o suporte |
+| `CREATION_FAILED` | Falha na criação da sessão | A criação falhou | Leia o motivo da falha |
+| `ERROR` | Falha no processamento de conformidade | Erro de processamento | Leia o motivo da falha |
+
+`result_code` é um código público de resultado separado. Por exemplo, `READY_FOR_REVIEW` e `RESUBMIT_REQUIRED` são códigos de resultado, não valores de status do callback.
+
+Após uma aprovação, [consulte os detalhes da conta gerenciada](/pt-br/api-reference/onboarding/get-managed-account). Confirme uma conta cujo `status` é `2` (ACTIVE) e confira seus dados bancários.
+
+## Verificar e confirmar o recebimento
+
+<Steps>
+  <Step title="Preservar e verificar a requisição">
+    Preserve os bytes brutos do corpo antes de interpretar o JSON. Leia `Content-Type`, `X-Client-ID`, `X-Timestamp`, `X-Nonce`, `X-Content-Hash` e `X-Signature`.
+
+    Selecione a SK associada a `X-Client-ID`. Confira o timestamp em relação à sua janela de validade e recalcule o SHA-256 do corpo bruto.
+
+    Monte a StringToSign do callback e compare a assinatura HMAC-SHA256 em tempo constante. Siga [Verificar callbacks](/pt-br/environments-and-credentials#verificar-callbacks).
+
+    Callbacks KYB preservam a codificação URL no caminho da assinatura. Use `/hooks/%2Fkyb` sem alterações se esse for o caminho recebido; não decodifique `%2F`.
+  </Step>
+  <Step title="Impedir replay e processamento duplicado">
+    Após verificar a assinatura, registre a AK e o nonce de forma atômica para impedir replay. Deduplique o processamento do evento com `delivery_id`.
+
+    O nonce é exclusivo da tentativa; `delivery_id` permanece estável para o evento e a assinatura de eventos. Uma nova tentativa pode trazer outra assinatura.
+  </Step>
+  <Step title="Persistir o evento e retornar HTTP 200">
+    Preserve o evento verificado para processamento e retorne HTTP 200. O corpo da resposta não determina a confirmação de recebimento.
+
+    Processe o evento de forma assíncrona. A confirmação indica recebimento, não a conclusão do seu processamento de negócio.
+  </Step>
+  <Step title="Atualizar o estado da conta">
+    Atualize o registro de conformidade da sessão correspondente a `session_id`. Consulte os detalhes da conta antes de liberar seu uso.
+
+    Use os detalhes atuais da conta, sem presumir que os callbacks chegam na ordem do ciclo de vida. Eventos repetidos ou atrasados não devem sobrescrever estados mais recentes.
+  </Step>
+</Steps>
+
+## Novas tentativas e recuperação
+
+A Pagsmile repete entregas com falhas de transporte ou respostas diferentes de HTTP 200. Cada entrega permite no máximo oito tentativas HTTP, incluindo a inicial; uma entrega pode ter um limite menor.
+
+Os intervalos entre tentativas são de 5, 10, 20, 30, 60, 120 e 240 segundos, nessa ordem. As tentativas reutilizam os bytes do corpo armazenado. As novas tentativas automáticas param quando a entrega atinge seu limite de tentativas.
+
+Uma entrega pendente é cancelada se a assinatura de eventos estiver inativa ou não corresponder mais à configuração selecionada. Mantenha a assinatura de eventos e a credencial de assinatura válidas.
+
+Se você não receber um callback, [consulte os detalhes da conta](/pt-br/api-reference/onboarding/get-managed-account) para recuperar o estado atual. Confira a URL, o status da assinatura de eventos e os dados usados na verificação. Contate o suporte se a falha de entrega continuar sem solução.
+
+## Verificar um callback recebido
+
+<Accordion title="Verificar um callback recebido" icon="shield-check">
+  <WebhookVerifier lang="pt" />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar conta gerenciada" icon="magnifying-glass" href="/pt-br/api-reference/onboarding/get-managed-account">
+    Confirme o status atual da conta após uma atualização de conformidade.
+  </Card>
+  <Card title="Criar assinatura de eventos" icon="bell" href="/pt-br/api-reference/webhooks/create-event-subscription">
+    Configure o recebimento de eventos KYB de contas gerenciadas com credenciais USER.
+  </Card>
+  <Card title="Visão geral do onboarding" icon="building-columns" href="/pt-br/api-reference/onboarding/overview">
+    Siga o fluxo de abertura de contas gerenciadas.
+  </Card>
+  <Card title="Verificar callbacks" icon="shield-check" href="/pt-br/environments-and-credentials#verificar-callbacks">
+    Use o protocolo de assinatura de callbacks e as verificações contra replay.
+  </Card>
+</CardGroup>

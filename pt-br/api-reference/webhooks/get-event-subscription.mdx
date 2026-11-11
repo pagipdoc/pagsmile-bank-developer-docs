@@ -1,0 +1,82 @@
+---
+title: "Consultar assinatura de eventos"
+sidebarTitle: "Consultar assinatura"
+description: "Consulte uma assinatura de callback por ID ou evento no escopo da sua credencial. Retorna a URL configurada, o status de ativação e o horário de criação."
+openapi: "openapi/pt-br.json POST /v3/webhooks/get"
+keywords: ["/v3/webhooks/get", "webhook", "callback", "subscription"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Consulte uma assinatura de webhook por ID ou evento. Confira o nome do evento retornado ao selecionar por ID, pois o seletor de evento não é uma verificação adicional.
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a conta vinculada à sua credencial. Os eventos de `1` a `5` são permitidos; o evento `6` é rejeitado.
+
+    Você pode omitir `X-ISPB` e `X-Account-Number`. Se enviar esses cabeçalhos, informe ambos com os dados da conta vinculada e inclua-os na assinatura.
+
+    Se informar `account_number` no corpo da requisição, use o número da conta vinculada. Outra conta retorna `4004003`.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Use os eventos de `1` a `5`. Para eventos de transações (`1` a `4`), informe `account_number` no corpo da requisição e preserve os zeros à esquerda.
+
+    Esse número é obrigatório na validação, mas não cria uma assinatura específica da conta. Para o evento `5`, omita-o ou envie uma string vazia.
+
+    Omita `X-ISPB` e `X-Account-Number`, inclusive cabeçalhos vazios.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    Use o evento `6` (MASTER_ACCOUNT_KYB). Omita `account_number` ou envie uma string vazia.
+
+    Omita `X-ISPB` e `X-Account-Number`, inclusive cabeçalhos vazios.
+  </Tab>
+</Tabs>
+
+Assine o corpo exato que você envia. Veja [Assinar requisições](/pt-br/environments-and-credentials#assinar-requisições).
+
+## Selecionar a assinatura
+
+Sem `subscription_id`, a seleção usa o titular da credencial, a aplicação e o evento. Com ACCOUNT, também usa a conta vinculada.
+
+Com `subscription_id`, a seleção usa o ID e o titular autenticado. Ela não verifica também o evento informado ou a aplicação.
+
+Envie sempre `event_type`, mesmo ao selecionar por ID. Com USER, envie também `account_number` para eventos de transações (`1` a `4`). Use o ID de `webhook_id` de uma resposta anterior.
+
+## Conferir a configuração
+
+Confira o nome do evento e a URL de callback retornados antes de alterar a assinatura. Uma consulta USER não filtra pelo número da conta no corpo.
+
+Quando nenhuma assinatura é encontrada, a resposta tem `code` igual a `4004004` (Not found) e `data` igual a `null`.
+
+Use `webhook_id` como ID nas próximas requisições. Os campos de compatibilidade `account_number`, `subscription_id` e `suspend_reason` retornam strings vazias.
+
+## Interpretar o resultado
+
+Os resultados de negócio em JSON retornam HTTP 200. Leia `code` antes de usar `data`; JSON inválido retorna HTTP 400 com texto simples.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `0` UNSPECIFIED | Status indisponível | Nenhuma evidência de ativação | Consulte a assinatura |
+| `1` ACTIVE | Assinatura habilitada | Configuração ativa | Verifique os callbacks recebidos |
+| `2` INACTIVE | Assinatura desabilitada | Configuração inativa | Atualize para reativar |
+
+ACTIVE não comprova a entrega de callbacks nem a conclusão de pagamentos. Veja [Tratamento de webhooks](/pt-br/api-reference/webhooks/overview).
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner scope="owner" lang="pt" method="POST" path="/v3/webhooks/get" body={{"event_type": 1, "account_number": "00000001"}} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Atualizar assinatura de eventos" icon="pen-to-square" href="/pt-br/api-reference/webhooks/update-event-subscription">
+    Altere a URL ou o status de ativação.
+  </Card>
+  <Card title="Desativar assinatura de eventos" icon="ban" href="/pt-br/api-reference/webhooks/deactivate-event-subscription">
+    Desative uma assinatura sem excluí-la.
+  </Card>
+</CardGroup>

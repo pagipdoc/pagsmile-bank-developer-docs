@@ -1,0 +1,91 @@
+---
+title: "Get transaction details"
+sidebarTitle: "Transaction details"
+description: "Look up a completed incoming Pix payment by transaction or settlement ID. Returns the amount, transaction status and payer and payee details."
+openapi: "openapi/en.json POST /v3/charges/details"
+keywords: ["/v3/charges/details", "incoming Pix", "transaction details", "settlement ID"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Returns details for a completed Pix payment. A missing result does not prove payment failure: this endpoint also hides transactions that have not completed.
+
+| Credentials | Idempotency | Result |
+| --- | --- | --- |
+| ACCOUNT, USER | Read-only lookup | Synchronous |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the credential bound to the account you want to query. Omit both `X-ISPB` and `X-Account-Number`, or send both matching that account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use an ACCOUNT or USER credential for the account you want to query.</Warning>
+  </Tab>
+</Tabs>
+
+The target account must participate in the transaction as payer or payee. For a received payment, confirm that the returned payee matches your receiving account.
+
+## Choose the lookup identifier
+
+Send `txn_id` or `settlement_id`. If you send both, `txn_id` takes precedence, without cross-checking or falling back to `settlement_id`.
+
+Use `txn_id` from a [pay-in callback](/api-reference/payin/callbacks) or the matching [statement entry](/api-reference/accounts/get-account-statement). The callback's `settlement_txn_id` maps to this request's `settlement_id`.
+
+If both identifiers are empty, the response returns `4000` with the message `Field txn_id or settlement_id is required`.
+
+## Read the result
+
+Read `code` before `data`. When `code` is `200`, the query returned details for a completed transaction record.
+
+The displayed `txn_status` can reflect a later refund or dispute, even though the original payment completed.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `2` COMPLETED | Payment completed | Receipt for matching payee | Match the account entry |
+| `6` REFUNDED | Payment fully refunded | Original receipt, later refund | Reconcile the refund |
+| `7` PARTIALLY_REFUNDED | Payment partly refunded | Original receipt, partial refund | Reconcile the remaining amount |
+| `8` DISPUTED | Payment under dispute | Receipt with a dispute | Review dispute records |
+
+For receipt confirmation, match the payee, amount and identifiers to the expected payment. A successful lookup alone does not prove the current available balance.
+
+The `merchant_order_id` comes from the associated QR code. It can be empty for payments without that order reference.
+
+<Note>The details response leaves its timestamps at `0` and its `pix_details` and `ted_details` at `null`. These defaults do not mean the payment is incomplete.</Note>
+
+## Missing details and retries
+
+When `code` is `4003003`, the transaction was not found or has not completed. Do not mark the order failed from this response alone.
+
+Keep the order unconfirmed until a verified callback or matching statement entry confirms receipt. You can repeat this lookup with the same identifier after a timeout.
+
+Sign each attempt with a new `X-Nonce` and `X-Timestamp`. Include the response header `xxx-log-id` when you request support for a query error.
+
+## Try it in the Playground
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/charges/details" body={{ txn_id: "PIX-IN-001" }} />
+</Accordion>
+
+The signer uses your AK in `X-Client-ID` and your SK for local HMAC-SHA256 signing. Sign the exact body and account headers you send.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Pay-in callbacks" icon="bell" href="/api-reference/payin/callbacks">
+    Verify a received payment notification.
+  </Card>
+  <Card title="Account statement" icon="list" href="/api-reference/accounts/get-account-statement">
+    Match the payment to its account entry.
+  </Card>
+  <Card title="QR code details" icon="qrcode" href="/api-reference/payin/get-qr-code-details">
+    Check the QR code associated with an order.
+  </Card>
+  <Card title="Reconciliation" icon="scale-balanced" href="/api-reference/reconciliation">
+    Compare receipts, callbacks and statement entries.
+  </Card>
+</CardGroup>

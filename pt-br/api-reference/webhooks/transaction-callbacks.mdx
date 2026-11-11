@@ -1,0 +1,116 @@
+---
+title: "Callbacks de transações"
+sidebarTitle: "Callbacks de transações"
+description: "Receba callbacks ACCOUNT e USER de pagamentos e devoluções. Consulte os dados da transação, valide a assinatura e deduplique as entregas antes de processar."
+openapi: "openapi/pt-br.json webhook transactionEvent"
+keywords: ["callbacks de transações", "ACCOUNT", "USER", "delivery_id"]
+---
+
+import { WebhookVerifier } from "/snippets/webhook-verifier.jsx";
+
+Callbacks de transações contêm os dados do pagamento ou da devolução diretamente, sem o envelope de resposta da API. Callbacks USER acrescentam `delivery_id`; ACCOUNT não.
+
+## Antes de receber
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Receba eventos da conta vinculada à assinatura de eventos. Verifique a assinatura com a SK associada ao `X-Client-ID` recebido.
+
+    Use o caminho do callback com escapes de URL decodificados na assinatura. Deduplique por tipo de evento e `txn_id`, no escopo da conta destinatária.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Receba eventos de contas elegíveis pela sua assinatura de eventos USER compartilhada. Verifique com a SK associada ao `X-Client-ID` recebido.
+
+    Preserve os escapes de URL no caminho usado na assinatura. Deduplique por `delivery_id`, que permanece igual nas novas tentativas.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não permitem assinaturas de eventos de transações. Use credenciais ACCOUNT ou USER.</Warning>
+  </Tab>
+</Tabs>
+
+## Identificar o evento
+
+A assinatura de eventos determina o tipo de evento. Assinaturas ACCOUNT são vinculadas a uma conta; assinaturas USER podem receber eventos de várias contas elegíveis.
+
+Identifique as contas envolvidas pelos campos `bank_code` e `bank_account` de `payer` e `payee`, comparando-os com seu cadastro de contas.
+
+O corpo não acrescenta os campos `event_type` ou `event_id` da assinatura de eventos.
+
+Quando `txn_type` é `TXN_TYPE_PAYMENT`, leia os dados de um pagamento. Quando é `TXN_TYPE_REFUND`, leia os dados de uma devolução.
+
+O pagador envia o montante da transação; o recebedor recebe esse montante. Em uma devolução, essas partes invertem os papéis do pagamento original.
+
+Os enums são strings como `TXN_STATUS_COMPLETED`, não números. Os montantes são strings decimais em BRL. Timestamps preenchidos são strings em milissegundos Unix.
+
+Campos não preenchidos são omitidos, sem valores padrão. `credit_fee` e `debit_fee` não são enviados no nível principal; números de CPF podem estar mascarados.
+
+## Interpretar o resultado
+
+A entrega do callback não comprova, por si só, que o pagamento ou a devolução foi concluído. Confira `txn_status` e consulte os detalhes se houver dúvida.
+
+| `txn_status` | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `TXN_STATUS_COMPLETED` | Transação concluída | Conclusão registrada | Concilie a transação |
+| `TXN_STATUS_FAILED` | Transação falhou | Falha registrada | Leia o motivo da rejeição |
+| `TXN_STATUS_CANCELLED` | Transação cancelada | Cancelamento registrado | Consulte detalhes se necessário |
+| `TXN_STATUS_PENDING` | Pendente | Não comprova conclusão | Consulte os detalhes atuais |
+| `TXN_STATUS_PROCESSING` | Em processamento | Não comprova conclusão | Consulte os detalhes atuais |
+
+Relacione callbacks de pagamentos por `txn_id`. Em devoluções, `txn_id` identifica a devolução; `original_txn.txn_id` identifica o pagamento original.
+
+Use [detalhes do pagamento](/pt-br/api-reference/payout/get-payment-details), [detalhes da transação recebida](/pt-br/api-reference/payin/get-transaction-details) ou [detalhes da devolução](/pt-br/api-reference/refunds/get-refund-details) para recuperar informações.
+
+## Verificar a assinatura
+
+Preserve o corpo bruto e os seis cabeçalhos do callback. Verifique SHA-256 e HMAC-SHA256 antes de interpretar o JSON; compare assinaturas em tempo constante.
+
+Valide `X-Timestamp` conforme sua janela de validade. Após uma assinatura válida, registre atomicamente o par `X-Client-ID` e `X-Nonce` para impedir replays.
+
+O nonce tem 32 caracteres hexadecimais minúsculos. Uma assinatura gerada para uma nova tentativa de entrega não identifica uma nova transação ou entrega.
+
+Para o caminho configurado `/callbacks/a%2Fb`, ACCOUNT assina `/callbacks/a/b`; USER assina `/callbacks/a%2Fb`. Preserve barras finais e normalize a query string separadamente.
+
+Prefira um caminho ASCII sem escapes percentuais, como `/pagsmile/webhooks`. Consulte [Verificar callbacks](/pt-br/environments-and-credentials#verificar-callbacks) para o protocolo completo de assinatura.
+
+A ferramenta verifica o hash do corpo, a assinatura e o formato do nonce, além de mostrar a idade do timestamp. Seu receptor deve rejeitar timestamps fora da janela de validade e impedir replays.
+
+Cole o corpo bruto, os cabeçalhos recebidos, a SK associada e o caminho usado na assinatura do seu escopo. O cálculo ocorre no navegador, sem enviar nem armazenar a SK.
+
+<Accordion title="Verificar um callback recebido" icon="shield-check">
+  <WebhookVerifier lang="pt" />
+</Accordion>
+
+## Confirmar o recebimento e processar
+
+<Steps>
+  <Step title="Verificar e deduplicar">
+    Valide a assinatura e as verificações de replay. Procure a entrega ou transação no armazenamento persistente antes de agendar o processamento.
+  </Step>
+  <Step title="Salvar e confirmar o recebimento">
+    Salve novos eventos de forma confiável e retorne HTTP `200`. Retorne o mesmo status para duplicidades já salvas.
+
+    Não aguarde o processamento. Um erro de leitura da resposta ou timeout pode gerar outra entrega, mesmo após HTTP `200`.
+  </Step>
+  <Step title="Processar uma vez e recuperar por consulta">
+    Impeça efeitos duplicados entre entregas, assinaturas de eventos e escopos de credenciais. Não dependa da ordem de chegada.
+
+    Consulte os detalhes se faltar um evento ou ele divergir do resultado salvo. Veja as [regras de entrega e novas tentativas](/pt-br/api-reference/webhooks/overview#entrega-de-transações-e-novas-tentativas).
+  </Step>
+</Steps>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Callbacks de recebimentos Pix" icon="arrow-down" href="/pt-br/api-reference/payin/callbacks">
+    Receba notificações de pagamentos recebidos.
+  </Card>
+  <Card title="Callbacks de pagamentos Pix" icon="arrow-up" href="/pt-br/api-reference/payout/pix/callbacks">
+    Consulte resultados de pagamentos enviados.
+  </Card>
+  <Card title="Callbacks de devoluções" icon="rotate-left" href="/pt-br/api-reference/refunds/callbacks">
+    Relacione devoluções com seus pagamentos originais.
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/pt-br/api-reference/webhooks/overview">
+    Configure assinaturas de eventos e trate falhas de entrega.
+  </Card>
+</CardGroup>

@@ -1,0 +1,120 @@
+---
+title: "Visão geral dos recebimentos Pix"
+sidebarTitle: "Visão geral"
+description: "Receba Pix por QR Code dinâmico, estático ou chave vinculada à conta. Acompanhe callbacks, consulte os pagamentos e concilie cada recebimento com o extrato."
+keywords: ["recebimento Pix", "QR Code dinâmico", "QR Code estático", "conciliação"]
+---
+
+Receba Pix na sua conta por QR Code ou chave Pix ACTIVE. Confirme cada pagamento separadamente; gerar um QR Code não comprova o recebimento.
+
+## Como funciona um recebimento Pix
+
+<Steps>
+  <Step title="Gerar QR Code dinâmico ou estático">
+    Você solicita um QR Code dinâmico ou estático à Pagsmile Open API.
+  </Step>
+  <Step title="Payload de pagamento e `qr_code_id`">
+    A Pagsmile Open API retorna o payload de pagamento e o `qr_code_id` para você.
+  </Step>
+  <Step title="Compartilhar QR Code">
+    Você compartilha o QR Code com o pagador.
+  </Step>
+  <Step title="Pagar Pix pelo aplicativo bancário">
+    O pagador envia o pagamento Pix para sua conta recebedora pelo aplicativo bancário.
+  </Step>
+  <Step title="Callback de recebimento">
+    A Pagsmile Open API envia o callback de recebimento para você.
+  </Step>
+  <Step title="Consultar detalhes da transação">
+    Você solicita os detalhes da transação à Pagsmile Open API.
+  </Step>
+  <Step title="Dados do pagamento registrado">
+    A Pagsmile Open API retorna os dados do pagamento registrado para você.
+  </Step>
+</Steps>
+
+Use uma conta recebedora ativa e uma chave Pix ACTIVE registrada nela. A geração é bloqueada quando a conta não permite recebimentos ou tem encerramento em andamento.
+
+Salve `qr_code_id` e `merchant_order_id` retornados. O pedido identifica a geração do QR Code, não um pagamento individual.
+
+Processe o [callback de recebimento](/pt-br/api-reference/payin/callbacks) e consulte os [detalhes da transação](/pt-br/api-reference/payin/get-transaction-details). Concilie o pagamento com o [extrato da conta](/pt-br/api-reference/accounts/get-account-statement).
+
+## Escolher a forma de recebimento
+
+| Forma | Valor | Validade |
+| --- | --- | --- |
+| QR Code dinâmico | Valor obrigatório em BRL | Prazo em segundos; padrão `7200` |
+| QR Code estático | Sem valor fixo | Não configurada por este endpoint |
+| Chave Pix | Pagador informa os dados do pagamento | Sem requisição de geração |
+
+Na geração dinâmica, você pode incluir os dados do pagador quando `payer_verify` é `true`. Informe nome e documento juntos ou omita ambos.
+
+Use o [endpoint de QR Code estático](/pt-br/api-reference/payin/generate-static-qr-code) para gerar um QR Code reutilizável. Ele exige uma chave EVP, com `pix_key_type` igual a `5`.
+
+Para pagamento direto por chave, compartilhe uma chave ACTIVE da sua conta recebedora. Consulte [Chaves Pix](/pt-br/api-reference/pix-keys/overview) para conhecer os tipos e o cadastro.
+
+## Operações da API
+
+Os quatro endpoints usam `POST` com corpo JSON.
+
+| Endpoint | O que faz |
+| --- | --- |
+| [Gerar QR Code dinâmico](/pt-br/api-reference/payin/generate-dynamic-qr-code) | Cria um QR Code com valor e prazo de validade. |
+| [Gerar QR Code estático](/pt-br/api-reference/payin/generate-static-qr-code) | Cria um QR Code reutilizável sem valor fixo. |
+| [Consultar detalhes do QR Code](/pt-br/api-reference/payin/get-qr-code-details) | Consulta o QR Code e o pagamento associado mais recente. |
+| [Consultar detalhes da transação](/pt-br/api-reference/payin/get-transaction-details) | Consulta um recebimento individual. |
+
+## Interpretar as evidências do pagamento
+
+Leia o `code` de negócio antes de `data`. Todos os resultados de negócio em JSON retornam HTTP `200`, inclusive erros; sucesso HTTP não confirma recebimento.
+
+Os detalhes do QR Code mostram `is_paid` e podem conter uma transação em `last_txn`. Esses sinais são distintos do resultado da geração.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `code` da geração é `200` | QR Code gerado | Criação concluída, não pagamento | Aguarde evidências do pagamento |
+| `is_paid` é `false` | Sem pagamento concluído confirmado aqui | Nada sobre falha no pagamento | Consulte detalhes e extrato |
+| `is_paid` é `true` | Pagamento concluído e transação registrados | Existe um pagamento correspondente | Concilie essa transação |
+
+`is_paid` é `true` somente quando o status registrado do pagamento do QR Code é COMPLETED e `last_txn` está presente. Não conta pagamentos nem soma recebimentos.
+
+Use `last_txn.txn_id` ou `last_txn.settlement_id` para consultar o pagamento individual. Os detalhes do QR Code não substituem os detalhes do pagamento nem o extrato.
+
+## Resultados ausentes e novas tentativas
+
+<AccordionGroup>
+  <Accordion title="A resposta da geração foi perdida" icon="clock-rotate-left">
+    Consulte os detalhes do QR Code se você salvou `qr_code_id`. Caso contrário, preserve o ID do pedido, a conta e o horário e contate o suporte.
+
+    A geração dinâmica rejeita um `merchant_order_id` já reservado. Uma nova tentativa não retorna o QR Code original como sucesso idempotente.
+  </Accordion>
+  <Accordion title="O pagador informa que pagou, mas o callback não chegou" icon="bell">
+    Consulte o pagamento com um identificador de transação ou liquidação disponível. Compare o valor e a conta recebedora com seus registros e o extrato.
+
+    Os detalhes de recebimento só são retornados para transações concluídas. Um resultado de transação não localizada não comprova, por si só, falha no pagamento.
+
+    A ausência de callback ou uma captura de tela do cliente não comprova o resultado do pagamento. Evite entregas em duplicidade até confirmar o recebimento correspondente.
+  </Accordion>
+  <Accordion title="Os detalhes do QR Code mostram um pagamento" icon="magnifying-glass">
+    Trate `last_txn` como uma transação associada. Para um QR Code reutilizável, registre cada pagamento separadamente; não use `last_txn` como total.
+  </Accordion>
+</AccordionGroup>
+
+Ao solicitar suporte, informe ambiente, conta, ID do pedido, IDs disponíveis de QR Code e transação, valor, fuso horário e `xxx-log-id`. Nunca compartilhe sua SK.
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Callbacks de recebimento" icon="bell" href="/pt-br/api-reference/payin/callbacks">
+    Processe as notificações de recebimento.
+  </Card>
+  <Card title="Extrato da conta" icon="list" href="/pt-br/api-reference/accounts/get-account-statement">
+    Relacione cada recebimento a um lançamento.
+  </Card>
+  <Card title="Criar chave Pix" icon="key" href="/pt-br/api-reference/pix-keys/create-pix-key">
+    Cadastre uma chave de recebimento na conta.
+  </Card>
+  <Card title="Conciliação" icon="scale-balanced" href="/pt-br/api-reference/reconciliation">
+    Compare transações, callbacks e lançamentos do extrato.
+  </Card>
+</CardGroup>

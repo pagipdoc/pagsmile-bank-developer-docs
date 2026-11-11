@@ -1,0 +1,202 @@
+---
+title: "Visão geral da referência da API"
+sidebarTitle: "Visão geral"
+description: "Encontre os endpoints da Pagsmile Open API para contas, Pix, TED, devoluções, MED e webhooks. Entenda as respostas e escolha as credenciais adequadas."
+keywords: ["referência da API", "envelope de resposta", "credenciais", "paginação", "Pix"]
+---
+
+Use a Pagsmile Open API para gerenciar contas, receber Pix e enviar pagamentos. Leia `code` antes de `data`: HTTP `200` não comprova a conclusão de um pagamento ou de uma devolução.
+
+## Contrato de requisições e respostas
+
+Chame todos os endpoints v3 com `POST` e um corpo JSON. Envie `Content-Type: application/json`, inclusive quando o endpoint exigir um objeto vazio, como `{}` para `/v3/bank_account`.
+
+Envie um `User-Agent` descritivo, como `your-app/1.0`. A borda da rede pode recusar um valor ausente ou padrão de biblioteca com HTTP 403 antes de a API ler a requisição.
+
+Escolha a URL base e assine a requisição conforme [Ambientes e credenciais](/pt-br/environments-and-credentials#assinar-requisições).
+
+| Ambiente | URL base |
+| --- | --- |
+| Sandbox | `https://ebanking-openapi-sandbox.pagsmile.com.br` |
+| Produção | `https://ebanking-openapi.pagsmile.com.br` |
+
+Os resultados JSON usam o envelope `{code, message, data, time}`.
+
+| Campo | Como interpretar |
+| --- | --- |
+| `code` | Código inteiro do resultado de negócio. `200` indica sucesso na chamada; os demais códigos descrevem erros. |
+| `message` | Mensagem do resultado. Use `code` para decidir como tratar o erro. |
+| `data` | Resultado específico do endpoint. Consulte o schema e as regras de status antes de agir. |
+| `time` | Horário do servidor como inteiro em milissegundos Unix. |
+
+Todos os resultados JSON retornam HTTP `200`, inclusive erros de validação, autenticação, negócio e sistema. Um `code` de `400` ou `500` não é o status HTTP.
+
+Corpos que não podem ser lidos e JSON inválido retornam HTTP `400` com corpo `text/plain`. Trate esses erros de transporte separadamente do envelope JSON.
+
+Uma falha inesperada do servidor pode retornar HTTP `500` com corpo `text/plain`, como `system error`. Não interprete esse corpo como o envelope JSON. Em operações que movimentam recursos, consulte o resultado original antes de reenviar.
+
+Guarde o cabeçalho de resposta `xxx-log-id` e informe-o ao entrar em contato com o suporte.
+
+## Antes de chamar
+
+Escolha as credenciais conforme a família do endpoint. Os cabeçalhos de seleção de conta só selecionam uma conta quando o endpoint os aceita.
+
+| Família de endpoints | Credenciais | Seleção de conta |
+| --- | --- | --- |
+| Onboarding de contas gerenciadas | USER | Omita os cabeçalhos de seleção de conta. |
+| Contas, chaves Pix, recebimentos, pagamentos, devoluções e MED | ACCOUNT ou USER | Conta vinculada ou conta pertencente ao USER. |
+| Assinaturas de eventos | ACCOUNT, USER ou PLATFORM | As regras dependem do escopo da assinatura de eventos. |
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Nos endpoints de conta, use a conta vinculada à sua credencial. Você pode omitir `X-ISPB` e `X-Account-Number`. Se enviar esses cabeçalhos, envie ambos com os dados da conta vinculada.
+
+    As assinaturas de eventos usam o escopo da conta. Credenciais ACCOUNT não podem chamar endpoints de onboarding de contas gerenciadas.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Nos endpoints de conta, envie `X-ISPB` e `X-Account-Number` de uma conta que pertença ao USER. Inclua ambos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+
+    Omita os cabeçalhos de seleção de conta no onboarding de contas gerenciadas e nas assinaturas de eventos com escopo USER. A assinatura de eventos pode exigir `account_number` no corpo da requisição; siga as regras do endpoint.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    Credenciais PLATFORM permitem assinaturas de eventos com escopo da plataforma. Omita os cabeçalhos de seleção de conta e confira os eventos permitidos na [referência de assinaturas de eventos](/pt-br/api-reference/webhooks/create-event-subscription).
+
+    <Warning>Credenciais PLATFORM não podem chamar os endpoints de conta ou de onboarding de contas gerenciadas listados aqui. Use ACCOUNT ou USER conforme o endpoint.</Warning>
+  </Tab>
+</Tabs>
+
+O escopo da credencial não substitui as verificações de conta, titularidade ou status do endpoint. Leia esses requisitos antes de enviar uma requisição.
+
+## Quantias e horários
+
+Envie quantias monetárias como strings decimais em BRL, por exemplo `"10.50"`, e não como números JSON. Siga as regras de cada endpoint para quantias positivas, opcionais e precisão decimal.
+
+Timestamps numéricos, como `time`, `created_at` e `snapshot_timestamp`, usam milissegundos Unix. Preserve-os como inteiros e converta-os para o fuso horário de exibição quando necessário.
+
+Consulte separadamente os campos de duração e de data. Não interprete uma duração de validade como um timestamp Unix.
+
+## Paginação
+
+A paginação varia conforme o endpoint. Não presuma que toda consulta de lista aceita um número de página ou retorna um total.
+
+| Lista | Contrato de paginação |
+| --- | --- |
+| [Contas gerenciadas](/pt-br/api-reference/onboarding/list-managed-accounts) | Envie um objeto `page` com `page` e `page_size`. A resposta inclui os metadados de paginação em `data.page`. |
+| [Extrato da conta](/pt-br/api-reference/accounts/get-account-statement) | Envie `page_size`. Continue com o `data.cursor` retornado e preserve `data.snapshot_timestamp` na próxima requisição. |
+
+Os resultados do extrato seguem a ordem decrescente de horário. Localize o lançamento correspondente à sua transação; não presuma que o primeiro seja o pagamento desejado.
+
+Para [casos MED](/pt-br/api-reference/med/list-med-cases) e [notificações de infração](/pt-br/api-reference/med/list-infraction-reports), use os campos de paginação documentados na página de cada endpoint.
+
+## Mapa de endpoints
+
+Cada link abaixo leva ao schema da requisição, ao schema da resposta e às regras de integração da operação.
+
+### Onboarding
+
+| Endpoint | O que faz |
+| --- | --- |
+| [Criar conta gerenciada](/pt-br/api-reference/onboarding/create-managed-account) | Cria uma conta gerenciada MOR, VA ou PA. |
+| [Consultar conta gerenciada](/pt-br/api-reference/onboarding/get-managed-account) | Consulta uma conta gerenciada. |
+| [Listar contas gerenciadas](/pt-br/api-reference/onboarding/list-managed-accounts) | Lista contas gerenciadas no escopo USER. |
+
+Consulte a [visão geral de onboarding](/pt-br/api-reference/onboarding/overview) e os [callbacks de KYB](/pt-br/api-reference/onboarding/kyb-callbacks) para acompanhar a abertura de conta.
+
+### Chaves Pix
+
+| Endpoint | O que faz |
+| --- | --- |
+| [Criar chave Pix](/pt-br/api-reference/pix-keys/create-pix-key) | Registra uma chave Pix em uma conta. |
+| [Excluir chave Pix](/pt-br/api-reference/pix-keys/delete-pix-key) | Remove uma chave Pix de uma conta. |
+
+Veja a [visão geral de chaves Pix](/pt-br/api-reference/pix-keys/overview) para formatos de chave e regras do ciclo de vida.
+
+### Contas e fundos
+
+| Endpoint | O que faz |
+| --- | --- |
+| [Consultar saldo da conta](/pt-br/api-reference/accounts/get-account-balance) | Consulta a conta selecionada e seus saldos. |
+| [Consultar extrato da conta](/pt-br/api-reference/accounts/get-account-statement) | Consulta os lançamentos da conta selecionada. |
+| [Verificar elegibilidade para encerramento](/pt-br/api-reference/accounts/close-account/check-eligibility) | Verifica se a conta pode ser encerrada. |
+| [Encerrar conta](/pt-br/api-reference/accounts/close-account/close-account) | Envia uma solicitação de encerramento de conta. |
+| [Consultar andamento do encerramento](/pt-br/api-reference/accounts/close-account/get-closure-progress) | Consulta o andamento de uma operação de encerramento. |
+
+Use o mesmo endpoint de saldo para a subconta selecionada; ele não lista todas as subcontas. Veja [Contas](/pt-br/api-reference/accounts/overview) e [Encerramento de conta](/pt-br/api-reference/accounts/close-account/overview).
+
+### Recebimentos Pix
+
+| Endpoint | O que faz |
+| --- | --- |
+| [Gerar QR Code dinâmico](/pt-br/api-reference/payin/generate-dynamic-qr-code) | Gera um QR Code Pix dinâmico. |
+| [Gerar QR Code estático](/pt-br/api-reference/payin/generate-static-qr-code) | Gera um QR Code Pix estático. |
+| [Consultar detalhes do QR Code](/pt-br/api-reference/payin/get-qr-code-details) | Consulta os detalhes de um QR Code. |
+| [Consultar detalhes da transação](/pt-br/api-reference/payin/get-transaction-details) | Consulta os detalhes de um recebimento Pix. |
+
+Siga o [fluxo de recebimento](/pt-br/api-reference/payin/overview) e processe os [callbacks de recebimento](/pt-br/api-reference/payin/callbacks).
+
+### Pagamentos
+
+| Endpoint | O que faz |
+| --- | --- |
+| [Inicializar pagamento por chave Pix](/pt-br/api-reference/payout/pix/initialize-pix-key-payment) | Prepara um pagamento para uma chave Pix. |
+| [Confirmar pagamento por chave Pix](/pt-br/api-reference/payout/pix/confirm-pix-key-payment) | Envia o pagamento por chave Pix preparado. |
+| [Inicializar pagamento por QR Code](/pt-br/api-reference/payout/pix/initialize-qr-code-payment) | Prepara um pagamento a partir de um QR Code Pix. |
+| [Confirmar pagamento por QR Code](/pt-br/api-reference/payout/pix/confirm-qr-code-payment) | Envia o pagamento por QR Code preparado. |
+| [Pagar com dados bancários](/pt-br/api-reference/payout/pix/pay-with-bank-account-details) | Envia um Pix usando os dados bancários do recebedor. |
+| [Iniciar pagamento TED](/pt-br/api-reference/payout/ted/initiate-ted-payment) | Envia um pagamento TED. |
+| [Iniciar transferência interna](/pt-br/api-reference/payout/book-transfer/initiate-internal-transfer) | Envia uma transferência interna. |
+| [Consultar status do pagamento](/pt-br/api-reference/payout/get-payment-status) | Consulta o status de um pagamento enviado. |
+| [Consultar detalhes do pagamento](/pt-br/api-reference/payout/get-payment-details) | Consulta os detalhes de um pagamento enviado. |
+
+Compare os meios de pagamento na [visão geral de pagamentos](/pt-br/api-reference/payout/overview). Veja [Pix](/pt-br/api-reference/payout/pix/overview), [TED](/pt-br/api-reference/payout/ted/overview) e [transferências internas](/pt-br/api-reference/payout/book-transfer/overview) para as regras de cada meio.
+
+O sucesso no envio não comprova a conclusão. Confira o resultado na resposta ou no [callback Pix](/pt-br/api-reference/payout/pix/callbacks) conforme as regras de status final do endpoint.
+
+### Devoluções Pix
+
+| Endpoint | O que faz |
+| --- | --- |
+| [Iniciar devolução Pix](/pt-br/api-reference/refunds/initiate-pix-refund) | Envia uma devolução de um recebimento Pix. |
+| [Consultar detalhes da devolução](/pt-br/api-reference/refunds/get-refund-details) | Consulta os detalhes de uma devolução. |
+| [Consultar status da devolução](/pt-br/api-reference/refunds/get-refund-status) | Consulta o status de uma devolução. |
+
+Leia as [regras de devolução](/pt-br/api-reference/refunds/overview) e os [callbacks de devolução](/pt-br/api-reference/refunds/callbacks). Confirme o resultado final antes de considerar uma devolução concluída.
+
+### Assinaturas de eventos
+
+| Endpoint | O que faz |
+| --- | --- |
+| [Criar assinatura de eventos](/pt-br/api-reference/webhooks/create-event-subscription) | Associa uma URL de callback a um evento. |
+| [Listar assinaturas de eventos](/pt-br/api-reference/webhooks/list-event-subscriptions) | Lista assinaturas de eventos no escopo da credencial. |
+| [Consultar assinatura de eventos](/pt-br/api-reference/webhooks/get-event-subscription) | Consulta uma assinatura de eventos. |
+| [Atualizar assinatura de eventos](/pt-br/api-reference/webhooks/update-event-subscription) | Atualiza uma assinatura de eventos. |
+| [Desativar assinatura de eventos](/pt-br/api-reference/webhooks/deactivate-event-subscription) | Solicita a desativação de uma assinatura de eventos. |
+
+Veja a [visão geral de webhooks](/pt-br/api-reference/webhooks/overview) e os [callbacks de transações](/pt-br/api-reference/webhooks/transaction-callbacks). [Verifique as assinaturas dos callbacks](/pt-br/environments-and-credentials#verificar-callbacks) antes de usar os payloads.
+
+### MED e notificações de infração
+
+| Endpoint | O que faz |
+| --- | --- |
+| [Criar caso MED](/pt-br/api-reference/med/create-med-case) | Envia um caso MED. |
+| [Cancelar caso MED](/pt-br/api-reference/med/cancel-med-case) | Solicita o cancelamento de um caso MED. |
+| [Listar casos MED](/pt-br/api-reference/med/list-med-cases) | Lista casos MED da conta selecionada. |
+| [Consultar detalhes do caso MED](/pt-br/api-reference/med/get-med-case-details) | Consulta os detalhes de um caso MED. |
+| [Listar notificações de infração](/pt-br/api-reference/med/list-infraction-reports) | Lista notificações de infração da conta selecionada. |
+| [Consultar detalhes da notificação de infração](/pt-br/api-reference/med/get-infraction-report-details) | Consulta os detalhes de uma notificação de infração. |
+
+Leia a [visão geral de MED](/pt-br/api-reference/med/overview) antes de enviar ou cancelar um caso.
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Ambientes e credenciais" icon="signature" href="/pt-br/environments-and-credentials">
+    Escolha o ambiente, assine requisições e verifique callbacks.
+  </Card>
+  <Card title="Catálogo de erros" icon="circle-exclamation" href="/pt-br/api-reference/error-catalog">
+    Interprete códigos de negócio e falhas de autenticação.
+  </Card>
+  <Card title="Conciliação" icon="scale-balanced" href="/pt-br/api-reference/reconciliation">
+    Relacione extratos, detalhes de transações e callbacks.
+  </Card>
+</CardGroup>

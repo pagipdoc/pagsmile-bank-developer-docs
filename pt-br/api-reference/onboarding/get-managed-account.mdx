@@ -1,0 +1,92 @@
+---
+title: "Consultar detalhes da conta gerenciada"
+sidebarTitle: "Consultar detalhes"
+description: "Consulte uma conta gerenciada pelo ID de referência ou pelos dados bancários. Retorna os status da conta e de conformidade, dados do titular e da conta bancária."
+openapi: "openapi/pt-br.json POST /v3/onboarding/managed_accounts/detail"
+keywords: ["/v3/onboarding/managed_accounts/detail", "conta gerenciada", "abertura de conta", "status de conformidade"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Retorna os detalhes de uma conta gerenciada que pertence ao seu USER. Uma consulta bem-sucedida não significa que a abertura ou a aprovação de conformidade foi concluída.
+
+| Credenciais | Escopo | Resultado |
+| --- | --- | --- |
+| USER | Conta gerenciada do USER | Consulta síncrona |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="USER" icon="user">
+    Use sua credencial USER. Não envie `X-ISPB` nem `X-Account-Number`, nem mesmo vazios. Selecione a conta gerenciada no corpo da requisição.
+
+    Siga as orientações de [Assinar requisições](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="ACCOUNT" icon="building-columns">
+    <Warning>Credenciais ACCOUNT não podem chamar este endpoint. Use a credencial do USER proprietário.</Warning>
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use a credencial do USER proprietário.</Warning>
+  </Tab>
+</Tabs>
+
+Seu USER deve ter exatamente uma conta master ACTIVE com dados bancários correspondentes a uma conta bancária ACTIVE. Caso contrário, a consulta retorna `4004003` (Permission denied).
+
+As contas MOR e VA devem pertencer diretamente a essa conta master. A conta superior direta de uma PA deve ser essa master ou uma VA ACTIVE vinculada a ela. A conta bancária da conta superior também deve estar ACTIVE e corresponder aos seus dados bancários.
+
+## Escolher como consultar
+
+Envie um `reference_id` não vazio, informado na abertura, ou um objeto `account` com os dois identificadores bancários. Não envie as duas opções.
+
+A API remove os espaços nas extremidades do ID de referência e dos dois identificadores bancários. O ID de referência não precisa estar no formato UUID. Identificadores compostos apenas por espaços são vazios e falham na validação.
+
+Uma seleção inválida retorna `400`. Uma conta gerenciada inexistente ou dados bancários sem correspondência retornam `4004004` (Not found).
+
+## Interpretar o resultado
+
+Leia `code` antes de `data`. Todos os resultados de negócio em JSON usam HTTP 200, inclusive os erros.
+
+Verifique o `status` da conta separadamente de `compliance_status`.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `0` UNSPECIFIED | Status sem correspondência | Nenhum status de conta reconhecido | Verifique o status de conformidade |
+| `1` PENDING | Abertura em andamento | Conta ainda não está ACTIVE | Consulte novamente mais tarde |
+| `2` ACTIVE | Conta ativada | Ativação da conta | Confirme os dados bancários |
+| `3` FROZEN | Conta bloqueada | Restrição da conta | Revise antes de novas operações |
+| `4` CLOSED | Conta encerrada | Encerramento da conta | Interrompa novas operações |
+| `5` REJECTED | Abertura rejeitada | Conta não foi ativada | Revise a solicitação de abertura |
+| `6` EXPIRED | Abertura expirada | Conta não foi ativada | Revise a solicitação de abertura |
+
+O contrato define o status de conta `7` (PENDING_SUBMISSION), mas este endpoint não o retorna. A espera pelo envio de dados aparece em `compliance_status` igual a `2` (PENDING_SUBMISSION).
+
+Registre ambos os status e `updated_at`. Não há um horário de atualização separado para o status de conformidade. `activated_at` representa a aprovação de conformidade, não a conclusão de um pagamento.
+
+`updated_at` não é normalizado: alguns registros retornam segundos Unix e outros, milissegundos. Trate `0` primeiro como indisponível. Trate qualquer outro valor abaixo de `1000000000000` como segundos.
+
+O objeto `account` é `null` quando os identificadores bancários completos não estão disponíveis. Para uma PA, `linked_account` identifica a conta superior direta, que pode ser uma master ou VA. Para MOR e VA, `linked_account` é `null`.
+
+## Testar no Playground
+
+Assine o corpo final da requisição com sua credencial USER. Use novos `X-Nonce` e `X-Timestamp` em cada tentativa.
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner scope="user" lang="pt" method="POST" path="/v3/onboarding/managed_accounts/detail" body={{ reference_id: "managed-account-001" }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Listar contas gerenciadas" icon="list" href="/pt-br/api-reference/onboarding/list-managed-accounts">
+    Encontre as contas visíveis para seu USER.
+  </Card>
+  <Card title="Criar conta gerenciada" icon="building-columns" href="/pt-br/api-reference/onboarding/create-managed-account">
+    Crie uma conta MOR, VA ou PA.
+  </Card>
+  <Card title="Callbacks de KYB" icon="bell" href="/pt-br/api-reference/onboarding/kyb-callbacks">
+    Acompanhe as notificações de conformidade.
+  </Card>
+  <Card title="Modelos de conta" icon="sitemap" href="/pt-br/account-models">
+    Compare MOR, VA e PA.
+  </Card>
+</CardGroup>

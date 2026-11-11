@@ -1,0 +1,90 @@
+---
+title: "Delete Pix key"
+sidebarTitle: "Delete Pix key"
+description: "Remove a Pix key registered to your target account after an ownership check. Returns the deleted key and a nonzero deletion timestamp."
+openapi: "openapi/en.json POST /v3/pix_keys/delete"
+keywords: ["/v3/pix_keys/delete", "pix key", "delete key", "key ownership", "EVP"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Delete a Pix key registered to your target account. The API checks its current registration and ownership before removing it.
+
+| Credentials | Idempotency | Result |
+| --- | --- | --- |
+| ACCOUNT, USER | None; query before retry | Synchronous |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the credential bound to the account that owns the key. You may omit `X-ISPB` and `X-Account-Number`. If you send them, send both, and both must match the bound account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` for an active account owned by the USER. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use the ACCOUNT or USER credential for the account that owns the key.</Warning>
+  </Tab>
+</Tabs>
+
+The key's current registration must belong to the target account. An ownership mismatch returns `4004003` with message `Permission denied`.
+
+## Key formats
+
+The API infers the type from `pix_key`. It trims whitespace at the ends and uppercases CNPJ-format values.
+
+| Type | Accepted format |
+| --- | --- |
+| CPF | 11 digits |
+| CNPJ | 12 letters or digits, then 2 digits |
+| Email | At most 77 characters |
+| Phone | `+55` followed by 10 or 11 digits |
+| EVP | 36-character lowercase UUID |
+
+Email keys must match `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`.
+
+Phone keys must match `^\+55\d{10,11}$`. This deletion format differs from the mobile-number format required when you [create a key](/api-reference/pix-keys/create-pix-key#key-formats).
+
+EVP keys must match `^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$`.
+
+A missing or whitespace-only key returns `4000` with message `Field pix_key is required`.
+
+## Read the result
+
+When `code` is `200`, the deletion call succeeded. The response has no separate deletion status field.
+
+Keep `data.pix_key` and `data.deleted_at` in your records. The timestamp uses Unix milliseconds (UTC) and falls back to the server's response-generation time when no update time is available.
+
+Stop sharing the deleted key with payers. Check the [account's active keys](/api-reference/accounts/get-account-balance) and update your incoming payment configuration.
+
+## Retries and duplicates
+
+Every attempt checks the key's current registration and ownership again. This endpoint has no idempotency key. A repeated call can return a different result.
+
+If a timeout or network error hides the result, check the account before deciding whether to retry. Sign each attempt with new `X-Nonce` and `X-Timestamp` values.
+
+A directory failure returns business code `500` with message `Service temporarily unavailable, please try again later`. Check the account before retrying. `4004029` (`Too many requests`) means the call was rate-limited; wait before trying again.
+
+<Note>The account response lists only ACTIVE keys in `data.pix_keys`. It can also return an empty list when key retrieval fails. An empty list alone does not prove deletion.</Note>
+
+For unresolved results, keep the response and its `xxx-log-id` header for support. See the [error catalog](/api-reference/error-catalog) for business and authentication errors.
+
+## Try it in the Playground
+
+Use Sandbox credentials and replace the sample UUID with a key registered to your account. The signed request must use the exact JSON body you send.
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/pix_keys/delete" body={{ pix_key: "123e4567-e89b-12d3-a456-426614174000" }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Create Pix key" icon="key" href="/api-reference/pix-keys/create-pix-key">
+    Register a replacement key on the account.
+  </Card>
+  <Card title="Get account balance" icon="building-columns" href="/api-reference/accounts/get-account-balance">
+    Read the account's ACTIVE keys.
+  </Card>
+</CardGroup>

@@ -1,0 +1,120 @@
+---
+title: "Pix pay-in overview"
+sidebarTitle: "Overview"
+description: "Receive Pix through dynamic or static QR codes and account keys. Follow callbacks, query payment details and reconcile each receipt with your statement."
+keywords: ["Pix pay-in", "dynamic QR code", "static QR code", "incoming payments"]
+---
+
+Receive Pix into your account through a QR code or an ACTIVE Pix key. Confirm each payment separately; generating a QR code does not confirm funds received.
+
+## How a Pix pay-in works
+
+<Steps>
+  <Step title="Generate dynamic or static QR code">
+    You request a dynamic or static QR code from Pagsmile Open API.
+  </Step>
+  <Step title="Payment payload and `qr_code_id`">
+    Pagsmile Open API returns the payment payload and `qr_code_id` to you.
+  </Step>
+  <Step title="Share QR code">
+    You share the QR code with the payer.
+  </Step>
+  <Step title="Pay Pix through a banking app">
+    The payer sends the Pix payment to your receiving account through a banking app.
+  </Step>
+  <Step title="Incoming payment callback">
+    Pagsmile Open API sends you an incoming payment callback.
+  </Step>
+  <Step title="Query transaction details">
+    You request transaction details from Pagsmile Open API.
+  </Step>
+  <Step title="Recorded payment details">
+    Pagsmile Open API returns the recorded payment details to you.
+  </Step>
+</Steps>
+
+Use an active receiving account and an ACTIVE Pix key registered to it. QR creation is blocked when the account cannot receive payments or closure is in progress.
+
+Save the generated `qr_code_id` and `merchant_order_id`. The order identifies QR creation; it is not the ID of an individual payment.
+
+Handle the [pay-in callback](/api-reference/payin/callbacks), then query the [transaction details](/api-reference/payin/get-transaction-details). Reconcile the payment against the [account statement](/api-reference/accounts/get-account-statement).
+
+## Choose your receiving method
+
+| Method | Amount | Expiration |
+| --- | --- | --- |
+| Dynamic QR code | Required BRL amount | Duration in seconds; default `7200` |
+| Static QR code | No fixed amount | Not configured by this endpoint |
+| Pix key | Payer supplies payment details | No QR creation request |
+
+Dynamic QR creation lets you include payer information when `payer_verify` is `true`. Provide the payer name and document together, or omit both.
+
+Use the [static QR endpoint](/api-reference/payin/generate-static-qr-code) for a reusable QR code. It requires an EVP key, whose `pix_key_type` is `5`.
+
+For a direct key payment, share an ACTIVE key belonging to your receiving account. See [Pix keys](/api-reference/pix-keys/overview) for key types and registration.
+
+## API operations
+
+All four endpoints use `POST` with a JSON body.
+
+| Endpoint | What it does |
+| --- | --- |
+| [Generate dynamic QR code](/api-reference/payin/generate-dynamic-qr-code) | Create a QR code with an amount and expiration. |
+| [Generate static QR code](/api-reference/payin/generate-static-qr-code) | Create a reusable QR code without a fixed amount. |
+| [Get QR code details](/api-reference/payin/get-qr-code-details) | Look up the QR code and its most recent associated payment. |
+| [Get transaction details](/api-reference/payin/get-transaction-details) | Look up an individual incoming payment. |
+
+## Read payment evidence
+
+Read the business `code` before `data`. Every JSON business result returns HTTP `200`, including errors; HTTP success alone does not confirm receipt.
+
+QR details expose `is_paid` and may contain one transaction in `last_txn`. These signals are separate from the generation result.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| Generation `code` is `200` | QR code generated | Creation succeeded, not payment | Wait for payment evidence |
+| `is_paid` is `false` | No completed payment confirmed here | Nothing about payment failure | Query details and statement |
+| `is_paid` is `true` | Completed payment and transaction recorded | One matching payment exists | Reconcile that transaction |
+
+`is_paid` is `true` only when the recorded QR payment status is COMPLETED and `last_txn` is present. It does not count payments or total receipts.
+
+Use `last_txn.txn_id` or `last_txn.settlement_id` to query the individual payment. QR details do not replace payment details or statement checks.
+
+## Missing results and retries
+
+<AccordionGroup>
+  <Accordion title="The QR creation response was lost" icon="clock-rotate-left">
+    Query QR details if you saved `qr_code_id`. Otherwise, preserve the order ID, account and request time, then contact support.
+
+    Dynamic QR creation rejects an already reserved `merchant_order_id`. A retry does not return the original QR code as an idempotent success.
+  </Accordion>
+  <Accordion title="The payer reports payment, but you have no callback" icon="bell">
+    Query the payment using an available transaction or settlement identifier. Compare the amount and receiving account with your records and statement.
+
+    Incoming payment details are returned only for completed transactions. A transaction-not-found result alone does not prove payment failure.
+
+    A missing callback or customer screenshot does not establish the payment outcome. Avoid duplicate fulfillment until you confirm the matching receipt.
+  </Accordion>
+  <Accordion title="QR details include a payment" icon="magnifying-glass">
+    Treat `last_txn` as one associated transaction. For a reusable QR code, record each payment separately rather than using `last_txn` as a total.
+  </Accordion>
+</AccordionGroup>
+
+Include the environment, account, order ID, available QR and transaction IDs, amount, time zone and `xxx-log-id` when requesting support. Never share your SK.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Pay-in callbacks" icon="bell" href="/api-reference/payin/callbacks">
+    Handle incoming payment notifications.
+  </Card>
+  <Card title="Account statement" icon="list" href="/api-reference/accounts/get-account-statement">
+    Match each receipt to an account entry.
+  </Card>
+  <Card title="Create Pix key" icon="key" href="/api-reference/pix-keys/create-pix-key">
+    Register a receiving key on the account.
+  </Card>
+  <Card title="Reconciliation" icon="scale-balanced" href="/api-reference/reconciliation">
+    Compare transactions, callbacks and statement entries.
+  </Card>
+</CardGroup>

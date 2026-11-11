@@ -1,0 +1,111 @@
+---
+title: "Pix payment paths"
+sidebarTitle: "Overview"
+description: "Send Pix with a key, QR code or bank details. Review the payee before submission, retain the transaction ID, and confirm the result through status or callbacks."
+keywords: ["Pix payout", "Pix key", "QR code payment", "bank account payment"]
+---
+
+Send Pix using a key, QR code or bank account details. Key and QR code payments require initialization before confirmation; bank-account payments submit directly.
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the account bound to your AK. Omit both `X-ISPB` and `X-Account-Number`, or send both with values matching the bound account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` to select an account owned by the USER. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot submit these payments. Use ACCOUNT or USER credentials for the payer account.</Warning>
+  </Tab>
+</Tabs>
+
+Send the payment amount as a decimal string in BRL, for example `"10.50"`. Review the payee before you submit the payment.
+
+## Choose a path
+
+<Tabs>
+  <Tab title="Pix key" icon="key">
+    <Steps>
+      <Step title="Initialize the payment">
+        Call [Initialize Pix key payment](/api-reference/payout/pix/initialize-pix-key-payment) with `pix_key`. Retain `data.ref_id` and review `data.payee`.
+
+        You can send `amount` during initialization for a balance precheck. If you send it, confirmation must use the same amount.
+      </Step>
+      <Step title="Confirm with the reference">
+        Call [Confirm Pix key payment](/api-reference/payout/pix/confirm-pix-key-payment) with `ref_id`, `amount` and `merchant_order_id`.
+
+        The reference lasts one minute. Confirm with the same payer account. After acceptance, do not reuse the reference.
+      </Step>
+      <Step title="Track the payment">
+        Save `data.txn_id` and read `data.txn_status`. Use the status or details endpoint to confirm the result.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Pix QR code" icon="qrcode">
+    <Steps>
+      <Step title="Initialize the payment">
+        Call [Initialize QR code payment](/api-reference/payout/pix/initialize-qr-code-payment). Review the returned payee and amount, and retain `data.ref_id`.
+      </Step>
+      <Step title="Confirm with the reference">
+        Call [Confirm QR code payment](/api-reference/payout/pix/confirm-qr-code-payment) with `ref_id`, `amount` and `merchant_order_id`. Use the same payer account.
+
+        The reference lasts five minutes; the QR code has its own validity period. For a dynamic QR code with a specified, non-editable amount, use the amount returned by initialization.
+
+        After acceptance, do not reuse the reference.
+      </Step>
+      <Step title="Track the payment">
+        Save `data.txn_id` and read `data.txn_status`. Use the status or details endpoint to confirm the result.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Bank account details" icon="building-columns">
+    <Steps>
+      <Step title="Review the payee">
+        Collect the payee's bank account and document details. Follow the requirements in [Pay with bank account details](/api-reference/payout/pix/pay-with-bank-account-details).
+      </Step>
+      <Step title="Submit the payment">
+        Send the payee, `amount` and `merchant_order_id` to that endpoint. There is no separate initialization or confirmation call.
+      </Step>
+      <Step title="Track the payment">
+        Save `data.txn_id` and read `data.txn_status`. Use the status or details endpoint to confirm the result.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Confirm the outcome
+
+An accepted submission returns `data.txn_status` whose value is `5` (TXN_STATUS_PROCESSING). Read the status before updating your records. Initialization does not submit a payment, and an accepted submission does not prove completion.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `5` TXN_STATUS_PROCESSING | Processing | No completion evidence | Query the original payment |
+| `2` TXN_STATUS_COMPLETED | Completed | Successful payment result | Reconcile the matching statement |
+| `3` TXN_STATUS_FAILED | Recorded failure | Failure recorded locally | Reconcile before any replacement |
+
+For Pix, `FAILED` records a Pagsmile failure; it does not prove that funds did not move at the bank. Reconcile payment details and the matching statement entry before creating any replacement payment. See [Get payment status](/api-reference/payout/get-payment-status) for the two-hour rule.
+
+The [Pix payout callback](/api-reference/payout/pix/callbacks) reports payment results to the payer account's configured webhook.
+
+If the submission response is lost, follow [unknown-result handling](/api-reference/payout/overview#handle-an-unknown-result). A duplicate `merchant_order_id` is rejected rather than replaying the original success response.
+
+Do not create another payment merely because the first response is missing.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Get payment status" icon="clock" href="/api-reference/payout/get-payment-status">
+    Check the original payment's status.
+  </Card>
+  <Card title="Get payment details" icon="file-lines" href="/api-reference/payout/get-payment-details">
+    Inspect the identified transaction.
+  </Card>
+  <Card title="Pix payout callbacks" icon="bell" href="/api-reference/payout/pix/callbacks">
+    Receive the outgoing payment result.
+  </Card>
+  <Card title="Outgoing payments" icon="paper-plane" href="/api-reference/payout/overview">
+    Compare Pix with TED and internal transfer.
+  </Card>
+</CardGroup>

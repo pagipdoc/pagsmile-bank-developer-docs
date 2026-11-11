@@ -1,0 +1,88 @@
+---
+title: "Consultar detalhes do caso MED"
+sidebarTitle: "Detalhes do caso"
+description: "Consulte o andamento do caso MED na visão do pagador e os valores solicitados, bloqueados e devolvidos. Retorna detalhes sem tarefas associadas do recebedor."
+openapi: "openapi/pt-br.json POST /v3/med/detail"
+keywords: ["/v3/med/detail", "caso MED", "notificação de infração", "escopo da conta"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Retorna os detalhes de um caso MED na visão do pagador. Uma consulta bem-sucedida não comprova que os recursos devolvidos foram creditados na conta.
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    A consulta usa a conta vinculada à sua AK. Omita os dois cabeçalhos de seleção da conta, ou envie ambos com os dados dessa conta.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta de sua titularidade. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use uma credencial ACCOUNT ou USER.</Warning>
+  </Tab>
+</Tabs>
+
+## Selecionar o caso
+
+Use `data.items[].case_id` de [Listar casos MED](/pt-br/api-reference/med/list-med-cases). Um caso inexistente ou fora do escopo da conta retorna o código de negócio `4004004`.
+
+## Visibilidade e atualização
+
+A resposta ao pagador sempre retorna `infractions`, `refunds` e `fund_dispositions` como arrays vazios. As tarefas associadas do recebedor não são expostas.
+
+Quando há tarefas ou movimentações de recursos associadas, `timeline` também é vazio. Uma linha do tempo vazia não comprova ausência de atividade no caso.
+
+Alguns casos atualizam o andamento durante a consulta. Se a atualização falhar, a consulta ainda pode retornar sucesso com o último estado registrado.
+
+Confira `updated_at` antes de considerar o resultado atualizado. `original_transaction` pode ser `null` quando o snapshot da transação original não está disponível.
+
+## Status do caso
+
+O `status` numérico descreve a etapa registrada do caso. Ele não comprova que o valor solicitado foi recuperado ou creditado ao pagador.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `0` (UNSPECIFIED) | Etapa não definida | Nenhum estado utilizável do fluxo | Repita a consulta; solicite suporte |
+| `1` (CREATED) | Caso criado | Aceitação do caso registrada | Acompanhe o caso e os valores |
+| `2` (TRACKED) | Caso rastreado; abertura ou atualização pendente | Rastreio do fluxo registrado | Acompanhe o caso e os valores |
+| `3` (AWAITING_ANALYSIS) | Análise do recebedor pendente | Etapa de espera registrada | Consulte o andamento da análise |
+| `4` (ANALYZED) | Etapa de análise concluída | Conclusão da análise registrada | Confira valores; devolução não comprovada |
+| `5` (RETURN_PROCESSING) | Devoluções em processamento | Processamento de devoluções registrado | Confira total devolvido e extrato |
+| `6` (COMPLETED) | Caso concluído ou encerrado | Encerramento do fluxo registrado | Concilie total devolvido e créditos |
+| `7` (CANCELLED) | Caso cancelado | Cancelamento registrado | Concilie os valores registrados |
+| `8` (FAILED) | Falha terminal | Falha do fluxo registrada | Consulte antes de qualquer nova ação |
+
+`COMPLETED` comprova o encerramento do fluxo, não a recuperação integral nem o crédito em conta. Compare `returned_amount_total` com `requested_amount` e confirme os créditos no extrato.
+
+## Conciliar os valores
+
+Mantenha `requested_amount`, `blocked_amount_total` e `returned_amount_total` separados. Um bloqueio de recursos não é um crédito para o pagador.
+
+Use o ID do caso e o ID da transação original, quando disponível, para associar seus registros. Confirme os créditos efetivos no [extrato](/pt-br/api-reference/accounts/get-account-statement).
+
+Não deduza ações individuais do recebedor a partir dos arrays vazios. Acompanhe o andamento pelo `status` numérico do caso e pelos valores agregados.
+
+## Repetir consultas
+
+Se a consulta falhar ou expirar, repita a mesma consulta em vez de criar outro caso. Assine cada tentativa com novos valores de `X-Nonce` e `X-Timestamp`.
+
+Leia o `code` de negócio mesmo quando o status HTTP é `200`. Informe o cabeçalho de resposta `xxx-log-id` ao solicitar suporte.
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/med/detail" body={{"case_id": "med_case_example_001"}} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Listar casos MED" icon="list" href="/pt-br/api-reference/med/list-med-cases">
+    Localize o caso que você precisa consultar.
+  </Card>
+  <Card title="Visão geral do MED" icon="shield-halved" href="/pt-br/api-reference/med/overview">
+    Confira o ciclo de vida do MED.
+  </Card>
+</CardGroup>

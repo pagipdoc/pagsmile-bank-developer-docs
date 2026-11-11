@@ -1,0 +1,194 @@
+---
+title: "Error catalog"
+sidebarTitle: "Errors"
+description: "Interpret Pagsmile API business codes, distinguish JSON results from transport failures, and choose the next step for authentication or payment errors."
+keywords: ["error codes", "business errors", "authentication", "retries"]
+---
+
+Use this catalog to handle Pagsmile Open API errors by `code`. HTTP 200 alone does not prove that a payment, refund or account opening completed.
+
+## Read the response
+
+Every JSON business result returns HTTP 200 with `code`, `message`, `data` and `time`. When `code` is `200`, read `data` and check the operation's status.
+
+| Response | Meaning | What to do |
+| --- | --- | --- |
+| HTTP 200, `code` is `200` | API call succeeded | Check the endpoint's completion criteria. |
+| HTTP 200, `code` differs from `200` | Business, validation, authentication or system error | Handle the business code below. |
+| HTTP 400, `text/plain` body | Unreadable body or invalid JSON | Correct the request body. |
+| HTTP 403, `text/plain` body `error code: 1010` | Network edge blocked the client before the API | Send a descriptive `User-Agent`, such as `your-app/1.0`. |
+| HTTP 404, 405 or 307 | Unknown path, a method other than `POST`, or a trailing slash | Use `POST` and the exact documented path. |
+| HTTP 500, `text/plain` body such as `system error` | Unexpected server failure; original operation outcome unknown | Query the original operation before resubmitting. |
+| Timeout or connection loss | Result unknown | Query the original operation before resubmitting. |
+
+HTTP 500 with a plain-text body differs from HTTP 200 with business `code` equal to `500`. Do not parse that plain-text body as JSON.
+
+The network edge returns HTTP 403 with the text `error code: 1010` before the request reaches the API. It can reject a request with no `User-Agent` or with some library defaults, such as `Python-urllib/3.12`. Changing the signature does not fix it.
+
+Use `code` for programmatic decisions and `message` for troubleshooting. A code can have different messages depending on the endpoint and failure.
+
+The tables show default messages and verified alternatives used by documented endpoints. `{{.field}}` contains the failed field at runtime. `4004102` and `4004103` currently return `{{.header}}` and `{{.ip}}` unrendered, so their messages do not name the header or source IP.
+
+Every response includes `xxx-log-id`. Keep this response header when you contact support.
+
+## Validation errors
+
+| Code | Message | Meaning | What to do |
+| --- | --- | --- | --- |
+| `400` | `Invalid parameter` | Request fails a business validation. | Check the endpoint's request rules. |
+| `4000` | `Field {{.field}} is required` | Required field is missing. | Supply the named field. |
+| `4001` | `Invalid {{.field}} value` | Field contains an invalid value. | Check the field's accepted values. |
+| `4002` | `Invalid {{.field}} format` | Field format is invalid. | Check the field's format. |
+| `4003` | `{{.field}} value out of range` | Field is outside the accepted range. | Follow the endpoint's range rules. |
+| `4001012` | `Time range must be within 31 days` | Date range is too long. | Split the query into shorter ranges. |
+
+Amounts use decimal strings in BRL, for example `"10.50"`. Follow each endpoint's required fields and amount rules.
+
+## Authentication errors
+
+| Code | Message | Meaning | What to do |
+| --- | --- | --- | --- |
+| `401` | `User is invalid` | Credential or user context is invalid. | Check the AK and the user's OpenAPI access. |
+| `4003008` | `Authentication required` | Required authentication context is missing. | Check the credential and target account. |
+| `4004101` | `Authorization is required` | `X-Client-ID` or other authorization context is missing. | Send `X-Client-ID` with your AK. |
+| `4004102` | `Invalid {{.header}} header` | `X-Timestamp`, `X-Nonce` or `X-Signature` is missing, or `X-Timestamp` is not numeric. | Check all three headers; the message does not name the header. |
+| `4004103` | `IP address has no permission: {{.ip}}` | Source IP is outside the allowlist. | Configure your outbound IP or CIDR. |
+| `4004104` | `X-Content-Hash does not match request body` | Declared hash differs from the body. | Hash the exact bytes you send. |
+| `4004105` | `X-Timestamp is invalid or expired` | Timestamp falls outside the five-minute window. | Synchronize your clock and use Unix milliseconds. |
+| `4004106` | `X-Nonce is invalid or has already been used` | Nonce is already recorded for this AK. | Generate a new nonce for this attempt. |
+| `4004107` | `X-Signature is invalid` | Signature verification failed. | Check the SK and signed request. |
+
+A missing `X-Nonce` returns `4004102` with the unrendered template `Invalid {{.header}} header`. A nonce that is already recorded returns `4004106`.
+
+An empty IP allowlist denies all requests. The allowlist accepts exact IP addresses and CIDR ranges.
+
+The API records a nonce for ten minutes per AK before checking the signature. A failed signature still consumes that nonce.
+
+Sign each attempt with a new `X-Nonce` and `X-Timestamp`. Follow [Sign requests](/environments-and-credentials#sign-requests) to include the body and applicable account headers.
+
+## Account and permission errors
+
+| Code | Message | Meaning | What to do |
+| --- | --- | --- | --- |
+| `4001092` | `Invalid KYC status` | Compliance status does not allow the operation. | Check the account's KYC or KYB status. |
+| `4002003` | `The information has been registered` | Onboarding information is already registered. | Query the existing application or account. |
+| `4004003` | `Permission denied` | Credential, ownership or account conditions deny access. | Check the endpoint's credential and account requirements. |
+| `4004004` | `Not found` | Resource is unavailable in the requested scope. | Check the identifier and ownership. |
+| `4004008` | `Account is inactive` | Account cannot perform the operation. | Check account status and payment permissions. |
+| `4004010` | `Account not found` | Account lookup failed. | Check the target account identifiers. |
+
+For account-scoped calls, check `X-ISPB` and `X-Account-Number` against the [credential rules](/environments-and-credentials). Permission errors can also indicate a credential type that the endpoint does not accept.
+
+## Product errors
+
+<AccordionGroup>
+  <Accordion title="Pix keys" icon="key">
+    | Code | Message | Meaning | What to do |
+    | --- | --- | --- | --- |
+    | `4001001` | `Invalid PIX key` | Pix key lookup or validation failed. | Check the key type and value. |
+    | `4001090` | `PIX key has already been linked` | Key is already registered. | Check the account's existing keys before retrying. |
+    | `4001094` | `PIX key has already been linked by a third party, please unbind it manually and try again` | Key is linked elsewhere. | Resolve the existing link before retrying. |
+    | `4001096` | `The PIX key you provided is no longer valid or has been deleted. Please check and try again.` | Key is no longer usable. | Obtain a valid key from the payee. |
+    | `4004029` | `Too many requests` | Pix key lookup is rate-limited. | Reduce lookup attempts and wait before retrying. |
+
+    During Pix key payment initiation, `4001001` can also return `The operation could not be completed due to fraud-related restrictions associated with the user, account, or entry.`
+
+    For `4004029`, lookup messages can be `You have reached our limit for invalid pix keys. Please try again later` or `Too many PIX key lookup attempts. Please wait and try again later.`
+
+    Use [Create Pix key](/api-reference/pix-keys/create-pix-key) for registration rules and [Initialize Pix key payment](/api-reference/payout/pix/initialize-pix-key-payment) for payment lookup rules.
+  </Accordion>
+  <Accordion title="Payments and QR codes" icon="paper-plane">
+    | Code | Message | Meaning | What to do |
+    | --- | --- | --- | --- |
+    | `4001002` | `Invalid account` | Bank account is invalid. | Confirm the payee's account details. |
+    | `4001003` | `Invalid account type` | Bank account type is rejected. | Check the endpoint's account type enum. |
+    | `4001004` | `Invalid amount` | Amount is invalid or exceeds a limit. | Check amount rules and account limits. |
+    | `4001010` | `Invalid QR code` | QR content or status is invalid. | Check the full QR payload and its status. |
+    | `4001011` | `Request expired` | Payment request or session expired. | Check the original payment before starting again. |
+    | `4001013` | `Already processed` | Request conflicts with an existing operation. | Query the original operation. |
+    | `4001014` | `QR code has been used` | QR code has already been paid. | Check the existing transaction. |
+    | `4001015` | `QR code expired or no longer valid` | QR code is no longer payable. | Obtain a valid QR code. |
+    | `4001093` | `Cannot pay to yourself` | Payer and payee are the same. | Choose a different payee. |
+    | `4001998` | `Daily limit reached` | Daily payment limit is exhausted. | Check limits before submitting another payment. |
+    | `4001999` | `Insufficient funds` | Available balance is insufficient. | Check available balance and applicable fees. |
+    | `4003003` | `Transaction detail not found` | Transaction detail is unavailable for this lookup. | Check the identifier and target account. |
+    | `4003012` | `Failed to validate PIX transfer` | Pix confirmation reference is unavailable or invalid. | Check the original payment and initiation reference. |
+    | `4003014` | `Payment processing failed` | Payment processing did not return a successful result. | Query payment status before resubmitting. |
+    | `4003016` | `Transaction risk control failed` | Risk or AML validation rejected the transaction. | Contact integration support. |
+
+    When a submission returns `code` equal to `200`, use its transaction identifier to [check payment status](/api-reference/payout/get-payment-status).
+
+    To [query payment details](/api-reference/payout/get-payment-details), use the submission response's `data.txn_id` or the statement entry that matches your payment. The first statement entry is not necessarily your payment.
+  </Accordion>
+  <Accordion title="Refunds" icon="rotate-left">
+    | Code | Message | Meaning | What to do |
+    | --- | --- | --- | --- |
+    | `4003005` | `Failed to process refund` | Refund failed validation or exceeded the refundable amount. | Check the original transaction and remaining refundable amount. |
+    | `4003003` | `Transaction detail not found` | Refund details are unavailable for this lookup. | Check the refund identifier and target account. |
+    | `4001999` | `Insufficient funds` | Available balance is insufficient. | Check the account's available balance. |
+
+    A successful API call does not prove that funds were returned. Use [refund status](/api-reference/refunds/get-refund-status) to confirm the result before creating another refund.
+  </Accordion>
+  <Accordion title="MED" icon="shield-halved">
+    | Code | Message | Meaning | What to do |
+    | --- | --- | --- | --- |
+    | `400` | `Invalid parameter` | MED request fails validation. | Check the request and current case conditions. |
+    | `4004004` | `Not found` | Case or report is unavailable in your scope. | Check its identifier and target account. |
+    | `4004003` | `Your account has no available balance. Please check your MEDs or available balance.` | MED recovery restricts payouts. | Check MED cases and available balance. |
+
+    The MED payout restriction shares `4004003` with `Permission denied`. Do not treat every occurrence of this code as a MED restriction.
+
+    Use [MED details](/api-reference/med/get-med-case-details) and [account balance](/api-reference/accounts/get-account-balance) to investigate.
+  </Accordion>
+  <Accordion title="Webhooks" icon="webhook">
+    | Code | Message | Meaning | What to do |
+    | --- | --- | --- | --- |
+    | `4000` | `Field {{.field}} is required` | Required subscription field is missing. | Supply the field named in the response. |
+    | `4001` | `Invalid {{.field}} value` | Subscription status is invalid. | Check the accepted status values. |
+    | `4004003` | `Permission denied` | Credential or event scope does not allow access. | Check the event's credential and account requirements. |
+    | `4004004` | `Not found` | Subscription is unavailable in your scope. | Check its identifier and event type. |
+
+    After an update error, [query the subscription](/api-reference/webhooks/get-event-subscription) before retrying. A callback URL update can succeed before a later status update fails.
+  </Accordion>
+</AccordionGroup>
+
+## System and onboarding errors
+
+| Code | Message | Meaning | What to do |
+| --- | --- | --- | --- |
+| `500` | `System error, please try again later` or `Service temporarily unavailable, please try again later` | API or a dependency could not complete the call. | Check the original operation before retrying. |
+| `501` | `Service temporarily unavailable, please try again later` | Required dependency is unavailable. | Check the original result, then follow endpoint retry rules. |
+| `502` | `Bank services are currently busy, please try again later` | Bank processing is unavailable or busy. | Query the result before resubmitting. |
+| `503` | `This service is temporarily unavailable, please try again later` | Requested service is unavailable. | Check endpoint availability with support. |
+| `504` | `Compliance submission status could not be confirmed. The account creation fee was not charged. Retry with the same reference_id.` | Onboarding submission result is unknown. | Retry with the same `reference_id` and a new signature. |
+
+For [managed account creation](/api-reference/onboarding/create-managed-account), `400` can return `Compliance submission was rejected. The account creation fee was not charged. Correct the request and retry with a new reference_id.`
+
+That rejection requires a corrected request and a new `reference_id`. For `504`, keep the same `reference_id`. Neither message reports an account creation fee charge.
+
+## Retries and support
+
+After a timeout, duplicate response or uncertain processing failure, query the original payment, refund or account application. Do not change business identifiers solely because you missed a response.
+
+Follow the endpoint's idempotency rules when resubmitting. Regenerate signature metadata for each attempt, including the timestamp and nonce, and hash the exact body you send.
+
+For an unknown code or unresolved error, contact integration support. Include the environment, endpoint, request time, HTTP status, `code`, `message`, resource identifier and `xxx-log-id`.
+
+Mask sensitive data in the request and response. Do not include your SK.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Sign requests" icon="signature" href="/environments-and-credentials#sign-requests">
+    Check headers, signatures and account selection.
+  </Card>
+  <Card title="Payment status" icon="magnifying-glass" href="/api-reference/payout/get-payment-status">
+    Confirm the original payment before retrying.
+  </Card>
+  <Card title="Refund status" icon="rotate-left" href="/api-reference/refunds/get-refund-status">
+    Check whether a refund completed.
+  </Card>
+  <Card title="Managed account details" icon="building-columns" href="/api-reference/onboarding/get-managed-account">
+    Check an existing account application.
+  </Card>
+</CardGroup>

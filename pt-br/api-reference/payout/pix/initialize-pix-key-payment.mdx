@@ -1,0 +1,102 @@
+---
+title: "Inicializar pagamento via chave Pix"
+sidebarTitle: "Inicializar por chave"
+description: "Consulte uma chave Pix e confira o recebedor antes de pagar. Retorna dados do recebedor, ID de liquidação e referência válida por um minuto para confirmação."
+openapi: "openapi/pt-br.json POST /v3/transfers/pix/key-initiate"
+keywords: ["/v3/transfers/pix/key-initiate", "pagamento via chave Pix", "consulta do recebedor", "ref_id"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Consulte o recebedor de uma chave Pix antes de enviar o pagamento. A inicialização retorna uma referência válida por um minuto; ela não movimenta recursos.
+
+| Credenciais | Idempotência | Resultado |
+| --- | --- | --- |
+| ACCOUNT, USER | Sem ID de pedido | Recebedor e referência |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a conta vinculada à sua AK. Omita os dois cabeçalhos de conta ou envie `X-ISPB` e `X-Account-Number` correspondentes a essa conta.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta que pertença ao USER. Inclua os dois na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use credenciais ACCOUNT ou USER para a conta do pagador.</Warning>
+  </Tab>
+</Tabs>
+
+A conta do pagador precisa estar ativa e habilitada para enviar pagamentos. A inicialização pode retornar `4004008` quando uma dessas condições não é atendida.
+
+## Formatos de chave
+
+Envie a chave cadastrada, não o tipo dela. O endpoint remove espaços nas extremidades e converte as letras do CNPJ para maiúsculas.
+
+| Tipo de chave | Formato aceito |
+| --- | --- |
+| CPF | 11 dígitos |
+| CNPJ | 12 letras ou dígitos, depois 2 dígitos |
+| Telefone | `+55` seguido de 10 ou 11 dígitos |
+| E-mail | Endereço de e-mail |
+| EVP | UUID, versão de 1 a 5 |
+
+Chaves de telefone seguem `^\+55\d{10,11}$`. Chaves de e-mail seguem `^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$`.
+
+Chaves EVP seguem `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[1-5][a-fA-F0-9]{3}-[89abAB][a-fA-F0-9]{3}-[a-fA-F0-9]{12}$`.
+
+Se `pix_key` estiver ausente ou vazio, você recebe `4000`. Uma chave não reconhecida ou composta apenas por espaços retorna `400`.
+
+## Valores e verificações prévias
+
+Você pode enviar `amount` como string decimal em BRL, por exemplo `"10.50"`. O valor informado precisa ser positivo e representável exatamente com duas casas decimais.
+
+Zeros adicionais no final da parte decimal são aceitos, como em `"10.500"`. Valores omitidos, vazios ou compostos apenas por espaços dispensam a verificação de saldo na inicialização.
+
+Ao informar um valor, o endpoint verifica o saldo disponível. A confirmação precisa usar o mesmo valor numérico; caso contrário, retorna `400`.
+
+A inicialização também verifica o limite Pix disponível quando essa informação está disponível. Um limite insuficiente retorna `4001998`.
+
+O limite exigido é BRL `"1.00"` sem um valor informado, ou o maior entre BRL `"1.00"` e o valor informado. A verificação usa a categoria CPF ou CNPJ do recebedor.
+
+Esta etapa não reserva recursos nem limite de pagamento. A confirmação ainda pode ser recusada nas verificações de pagamento após uma inicialização bem-sucedida.
+
+## Interpretar o resultado
+
+Quando `code` é `200`, confira o nome, o documento e a conta bancária do recebedor antes de confirmar. O número do documento pode estar mascarado.
+
+Envie `data.ref_id` sem alterações para [Confirmar pagamento via chave Pix](/pt-br/api-reference/payout/pix/confirm-pix-key-payment) em até um minuto, usando a mesma conta do pagador.
+
+`data.settlement_id` identifica a liquidação Pix prevista. Ele não comprova a conclusão do pagamento e não deve ser enviado no corpo da confirmação.
+
+## Repetições e restrições de consulta
+
+Se a inicialização terminar em timeout, este endpoint não terá enviado um pagamento. Uma nova consulta retorna outra referência; confira o recebedor novamente.
+
+Se a referência expirar antes da confirmação, inicialize novamente. Se você já enviou a confirmação, verifique esse pagamento antes de criar outra referência ou pedido.
+
+Restrições de consulta podem retornar `4004029`; aguarde antes de tentar novamente. Não presuma um intervalo fixo para repetir a consulta.
+
+Chaves inválidas ou restritas podem retornar `4001001`. Quando há restrições relacionadas a fraude, a mensagem é `The operation could not be completed due to fraud-related restrictions associated with the user, account, or entry.` Chaves inativas ou excluídas podem retornar `4001096`; confira a mensagem da resposta antes de tentar novamente.
+
+Assine cada tentativa com novos `X-Nonce` e `X-Timestamp`. O nonce é consumido mesmo quando a validação da assinatura falha.
+
+Para erros de negócio, leia `code` no JSON da resposta HTTP 200. Informe o cabeçalho de resposta `xxx-log-id` nas solicitações de suporte.
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/transfers/pix/key-initiate" body={{ pix_key: "finance@example.com", amount: "10.50" }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Confirmar pagamento via chave Pix" icon="paper-plane" href="/pt-br/api-reference/payout/pix/confirm-pix-key-payment">
+    Envie o pagamento depois de conferir o recebedor.
+  </Card>
+  <Card title="Pagamentos Pix" icon="arrows-left-right" href="/pt-br/api-reference/payout/pix/overview">
+    Compare as formas disponíveis de pagamento Pix.
+  </Card>
+</CardGroup>

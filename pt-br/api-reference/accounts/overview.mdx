@@ -1,0 +1,88 @@
+---
+title: "Contas e saldos"
+sidebarTitle: "Visão geral"
+description: "Selecione uma conta, consulte saldos disponíveis e bloqueados e confira os lançamentos do extrato. Entenda respostas parciais antes de conciliar os recursos."
+keywords: ["saldo da conta", "recursos disponíveis", "recursos bloqueados", "extrato da conta"]
+---
+
+Use as consultas de conta para conferir saldos e movimentações de uma conta por vez. Identifique a conta pelo ISPB e número, conforme as regras de credenciais abaixo.
+
+## Fluxo de consulta
+
+<Steps>
+  <Step title="Selecionar a conta">
+    Use a conta vinculada com credenciais ACCOUNT, ou selecione uma conta do usuário com credenciais USER e os dois cabeçalhos de seleção.
+  </Step>
+  <Step title="Consultar o snapshot do saldo">
+    Chame [Consultar saldo da conta](/pt-br/api-reference/accounts/get-account-balance) com um objeto JSON vazio (`{}`). Confira os identificadores da conta e diferencie recursos disponíveis de bloqueados.
+  </Step>
+  <Step title="Conferir as movimentações">
+    Consulte os [lançamentos do extrato](/pt-br/api-reference/accounts/get-account-statement) para o período desejado. Confira as movimentações se o saldo for inesperado ou parecer indisponível.
+  </Step>
+</Steps>
+
+## Endpoints
+
+| Endpoint | O que faz |
+| --- | --- |
+| [Consultar saldo da conta](/pt-br/api-reference/accounts/get-account-balance) | Retorna saldos, chaves Pix ACTIVE e configurações disponíveis de uma conta. |
+| [Consultar extrato da conta](/pt-br/api-reference/accounts/get-account-statement) | Retorna os lançamentos do extrato de uma conta. |
+
+A consulta de saldo atende credenciais ACCOUNT e USER no mesmo endpoint, `POST /v3/bank_account`. Ela não lista subcontas nem agrega seus saldos.
+
+## Seleção da conta
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Sua AK identifica a conta vinculada. Omita `X-ISPB` e `X-Account-Number`, ou envie os dois com os dados dessa conta.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta que pertença ao USER. A consulta de saldo retorna apenas essa conta.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar o endpoint de saldo da conta. Use credenciais ACCOUNT ou USER para a conta selecionada.</Warning>
+  </Tab>
+</Tabs>
+
+Inclua os cabeçalhos de seleção da conta na [assinatura](/pt-br/environments-and-credentials#assinar-requisições) sempre que os enviar. A seleção da conta não pertence ao corpo da requisição de saldo.
+
+## Recursos disponíveis e bloqueados
+
+Leia os montantes como strings decimais em BRL, como `"10.50"`. Diferencie os recursos disponíveis do saldo total da conta.
+
+| Campo de saldo | Significado |
+| --- | --- |
+| `balance` | Saldo total da conta, incluindo recursos bloqueados. |
+| `available_amount` | Saldo menos o montante total bloqueado. |
+| `frozen_amount` | Montante total bloqueado, incluindo o bloqueio informado por MED. |
+
+O `med_frozen_amount` informado não pode superar `frozen_amount`. A resposta calcula `other_frozen_amount` pela diferença, com mínimo de `"0"`.
+
+## Interpretar respostas parciais
+
+<Warning>
+  Se a consulta do saldo falhar, a consulta da conta ainda pode retornar `code` igual a `200` e montantes de `"0"`. Não há indicador de indisponibilidade. Consulte novamente e confira os lançamentos do extrato antes de considerar uma resposta zerada como prova de saldo zero.
+</Warning>
+
+Os dados de MED podem estar indisponíveis independentemente dos demais saldos. Seu montante então retorna `"0"`, e o restante bloqueado pode incluir bloqueios por MED.
+
+As listas de chaves Pix e assinaturas de eventos podem ficar vazias se a consulta falhar. Configurações de limites e tarifas podem estar indisponíveis sem falha na consulta inteira.
+
+Consulte [Consultar saldo da conta](/pt-br/api-reference/accounts/get-account-balance) para orientações sobre configurações e campos da resposta. Um snapshot do saldo não comprova a conclusão de um pagamento específico.
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar saldo da conta" icon="wallet" href="/pt-br/api-reference/accounts/get-account-balance">
+    Consulte a conta com credenciais ACCOUNT ou USER.
+  </Card>
+  <Card title="Consultar extrato da conta" icon="list" href="/pt-br/api-reference/accounts/get-account-statement">
+    Confira as movimentações para conciliação.
+  </Card>
+  <Card title="Encerramento de conta" icon="lock" href="/pt-br/api-reference/accounts/close-account/overview">
+    Confira o fluxo de encerramento de conta.
+  </Card>
+  <Card title="Conciliação" icon="scale-balanced" href="/pt-br/api-reference/reconciliation">
+    Associe as movimentações aos registros de transações.
+  </Card>
+</CardGroup>

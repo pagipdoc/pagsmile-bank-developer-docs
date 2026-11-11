@@ -1,0 +1,82 @@
+---
+title: "Cancelar caso MED"
+sidebarTitle: "Cancelar caso"
+description: "Solicite o cancelamento de um caso MED elegível da conta selecionada. Retorna os detalhes para você confirmar o status e acompanhar os recursos separadamente."
+openapi: "openapi/pt-br.json POST /v3/med/cancel"
+keywords: ["/v3/med/cancel", "cancelamento MED", "can_cancel", "contestação Pix"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Solicita o cancelamento de um caso MED. Consulte os detalhes mais recentes e confirme que `can_cancel` é `true` antes de chamar.
+
+| Credenciais | Idempotência | Resultado |
+| --- | --- | --- |
+| ACCOUNT, USER | Sem chave na requisição | Status do caso |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a credencial vinculada à conta do caso. Omita os cabeçalhos de conta ou envie `X-ISPB` e `X-Account-Number` com os dados dessa conta.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta pertencente ao USER. Inclua ambos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use credenciais ACCOUNT ou USER da conta do caso.</Warning>
+  </Tab>
+</Tabs>
+
+O caso precisa pertencer à conta selecionada. Use `data.med_case.case_id` da [abertura do caso](/pt-br/api-reference/med/create-med-case).
+
+## Verificar a elegibilidade para cancelamento
+
+O cancelamento só é permitido com status igual a `1` (CREATED), `2` (TRACKED), `3` (AWAITING_ANALYSIS) ou `4` (ANALYZED).
+
+O campo `can_cancel` reflete esses status. O identificador da operação de recuperação ou contestação associada também precisa estar disponível.
+
+Um caso com status igual a `7` (CANCELLED) não é elegível para uma nova requisição de cancelamento bem-sucedida.
+
+## Confirmar o resultado
+
+Todos os resultados de negócio em JSON usam HTTP 200, inclusive falhas de validação e casos não encontrados. Leia `code` na raiz antes de `data`.
+
+Um caso não elegível retorna `400` com a mensagem `invalid argument: case is not cancellable`. Um `case_id` desconhecido retorna `4004004` com a mensagem `case not found`.
+
+Quando `code` for `200`, leia `data.med_case.status`. Somente o status retornado igual a `7` (CANCELLED) confirma o cancelamento registrado.
+
+A liberação dos recursos bloqueados pode terminar após esta resposta. Continue consultando o caso e o saldo efetivo; o cancelamento não comprova liberação nem devolução.
+
+A resposta deixa `infractions`, `refunds` e `fund_dispositions` vazios. A linha do tempo também fica vazia quando existem tarefas ou registros financeiros vinculados.
+
+Um array vazio não comprova a ausência de eventos relacionados. Use os [detalhes do caso](/pt-br/api-reference/med/get-med-case-details) para continuar acompanhando o caso.
+
+Não programe a análise apenas com `analysis_deadline` desta resposta. O campo pode conter o horário de criação original em vez do prazo de análise.
+
+## Repetições e duplicidades
+
+Após um timeout ou resultado desconhecido, consulte o caso antes de tentar novamente. Se ele já estiver CANCELLED, não envie outro cancelamento.
+
+Se o caso continuar elegível, confira `can_cancel` novamente antes de outra tentativa. Assine cada tentativa com novos `X-Nonce` e `X-Timestamp`.
+
+Se o caso não for encontrado, confira `case_id` e o contexto da conta. Informe o cabeçalho de resposta `xxx-log-id` ao entrar em contato com o suporte.
+
+## Testar no Playground
+
+Substitua o `case_id` do exemplo pelo caso que você pretende cancelar antes de assinar. Use credenciais de Sandbox nas requisições de Sandbox.
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/med/cancel" body={{ case_id: "med_case_1791792000000000000" }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar detalhes do caso MED" icon="magnifying-glass" href="/pt-br/api-reference/med/get-med-case-details">
+    Confirme a elegibilidade e o resultado registrado.
+  </Card>
+  <Card title="Visão geral do MED" icon="shield-halved" href="/pt-br/api-reference/med/overview">
+    Diferencie o status do caso dos resultados da recuperação.
+  </Card>
+</CardGroup>

@@ -1,0 +1,90 @@
+---
+title: "Excluir chave Pix"
+sidebarTitle: "Excluir chave Pix"
+description: "Remova uma chave Pix registrada na conta-alvo após verificar a titularidade. Retorna a chave excluída e um horário de exclusão diferente de zero."
+openapi: "openapi/pt-br.json POST /v3/pix_keys/delete"
+keywords: ["/v3/pix_keys/delete", "chave pix", "excluir chave", "titularidade", "EVP"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Exclua uma chave Pix registrada na conta-alvo. A API verifica o registro atual e a titularidade da chave antes de removê-la.
+
+| Credenciais | Idempotência | Resultado |
+| --- | --- | --- |
+| ACCOUNT, USER | Não há; consulte antes de repetir | Síncrono |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a credencial vinculada à conta que possui a chave. Você pode omitir `X-ISPB` e `X-Account-Number`. Se enviar esses cabeçalhos, envie os dois, e ambos devem corresponder à conta vinculada.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta ativa que pertença ao USER. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use a credencial ACCOUNT ou USER da conta que possui a chave.</Warning>
+  </Tab>
+</Tabs>
+
+O registro atual da chave deve pertencer à conta-alvo. Uma divergência de titularidade retorna `4004003` com a mensagem `Permission denied`.
+
+## Formatos de chave
+
+A API identifica o tipo pelo campo `pix_key`. Ela remove espaços nas pontas e converte valores no formato de CNPJ para maiúsculas.
+
+| Tipo | Formato aceito |
+| --- | --- |
+| CPF | 11 dígitos |
+| CNPJ | 12 letras ou dígitos, depois 2 dígitos |
+| E-mail | No máximo 77 caracteres |
+| Telefone | `+55` seguido de 10 ou 11 dígitos |
+| EVP | UUID de 36 caracteres em minúsculas |
+
+Chaves de e-mail devem seguir `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`.
+
+Chaves de telefone devem seguir `^\+55\d{10,11}$`. Esse formato de exclusão difere do formato de celular exigido ao [criar uma chave](/pt-br/api-reference/pix-keys/create-pix-key#formatos-de-chave).
+
+Chaves EVP devem seguir `^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$`.
+
+Uma chave ausente ou composta apenas por espaços retorna `4000` com a mensagem `Field pix_key is required`.
+
+## Interpretar o resultado
+
+Quando `code` é `200`, a chamada de exclusão foi bem-sucedida. A resposta não tem campo separado de status da exclusão.
+
+Guarde `data.pix_key` e `data.deleted_at` nos seus registros. O horário usa milissegundos Unix (UTC). Se a atualização não informar um horário, o servidor usa o horário de geração da resposta.
+
+Pare de compartilhar a chave excluída com pagadores. Consulte as [chaves ativas da conta](/pt-br/api-reference/accounts/get-account-balance) e atualize sua configuração de recebimento.
+
+## Repetições e duplicidades
+
+Cada tentativa verifica novamente o registro atual e a titularidade da chave. Este endpoint não tem chave de idempotência. Uma chamada repetida pode retornar outro resultado.
+
+Se um timeout ou erro de rede impedir você de receber o resultado, consulte a conta antes de decidir se deve repetir. Assine cada tentativa com novos valores de `X-Nonce` e `X-Timestamp`.
+
+Uma falha no diretório retorna o código de negócio `500` com a mensagem `Service temporarily unavailable, please try again later`. Consulte a conta antes de repetir. `4004029` (`Too many requests`) indica limite de requisições; aguarde antes de tentar novamente.
+
+<Note>A resposta da conta lista apenas chaves ACTIVE em `data.pix_keys`. Ela também pode retornar uma lista vazia quando a consulta das chaves falha. Uma lista vazia, por si só, não comprova a exclusão.</Note>
+
+Se o resultado continuar incerto, guarde a resposta e o cabeçalho `xxx-log-id` para solicitar suporte. Consulte o [catálogo de erros](/pt-br/api-reference/error-catalog) para erros de negócio e de autenticação.
+
+## Testar no Playground
+
+Use credenciais de Sandbox e substitua o UUID do exemplo por uma chave registrada na sua conta. Assine o corpo JSON exato que você envia.
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/pix_keys/delete" body={{ pix_key: "123e4567-e89b-12d3-a456-426614174000" }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Criar chave Pix" icon="key" href="/pt-br/api-reference/pix-keys/create-pix-key">
+    Registre outra chave na conta.
+  </Card>
+  <Card title="Consultar saldo da conta" icon="building-columns" href="/pt-br/api-reference/accounts/get-account-balance">
+    Consulte as chaves ACTIVE da conta.
+  </Card>
+</CardGroup>

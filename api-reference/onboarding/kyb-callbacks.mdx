@@ -1,0 +1,113 @@
+---
+title: "Receive KYB callbacks"
+sidebarTitle: "KYB callbacks"
+description: "Receive signed compliance updates for managed accounts. Verify the callback, deduplicate deliveries and query account details before treating it as active."
+openapi: "openapi/en.json webhook kybStatusChanged"
+keywords: ["VA_ACCOUNT_KYB", "KYB", "managed account", "compliance callback"]
+---
+
+import { WebhookVerifier } from "/snippets/webhook-verifier.jsx";
+
+KYB callbacks notify you of compliance results for managed accounts. An `APPROVED` compliance result alone does not prove that the account is ACTIVE.
+
+## Before you receive callbacks
+
+<Tabs>
+  <Tab title="USER" icon="user">
+    Create an active [event subscription](/api-reference/webhooks/create-event-subscription) for `VA_ACCOUNT_KYB` under the owning USER. Set a callback URL and signing credential.
+
+    The callback's `user_id` identifies the subscription owner. `subject_type` identifies the model: `VA_MOR`, `VA` or `PA`.
+  </Tab>
+  <Tab title="ACCOUNT" icon="building-columns">
+    <Warning>ACCOUNT-owned subscriptions do not receive managed account KYB events. Create the subscription with the owning USER credential.</Warning>
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM is not the subscription owner for `VA_ACCOUNT_KYB`. Use the USER that owns the managed account.</Warning>
+  </Tab>
+</Tabs>
+
+MOR creation reuses approved compliance evidence without starting a fresh review. Do not expect a new KYB result callback merely because you create a MOR account.
+
+A callback is scheduled when the current compliance session accepts a result update. Duplicate result events and rejected stale transitions do not schedule new deliveries.
+
+## Read the compliance result
+
+The payload is a JSON event, without the API response envelope. Its `status` is a string compliance status, not the numeric managed account status.
+
+| `status` | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `PENDING` | Pending processing | No approval yet | Query account details |
+| `PENDING_SUBMISSION` | Awaiting applicant submission | Submission is still required | Complete the hosted submission |
+| `REVIEWING` | Review in progress | No final result yet | Query account details |
+| `APPROVED` | Compliance approved | Review approved, not account activation | Query account details |
+| `FORCE_APPROVED` | Compliance approved by override | Approval, not account activation | Query account details |
+| `REJECTED` | Compliance rejected | Review did not pass | Read the failure reason |
+| `EXPIRED` | Compliance session expired | Session expired | Check details and contact support |
+| `CREATION_FAILED` | Compliance session creation failed | Creation failed | Read the failure reason |
+| `ERROR` | Compliance processing failed | Processing error | Read the failure reason |
+
+`result_code` is a separate public result code. For example, `READY_FOR_REVIEW` and `RESUBMIT_REQUIRED` are result codes, not callback status values.
+
+After an approval, [get managed account details](/api-reference/onboarding/get-managed-account). Confirm an account whose `status` is `2` (ACTIVE) and inspect its bank account information.
+
+## Verify and acknowledge
+
+<Steps>
+  <Step title="Preserve and verify the request">
+    Keep the raw body bytes before parsing JSON. Read `Content-Type`, `X-Client-ID`, `X-Timestamp`, `X-Nonce`, `X-Content-Hash` and `X-Signature`.
+
+    Select the SK associated with `X-Client-ID`. Check the timestamp against your validity window and recompute SHA-256 over the raw body.
+
+    Build the callback StringToSign and compare the HMAC-SHA256 signature in constant time. Follow [Verify callbacks](/environments-and-credentials#verify-callbacks).
+
+    KYB callbacks preserve URL escaping in the signature path. Use `/hooks/%2Fkyb` unchanged if that is the received path; do not decode `%2F`.
+  </Step>
+  <Step title="Prevent replays and duplicate processing">
+    After signature verification, atomically record the AK and nonce to prevent replays. Deduplicate event processing with `delivery_id`.
+
+    The nonce is unique to an attempt; `delivery_id` stays stable for the event and subscription. A retry can therefore carry a new signature.
+  </Step>
+  <Step title="Persist the event and return HTTP 200">
+    Preserve the verified event for processing, then return HTTP 200. The response body does not determine acknowledgement.
+
+    Process the event asynchronously. Acknowledgement confirms receipt, not completion of your business processing.
+  </Step>
+  <Step title="Refresh the account state">
+    Update the compliance record for the matching `session_id`. Query account details before enabling account use.
+
+    Use current account details instead of assuming callbacks arrive in lifecycle order. Repeated or delayed events must not overwrite newer account state.
+  </Step>
+</Steps>
+
+## Retries and recovery
+
+Pagsmile retries transport failures and responses other than HTTP 200. Each delivery permits at most eight HTTP attempts, including the initial attempt; a delivery may have a lower limit.
+
+Retry delays are 5, 10, 20, 30, 60, 120 and 240 seconds, in that order. Retries reuse the stored payload bytes. Automatic retries stop when the delivery reaches its attempt limit.
+
+A pending delivery is canceled if its subscription is inactive or no longer matches the selected configuration. Keep the subscription and signing credential valid.
+
+If you miss a callback, [query account details](/api-reference/onboarding/get-managed-account) to recover the current state. Check your callback URL, subscription status and signature inputs. Contact support if the delivery failure remains unresolved.
+
+## Verify a received callback
+
+<Accordion title="Verify a callback you received" icon="shield-check">
+  <WebhookVerifier />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Get managed account" icon="magnifying-glass" href="/api-reference/onboarding/get-managed-account">
+    Confirm the current account status after a compliance update.
+  </Card>
+  <Card title="Create event subscription" icon="bell" href="/api-reference/webhooks/create-event-subscription">
+    Subscribe to managed account KYB events with USER credentials.
+  </Card>
+  <Card title="Onboarding overview" icon="building-columns" href="/api-reference/onboarding/overview">
+    Follow the managed account opening workflow.
+  </Card>
+  <Card title="Verify callbacks" icon="shield-check" href="/environments-and-credentials#verify-callbacks">
+    Use the callback signing protocol and replay checks.
+  </Card>
+</CardGroup>

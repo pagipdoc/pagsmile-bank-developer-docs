@@ -1,0 +1,103 @@
+---
+title: "Close account"
+sidebarTitle: "Close account"
+description: "Submit a managed account closure request with an idempotency key. Returns an operation ID and progress; closure and cleanup can continue asynchronously."
+openapi: "openapi/en.json POST /v3/bank_account/close"
+keywords: ["/v3/bank_account/close", "account closure", "eligibility", "closure progress"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Submits a managed account closure request and returns a persistent operation ID. Save that ID; `code` equal to `200` does not prove closure.
+
+| Credentials | Idempotency | Result |
+| --- | --- | --- |
+| ACCOUNT, USER | `idempotency_key` | Asynchronous operation |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the credential of the target account. The request's `account_number` must match the account authorized by your credential.
+
+    Account-target headers are optional. If you send them, send both and match the credential's ISPB and account number.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send `X-ISPB` and `X-Account-Number` for an account owned by your USER. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use an authorized ACCOUNT or USER credential.</Warning>
+  </Tab>
+</Tabs>
+
+The body selects no separate ISPB. Your credential and account-target headers determine it; `account_number` must match that account.
+
+The target bank account must be ACTIVE. New merchant closure requests accept MOR, VA and PA managed accounts, not master accounts (`MA_MOR`).
+
+With USER credentials, the target identity and owning master must be ACTIVE with matching bank account bindings. A PA's parent VA must also meet those conditions.
+
+## Prepare the account
+
+Run [Check eligibility](/api-reference/accounts/close-account/check-eligibility). Resolve balance, frozen funds, open child accounts, MED, infraction reports and outstanding fee bills before applying.
+
+Existing payments, refunds, disputes, account openings and fee collections can keep the operation waiting. Read the returned reasons; unconfirmed checks never count as approval.
+
+While closure is in progress, the account cannot send or receive new payments, even if its bank account status remains ACTIVE.
+
+<Warning>Closure is irreversible once the account is CLOSED. With `auto_delete_active_pix_keys` set to `true`, key deletion can start before closure is confirmed.</Warning>
+
+Delete active Pix keys yourself or authorize automatic deletion in this request. The server checks eligibility again after deleting keys.
+
+If eligibility changes after deletion starts, the operation requires verification. Keep the original operation ID and follow `next_action`; do not submit another closure.
+
+## Idempotency and retries
+
+The key is scoped to the authenticated owning USER across that user's accounts and credentials. Keep the ISPB, account, reason and deletion option unchanged when retrying.
+
+Reusing the same key and intent returns the original operation with current progress. Changing the intent with that key returns `4001013` with message `An account closure request already exists`. A new key returns the same code while another closure of the account is still running. After the closure completes, new requests for that account return `4004003`.
+
+If the result is unknown, query the operation when you have its ID. Otherwise resend the original request with its original idempotency key.
+
+A key from a REJECTED operation returns that same operation. Check the current account status before reapplying.
+
+After resolving its reasons, use a new key only if the account remains ACTIVE and eligible.
+
+Sign each transmission with fresh `X-Nonce` and `X-Timestamp` headers. A nonce is consumed even when signature validation fails.
+
+## Read the result
+
+Read `data.operation.status`, `reasons` and `next_action`. WAITING can reflect pending business activity, an unavailable check or a need for operations review.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `1` CHECKING | Eligibility checks running | Request recorded | Read reasons and next action |
+| `2` WAITING | Obligations or verification pending | Closure not confirmed | Follow `next_action` |
+| `3` DELETING_KEYS | Authorized key deletion underway | Deletion has started | Keep querying this operation |
+| `4` CLOSED | Account closed, cleanup pending | Bank account is closed | Wait for cleanup completion |
+| `5` COMPLETED | Closure and cleanup finished | Operation finished | Keep the final record |
+| `6` REJECTED | Eligibility blocks closure | No closure by this operation | Check current account state |
+
+REJECTED releases this operation's temporary closure restriction without changing the bank account status. After key deletion starts, new eligibility problems require verification instead of rejection.
+
+CLOSED confirms account closure, while COMPLETED also confirms cleanup. Cleanup closes the managed identity, updates default-account selection, retires Pix keys and sets active account limits to zero.
+
+It also removes account fee configurations, deactivates account webhook subscriptions and account credentials. Cleanup failures do not reopen the account.
+
+Business errors return HTTP 200 with `data` equal to `null`. Include the `xxx-log-id` response header when you contact support.
+
+## Try it in the Playground
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/bank_account/close" body={{ account_number: "00012345", reason: 1, idempotency_key: "close-00012345-20261023-001", auto_delete_active_pix_keys: false }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Check eligibility" icon="list-check" href="/api-reference/accounts/close-account/check-eligibility">
+    Resolve reasons before you submit.
+  </Card>
+  <Card title="Get closure progress" icon="clock" href="/api-reference/accounts/close-account/get-closure-progress">
+    Follow the original operation.
+  </Card>
+</CardGroup>

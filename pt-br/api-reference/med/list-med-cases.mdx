@@ -1,0 +1,72 @@
+---
+title: "Listar casos MED"
+sidebarTitle: "Listar casos"
+description: "Localize casos MED criados pelo pagador com filtros por identificador, status e período. Retorna resumos paginados para você selecionar o caso a consultar."
+openapi: "openapi/pt-br.json POST /v3/med/list"
+keywords: ["/v3/med/list", "caso MED", "notificação de infração", "escopo da conta"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Lista os casos MED criados pelo pagador para a conta selecionada. Omita um filtro de enum para incluir todos os status; `0` seleciona UNSPECIFIED.
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    A consulta usa a conta vinculada à sua AK. Omita os dois cabeçalhos de seleção da conta, ou envie ambos com os dados dessa conta.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta de sua titularidade. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use uma credencial ACCOUNT ou USER.</Warning>
+  </Tab>
+</Tabs>
+
+## Escopo e filtros
+
+A lista inclui apenas casos criados pelo pagador. Não inclui casos originados de notificações do recebedor nem casos criados pelo fluxo administrativo.
+
+Os filtros são combinados com AND. Identificadores não vazios usam correspondência exata; identificadores omitidos ou vazios não aplicam o filtro.
+
+Omita os filtros de enum para incluir todos os valores. Enviar `0` filtra por UNSPECIFIED, em vez de desativar o filtro.
+
+Os limites de período são inclusivos, em milissegundos Unix (UTC). Limites iguais a zero ou negativos são ignorados; limites positivos invertidos não retornam resultados.
+
+## Paginação
+
+Os resultados são ordenados pela criação, dos mais recentes para os mais antigos. O padrão de `page` é `1`; `page_size` usa `20` quando omitido ou não positivo.
+
+Envie `page_size` de `1` a `100`. Valores maiores consultam 100 itens, mas permanecem em `data.page.page_size` e no cálculo de `total_pages`.
+
+Mantenha os filtros e a seleção da conta ao solicitar a próxima página.
+
+## Interpretar o resultado
+
+Quando `code` é `200`, leia `data.items` e os metadados de paginação. Uma lista vazia indica que nenhum registro visível correspondeu aos filtros.
+
+Abra o caso correspondente com `data.items[].case_id`. O `amount` do resumo é o valor solicitado para recuperação, não uma comprovação de devolução.
+
+## Repetir consultas
+
+Se a consulta falhar ou expirar, repita a mesma consulta em vez de criar outro caso. Assine cada tentativa com novos valores de `X-Nonce` e `X-Timestamp`.
+
+Leia o `code` de negócio mesmo quando o status HTTP é `200`. Informe o cabeçalho de resposta `xxx-log-id` ao solicitar suporte.
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/med/list" body={{"page": 1, "page_size": 20}} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar detalhes do caso MED" icon="magnifying-glass" href="/pt-br/api-reference/med/get-med-case-details">
+    Consulte o andamento e os valores agregados.
+  </Card>
+  <Card title="Visão geral do MED" icon="shield-halved" href="/pt-br/api-reference/med/overview">
+    Confira o ciclo de vida do MED.
+  </Card>
+</CardGroup>

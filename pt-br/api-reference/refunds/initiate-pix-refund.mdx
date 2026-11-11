@@ -1,0 +1,94 @@
+---
+title: "Iniciar devolução Pix"
+sidebarTitle: "Iniciar devolução"
+description: "Solicite uma devolução total ou parcial de um recebimento Pix concluído. Retorna os identificadores da devolução com status pendente para acompanhamento."
+openapi: "openapi/pt-br.json POST /v3/refunds/pix"
+keywords: ["/v3/refunds/pix", "devolução Pix", "conciliação", "status da devolução"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Solicita uma devolução pela conta do recebedor original e retorna identificadores para acompanhamento. Uma resposta com `code` igual a `200` confirma aceitação, não conclusão.
+
+| Credenciais | Idempotência | Resultado |
+| --- | --- | --- |
+| ACCOUNT, USER | `merchant_order_id` | Assíncrono |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a conta vinculada à sua AK. Você pode omitir os cabeçalhos de conta; se enviados, os dois devem corresponder à conta vinculada.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta que pertença ao USER. Inclua os dois na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use uma credencial ACCOUNT ou USER para a conta participante.</Warning>
+  </Tab>
+</Tabs>
+
+A conta precisa ser a do recebedor do pagamento Pix original. O pagamento deve estar concluído e ter um valor restante disponível para devolução maior que zero.
+
+A conta que envia a devolução precisa estar autorizada a enviar pagamentos. Se o envio estiver bloqueado, a solicitação é recusada antes da aceitação.
+
+## Valor e prazo
+
+Envie uma string decimal em BRL, como `"10.50"`. O valor deve ser maior que zero e exatamente representável com duas casas decimais.
+
+Zeros adicionais ao final, como em `"10.500"`, são aceitos. Casas decimais não nulas além da segunda são recusadas.
+
+O valor não pode exceder o restante disponível. Esse cálculo desconta devoluções anteriores, chargebacks e valores reservados para devoluções pendentes.
+
+O prazo é de 90 dias após o início da transação original. A solicitação é recusada depois desse prazo.
+
+## Identificar o pagamento original
+
+Use o ID de liquidação do pagamento específico nos [detalhes do recebimento](/pt-br/api-reference/payin/get-transaction-details) ou no lançamento de crédito correspondente do [extrato](/pt-br/api-reference/accounts/get-account-statement).
+
+Não selecione automaticamente o primeiro lançamento. Guarde o ID original junto com os identificadores da devolução.
+
+Se um erro de serviço impedir a consulta da transação original, a chamada retorna `4003014` com a mensagem `Unable to retrieve the original transaction at this time`. Confira `original_settlement_id` e o contexto da conta e consulte antes de tentar novamente.
+
+## Interpretar a aceitação
+
+Quando a solicitação é aceita, a resposta retorna status `1` (TXN_STATUS_PENDING). Salve `data.refund_id` e `data.settlement_refund_id`, além do `merchant_order_id` enviado.
+
+A resposta não preenche `data.merchant_order_id`. O bloqueio dos recursos ocorre depois da aceitação; saldo disponível insuficiente pode causar falha no processamento.
+
+Acompanhe a mesma devolução pela [consulta de status](/pt-br/api-reference/refunds/get-refund-status) ou pelos [callbacks](/pt-br/api-reference/refunds/callbacks). A conclusão exige status final `2` (COMPLETED) e conferência do extrato.
+
+## Repetições e duplicidades
+
+Comece `merchant_order_id` com a data UTC atual em `YYMMDD` e acrescente um sufixo único. Ajuste a data do exemplo antes de testar.
+
+Use apenas letras ASCII, dígitos, hífens e sublinhados.
+
+A data precisa ter interseção com a janela de ±1 hora do horário UTC atual. Gere IDs distintos entre contas, usuários e operações.
+
+Um ID de pedido fora dessa janela retorna `400` com a mensagem `merchant_order_id date does not match current time (UTC ±1h)`.
+
+A reserva dura 48 horas. Uma duplicidade retorna `4001013` e não repete a resposta original; isso não comprova falha da devolução.
+
+Após timeout ou erro temporário, consulte os identificadores salvos. Um resultado não localizado logo após a aceitação pode ser temporário.
+
+Não crie outra devolução antes de esclarecer o resultado. Sem identificadores, guarde os dados da requisição e procure o suporte com `xxx-log-id`.
+
+Assine cada tentativa com novos `X-Nonce` e `X-Timestamp`. Veja [erros de autenticação](/pt-br/api-reference/error-catalog#erros-de-autenticação).
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/refunds/pix" body={{"original_settlement_id": "E876543212026111017000000000000001", "merchant_order_id": "261110-refund-001", "amount": "10.50"}} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar status" icon="arrows-rotate" href="/pt-br/api-reference/refunds/get-refund-status">
+    Acompanhe o resultado da devolução existente.
+  </Card>
+  <Card title="Callbacks de devoluções" icon="bell" href="/pt-br/api-reference/refunds/callbacks">
+    Receba resultados assinados.
+  </Card>
+</CardGroup>

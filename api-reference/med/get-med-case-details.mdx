@@ -1,0 +1,88 @@
+---
+title: "Get MED case details"
+sidebarTitle: "Case details"
+description: "Read payer-facing MED case progress, requested amounts, blocked totals and returned totals. Returns filtered details without linked receiver-side tasks."
+openapi: "openapi/en.json POST /v3/med/detail"
+keywords: ["/v3/med/detail", "MED case", "infraction report", "account scope"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Returns the payer-facing details of a MED case. A successful query does not prove that returned funds reached the account.
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    The query uses the account bound to your AK. Omit both account-target headers, or send both matching that account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send `X-ISPB` and `X-Account-Number` for an account you own. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use an ACCOUNT or USER credential.</Warning>
+  </Tab>
+</Tabs>
+
+## Choose the case
+
+Use `data.items[].case_id` from [List MED cases](/api-reference/med/list-med-cases). An unknown or out-of-scope case returns business code `4004004`.
+
+## Visibility and freshness
+
+The payer-facing response always returns `infractions`, `refunds` and `fund_dispositions` as empty arrays. Linked receiver-side tasks are not exposed.
+
+When the case has linked tasks or funds dispositions, `timeline` is also empty. An empty timeline does not prove that the case has no activity.
+
+Some cases refresh progress during the query. If that refresh fails, the query can still succeed with the last recorded state.
+
+Check `updated_at` before treating the result as current. `original_transaction` can be `null` when the transaction snapshot is unavailable.
+
+## Case statuses
+
+The numeric `status` describes the recorded case stage. It does not prove that the requested amount was recovered or credited to the payer.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `0` (UNSPECIFIED) | No defined stage | No usable lifecycle state | Repeat lookup; contact support |
+| `1` (CREATED) | Case created | Case acceptance recorded | Follow case and totals |
+| `2` (TRACKED) | Tracking, opening or update pending | Workflow tracking recorded | Follow case and totals |
+| `3` (AWAITING_ANALYSIS) | Receiver analysis pending | Waiting stage recorded | Query for analysis progress |
+| `4` (ANALYZED) | Analysis stage complete | Analysis completion recorded | Verify totals; no return proven |
+| `5` (RETURN_PROCESSING) | Returns processing | Return processing recorded | Check returned total and statement |
+| `6` (COMPLETED) | Case completed or closed | Workflow closure recorded | Reconcile returned total and credits |
+| `7` (CANCELLED) | Case cancelled | Cancellation recorded | Reconcile any recorded amounts |
+| `8` (FAILED) | Terminal failure | Workflow failure recorded | Query before any new action |
+
+`COMPLETED` establishes workflow closure, not full recovery or account credit. Compare `returned_amount_total` with `requested_amount` and confirm credits in the account statement.
+
+## Reconcile amounts
+
+Keep `requested_amount`, `blocked_amount_total` and `returned_amount_total` separate. A funds freeze is not a credit to the payer.
+
+Use the case ID and the available original transaction ID to match your records. Confirm actual credits in the [account statement](/api-reference/accounts/get-account-statement).
+
+Do not infer individual receiver-side actions from the empty task arrays. Use the numeric case `status` and aggregate amounts to follow progress.
+
+## Query retries
+
+If a query fails or times out, repeat the same lookup rather than creating a new case. Sign each attempt with new `X-Nonce` and `X-Timestamp` values.
+
+Read the business `code` even when HTTP status is `200`. Include the response header `xxx-log-id` when contacting support.
+
+## Try it in the Playground
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/med/detail" body={{"case_id": "med_case_example_001"}} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="List MED cases" icon="list" href="/api-reference/med/list-med-cases">
+    Find the case you need.
+  </Card>
+  <Card title="MED overview" icon="shield-halved" href="/api-reference/med/overview">
+    Review the MED lifecycle.
+  </Card>
+</CardGroup>

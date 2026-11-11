@@ -1,0 +1,84 @@
+---
+title: "Consultar detalhes da notificação de infração"
+sidebarTitle: "Detalhes da notificação"
+description: "Consulte uma tarefa de notificação de infração pelo ID da tarefa. Retorna identificadores da notificação, valores do bloqueio e dados da transação original."
+openapi: "openapi/pt-br.json POST /v3/infractions/detail"
+keywords: ["/v3/infractions/detail", "caso MED", "notificação de infração", "escopo da conta"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Retorna uma tarefa de notificação de infração da conta recebedora selecionada. O valor bloqueado não comprova a devolução dos recursos.
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    A consulta usa a conta vinculada à sua AK. Omita os dois cabeçalhos de seleção da conta, ou envie ambos com os dados dessa conta.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta de sua titularidade. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use uma credencial ACCOUNT ou USER.</Warning>
+  </Tab>
+</Tabs>
+
+## Selecionar a tarefa
+
+Use `data.items[].infraction_id` de [Listar notificações de infração](/pt-br/api-reference/med/list-infraction-reports).
+
+A consulta aceita o ID da tarefa. `infraction_report_id` e `dict_infraction_report_id` identificam notificações e não substituem esse ID.
+
+A tarefa deve corresponder a uma transação recebida pela conta selecionada. Uma tarefa inexistente ou fora desse escopo retorna o código de negócio `4004004`.
+
+## Status da tarefa
+
+O `status` numérico descreve a etapa registrada da tarefa. Interprete-o separadamente de `freeze_status` e dos valores, mesmo quando a tarefa estiver encerrada.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `0` (UNSPECIFIED) | Etapa não definida | Nenhum estado utilizável da tarefa | Repita a consulta; solicite suporte |
+| `1` (RECEIVED) | Tarefa recebida | Recebimento registrado | Confira os campos de bloqueio |
+| `2` (BLOCKING_PENDING) | Etapa de bloqueio pendente | Etapa pendente registrada | Confira o bloqueio efetivo separadamente |
+| `3` (BLOCKED) | Tarefa classificada como bloqueada | Etapa de bloqueio registrada | Confira valor bloqueado e valor faltante |
+| `4` (ANALYSIS_PENDING) | Análise ou encerramento pendente | Etapa de espera registrada | Consulte o encerramento; confira o bloqueio |
+| `5` (CLOSED_AGREED) | Encerramento classificado como concordância | Encerramento da tarefa registrado | Confira o bloqueio e o extrato |
+| `6` (CLOSED_DISAGREED) | Encerramento classificado como discordância | Encerramento da tarefa registrado | Confira o bloqueio e o extrato |
+| `7` (CANCELLED) | Tarefa cancelada | Cancelamento registrado | Confira o bloqueio e o extrato |
+| `8` (FAILED) | Tarefa com falha | Falha da tarefa registrada | Consulte; solicite suporte se não resolver |
+
+`CLOSED_AGREED` e `CLOSED_DISAGREED` são categorias de encerramento registradas. Por si só, não comprovam um resultado explícito de análise nem uma devolução concluída.
+
+`BLOCKING_PENDING` pode coexistir com um bloqueio efetivo. Nem `BLOCKED` nem uma categoria de encerramento comprovam o valor atualmente bloqueado ou sua liberação; confira os campos de bloqueio abaixo.
+
+## Interpretar o bloqueio de recursos
+
+Mantenha separados o `amount` solicitado, o `blocked_amount` registrado e o `freeze_effective_amount` efetivo. Um valor bloqueado não comprova uma devolução concluída.
+
+Compare `freeze_target_amount` com `freeze_effective_amount` e `freeze_shortfall_amount`. Interprete `freeze_status` separadamente do `status` numérico da tarefa de infração.
+
+Use os identificadores da transação original para associar seus registros. Confirme as movimentações no [extrato](/pt-br/api-reference/accounts/get-account-statement).
+
+## Repetir consultas
+
+Se a consulta falhar ou expirar, repita a mesma consulta em vez de criar outro caso. Assine cada tentativa com novos valores de `X-Nonce` e `X-Timestamp`.
+
+Leia o `code` de negócio mesmo quando o status HTTP é `200`. Informe o cabeçalho de resposta `xxx-log-id` ao solicitar suporte.
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/infractions/detail" body={{"infraction_id": "infraction_example_001"}} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Listar notificações de infração" icon="list" href="/pt-br/api-reference/med/list-infraction-reports">
+    Localize o ID da tarefa de notificação.
+  </Card>
+  <Card title="Consultar detalhes do caso MED" icon="shield-halved" href="/pt-br/api-reference/med/get-med-case-details">
+    Consulte um caso do pagador ao qual você tenha acesso.
+  </Card>
+</CardGroup>

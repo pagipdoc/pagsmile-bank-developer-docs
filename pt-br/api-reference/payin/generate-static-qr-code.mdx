@@ -1,0 +1,96 @@
+---
+title: "Gerar QR code estático"
+sidebarTitle: "QR code estático"
+description: "Gere um QR code Pix reutilizável sem quantia fixa para sua conta recebedora. Retorna o payload e os IDs, sem confirmar o recebimento de um pagamento."
+openapi: "openapi/pt-br.json POST /v3/qr_code/generate/static"
+keywords: ["/v3/qr_code/generate/static", "QR Pix estático", "QR code reutilizável", "recebimento Pix"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Gere um QR code Pix reutilizável para sua conta recebedora. O corpo da requisição não tem campo de quantia, então confira cada recebimento separadamente.
+
+| Credenciais | Idempotência | Resultado |
+| --- | --- | --- |
+| ACCOUNT, USER | Verifica duplicidade, sem repetir resposta | Payload e IDs |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a conta vinculada à sua AK. Omita `X-ISPB` e `X-Account-Number`, ou envie ambos com valores não vazios que correspondam à conta.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta que pertença ao USER. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use a credencial ACCOUNT ou USER da conta recebedora.</Warning>
+  </Tab>
+</Tabs>
+
+A conta precisa estar ACTIVE, habilitada para receber pagamentos e sem [encerramento de conta](/pt-br/api-reference/accounts/close-account/overview) em andamento. O tipo de conta e o documento do titular devem ser válidos.
+
+Use uma chave EVP ACTIVE registrada para essa conta e seu titular. Outros tipos de chave Pix não podem gerar um QR code estático.
+
+Um `pix_key_type` diferente de EVP retorna `400` com a mensagem `Static QR code pix_key_type must be EVP`. Com `pix_key_type` igual a EVP, um valor de chave que contém `@` retorna `400` com a mensagem `Static QR code pix_key must not contain @`. Uma chave EVP não encontrada retorna `4004004` com a mensagem `PIX key not found`.
+
+O nome do titular deve conter caracteres ASCII imprimíveis ou espaços em branco. Outros caracteres não ASCII nesse nome são rejeitados.
+
+## Reutilização e confirmação do pagamento
+
+Você pode usar o mesmo QR code estático para vários pagamentos. O pedido de geração identifica o QR code, não cada pagamento feito por ele.
+
+Quando `code` é `200`, salve `data.qr_code_id` e `data.merchant_order_id`. A geração não confirma que os recursos chegaram à conta.
+
+Decodifique `data.payload_base64` de Base64 e use o payload de pagamento obtido para gerar a imagem do QR code. O endpoint retorna `data.payload_image_base64` vazio.
+
+Use os [detalhes do QR code](/pt-br/api-reference/payin/get-qr-code-details) para conferir a referência de geração. Confirme cada recebimento nos [detalhes do recebimento](/pt-br/api-reference/payin/get-transaction-details), sem tratar o QR code como uma única transação.
+
+## Repetições e duplicidades
+
+Inicie `merchant_order_id` com a data UTC atual no formato `YYMMDD`. A data aceita deve ter interseção com a janela de uma hora antes ou depois do horário atual.
+
+Um ID de pedido fora dessa janela retorna `400` com a mensagem `merchant_order_id date does not match current time (UTC ±1h)`.
+
+Use um ID de pedido único entre suas contas e operações que utilizam IDs de pedido. A verificação compartilhada de duplicidade mantém o ID por 48 horas.
+
+Um ID reservado retorna `4001013`, sem repetir a resposta de sucesso original. A reserva pode permanecer após uma tentativa de geração com falha.
+
+<AccordionGroup>
+  <Accordion title="O resultado da geração é desconhecido" icon="clock-rotate-left">
+    Se você salvou o ID do QR code, consulte os detalhes antes de gerar outro código. Se não tiver o ID, guarde o ID do pedido e informe `xxx-log-id` ao suporte.
+
+    Não troque o ID do pedido sem esclarecer a tentativa original. Um erro de duplicidade, por si só, não comprova a existência de um QR code utilizável.
+  </Accordion>
+  <Accordion title="Um campo obrigatório está ausente" icon="list-check">
+    A ausência de `merchant_order_id` retorna `4000` com `Field order_id is required`. A mensagem cita `order_id`, mas o campo da requisição continua sendo `merchant_order_id`.
+  </Accordion>
+  <Accordion title="Falha na assinatura" icon="signature">
+    Assine cada tentativa com novos `X-Nonce` e `X-Timestamp`. Uma falha na verificação da assinatura consome o nonce. Veja [erros de autenticação](/pt-br/api-reference/error-catalog#erros-de-autenticação).
+  </Accordion>
+</AccordionGroup>
+
+## Testar no Playground
+
+Substitua a chave EVP do exemplo pela sua chave registrada. Atualize o prefixo de data UTC do ID do pedido antes de chamar e use um sufixo único.
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/qr_code/generate/static" body={{ merchant_order_id: "261110_static_001", pix_key: "8e67c99a-7c55-4e91-9557-512b5e198561", pix_key_type: 5, city: "SAO PAULO", memo: "Counter payment" }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Criar chave Pix" icon="key" href="/pt-br/api-reference/pix-keys/create-pix-key">
+    Registre uma chave EVP para a conta.
+  </Card>
+  <Card title="Consultar detalhes do QR code" icon="qrcode" href="/pt-br/api-reference/payin/get-qr-code-details">
+    Confira a referência do QR code gerado.
+  </Card>
+  <Card title="Consultar detalhes do recebimento" icon="receipt" href="/pt-br/api-reference/payin/get-transaction-details">
+    Confira um pagamento individual.
+  </Card>
+  <Card title="Gerar QR code dinâmico" icon="qrcode" href="/pt-br/api-reference/payin/generate-dynamic-qr-code">
+    Gere um QR code com quantia definida.
+  </Card>
+</CardGroup>

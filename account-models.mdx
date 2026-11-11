@@ -1,0 +1,119 @@
+---
+title: "Account models and features"
+sidebarTitle: "Account models"
+description: "Choose MOR, VA or PA for managed accounts. Compare their parent rules, compliance requirements and credentials before you submit an account opening request."
+keywords: ["account models", "managed account", "MOR", "VA", "PA"]
+---
+
+Choose a managed-account model before you open an account through the Pagsmile Open API. The model determines the parent account and whether you submit separate compliance information.
+
+## Compare models
+
+MA is the master account. MOR, VA and PA are the models you select when you [create a managed account](/api-reference/onboarding/create-managed-account).
+
+| Model | Direct parent | Compliance submission |
+| --- | --- | --- |
+| MOR, operating account | Owning MA | No separate submission |
+| VA, managed account | Owning MA | Account holder's own information |
+| PA, payment account | Owning MA or its VA | Account holder's own information |
+
+Select MOR, VA or PA below to read the model-specific rules.
+
+## Account hierarchy
+
+Your USER credential defines the owner scope. Within that scope, the MA is the root account; MOR and VA link directly to it.
+
+<Tree>
+  <Tree.Folder name="MA: master account" defaultOpen={true}>
+    <Tree.File name="MOR: operating account" />
+    <Tree.Folder name="VA: managed account" defaultOpen={true}>
+      <Tree.File name="PA: payment account" />
+    </Tree.Folder>
+    <Tree.File name="PA: payment account" />
+  </Tree.Folder>
+</Tree>
+
+A PA has one direct parent: the owning MA or a VA directly under that MA. A MOR or another PA cannot be its parent.
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    <Warning>ACCOUNT credentials cannot create managed accounts. Use the owning USER credential for account opening.</Warning>
+  </Tab>
+  <Tab title="USER" icon="user">
+    Use the USER credential that owns the MA. Managed-account functionality must be enabled for that USER.
+
+    The USER must have exactly one active MA. That MA must also have an active bank account.
+
+    Account opening is USER-scoped. Omit `X-ISPB` and `X-Account-Number`; the creation flow resolves the owning MA.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot create managed accounts. Use the owning USER credential instead.</Warning>
+  </Tab>
+</Tabs>
+
+Account creation can fail if the applicable opening fee cannot be charged. Confirm funding before you submit the request.
+
+<View title="MOR" icon="building-columns">
+
+## Open a MOR
+
+Use MOR for an operating account under the owning MA. You do not submit a separate compliance review for this model.
+
+Send `reference_id` and select MOR in `model`. You can also provide a trade name and notification email.
+
+Do not send compliance inputs, a return URL or `linked_account`. The creation flow selects the owning MA as the direct parent.
+
+See [Create managed account](/api-reference/onboarding/create-managed-account) for the MOR request variant.
+
+</View>
+
+<View title="VA" icon="building">
+
+## Open a VA
+
+Use VA for a managed account with its own account-holder information. The creation flow links it directly to the owning MA.
+
+Send `reference_id`, select VA in `model`, and choose a `compliance_mode`. Provide the account holder's document type, taxpayer ID and legal name.
+
+The selected compliance mode determines the additional review information you submit. Do not send `linked_account` for VA.
+
+See [Create managed account](/api-reference/onboarding/create-managed-account) for the VA request variant and compliance modes.
+
+</View>
+
+<View title="PA" icon="wallet">
+
+## Open a PA
+
+Use PA for a payment account with its own account-holder information. The compliance payload supports an individual CPF or a business CNPJ.
+
+Send `reference_id`, select PA in `model`, and choose a `compliance_mode`. Provide the account holder's document type, taxpayer ID and name.
+
+You must also send `linked_account` with both `ispb` and `account_number`. These identify the PA's direct parent, not the new PA.
+
+The parent must belong to the same USER and be the owning MA or a VA directly under it. Its identity and bank account must be active.
+
+For PA account operations, use USER credentials and target the PA's own bank account with `X-ISPB` and `X-Account-Number`. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+
+See [Create managed account](/api-reference/onboarding/create-managed-account) for the PA request variant.
+
+</View>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Create managed account" icon="plus" href="/api-reference/onboarding/create-managed-account">
+    Submit the request for your selected model.
+  </Card>
+  <Card title="Get managed account" icon="magnifying-glass" href="/api-reference/onboarding/get-managed-account">
+    Read the account's opening status and details.
+  </Card>
+  <Card title="Onboarding overview" icon="list-check" href="/api-reference/onboarding/overview">
+    Follow the account-opening lifecycle.
+  </Card>
+  <Card title="Environments and credentials" icon="key" href="/environments-and-credentials">
+    Choose credentials and sign your requests.
+  </Card>
+</CardGroup>

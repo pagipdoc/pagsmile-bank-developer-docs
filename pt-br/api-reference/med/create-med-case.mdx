@@ -1,0 +1,90 @@
+---
+title: "Criar caso MED"
+sidebarTitle: "Criar caso"
+description: "Abra um caso MED para um pagamento Pix original. Retorna o ID, o status e os montantes de recuperação para você acompanhar a contestação separadamente."
+openapi: "openapi/pt-br.json POST /v3/med/create"
+keywords: ["/v3/med/create", "MED", "contestação Pix", "recuperação de recursos"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Cria um caso MED vinculado a um pagamento Pix original. A abertura do caso não comprova que os recursos foram bloqueados ou devolvidos.
+
+| Credenciais | Idempotência | Resultado |
+| --- | --- | --- |
+| ACCOUNT, USER | Sem chave na requisição | Status do caso |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a credencial vinculada à conta do pagador. Omita os cabeçalhos de conta ou envie `X-ISPB` e `X-Account-Number` com os dados dessa conta.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta pertencente ao USER. Inclua ambos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use credenciais ACCOUNT ou USER da conta do pagador.</Warning>
+  </Tab>
+</Tabs>
+
+Confirme que o pagamento original pertence à conta do pagador selecionada. Os cabeçalhos de conta, por si só, não verificam a titularidade do pagamento original.
+
+O pagamento original precisa ser Pix e estar disponível para consulta com seu montante e ID de transação. A conta do pagador original não pode estar em encerramento nem encerrada.
+
+## Identificar o pagamento original
+
+O identificador fim a fim do Pix original é o ID de liquidação do pagamento original.
+
+Chame [Consultar detalhes do pagamento](/pt-br/api-reference/payout/get-payment-details) com o `txn_id` salvo do pagamento contestado. Use o `data.details.settlement_id` retornado como `end_to_end_id`.
+
+Não substitua `end_to_end_id` por `txn_id`. Use o pagamento contestado, não outro pagamento de maior montante.
+
+Salve `data.med_case.case_id` quando a requisição for bem-sucedida. Você usa esse ID para [consultar o caso](/pt-br/api-reference/med/get-med-case-details) ou [solicitar o cancelamento](/pt-br/api-reference/med/cancel-med-case).
+
+## Escolher a opção de processamento
+
+Selecione a situação de fraude que descreve a reclamação. O schema da requisição lista as situações recomendadas.
+
+Quando você omite `automatic_refund`, o padrão é `false`, que seleciona o processamento manual, com `flow_type` igual a `2` (MANUAL).
+
+Enviar `automatic_refund` como `true` seleciona o processamento automatizado, com `flow_type` igual a `1` (AUTOMATED). A recuperação pode ser parcial em ambas as opções.
+
+## Interpretar o resultado
+
+Todos os resultados de negócio em JSON usam HTTP 200. Leia `code` antes de `data`; quando `code` for `200`, confira o status do caso.
+
+O status do caso e os resultados financeiros são distintos. Compare `requested_amount`, `blocked_amount_total` e `returned_amount_total` antes de considerar a recuperação concluída.
+
+A abertura define o prazo de análise para sete dias após a criação e o prazo de devolução manual para 72 horas após a criação. O processamento pode atualizar qualquer um dos prazos quando o novo timestamp é maior que `0`.
+
+Use os horários da resposta efetiva. O prazo de devolução manual pode existir mesmo com `automatic_refund` igual a `true`; isso não comprova disponibilidade de ação manual.
+
+Consulte o [ciclo de vida do MED](/pt-br/api-reference/med/overview#ciclo-de-vida-do-caso) para entender os status e o próximo passo.
+
+## Repetições e duplicidades
+
+Esta requisição não tem chave de idempotência. Um novo envio pode criar outro caso.
+
+Após um timeout ou resultado desconhecido, [liste os casos MED](/pt-br/api-reference/med/list-med-cases) e identifique o pagamento original antes de enviar novamente.
+
+Assine cada tentativa com novos `X-Nonce` e `X-Timestamp`. Uma falha na assinatura também consome o nonce.
+
+## Testar no Playground
+
+Substitua o identificador fim a fim do exemplo pelo ID do Pix original antes de assinar. Use credenciais de Sandbox nas requisições de Sandbox.
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/med/create" body={{ end_to_end_id: "E12345678202611101200ABCDEF1234567", original_fraud_situation: 1 }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar detalhes do caso MED" icon="magnifying-glass" href="/pt-br/api-reference/med/get-med-case-details">
+    Acompanhe o caso e os montantes de recuperação.
+  </Card>
+  <Card title="Cancelar caso MED" icon="ban" href="/pt-br/api-reference/med/cancel-med-case">
+    Verifique a elegibilidade antes do cancelamento.
+  </Card>
+</CardGroup>

@@ -1,0 +1,183 @@
+---
+title: "Conciliar pagamentos, devoluções e MED"
+sidebarTitle: "Conciliação"
+description: "Relacione pagamentos, devoluções e casos MED com extrato, detalhes e callbacks. Confira os montantes concluídos, as tarifas e os saldos sem duplicar registros."
+keywords: ["conciliação", "extrato", "txn_id", "devolução Pix", "MED"]
+---
+
+Use a conciliação da Pagsmile para relacionar seus pedidos aos registros de pagamentos, devoluções e MED de cada conta. Confirme o status da operação correspondente antes de incluir seu montante no total concluído.
+
+## Separe os identificadores
+
+Guarde a requisição enviada e os identificadores recebidos. Registre também a conta e o ambiente; um ID de pedido não identifica todos os registros financeiros.
+
+| Identificador | Onde você obtém | Como usar |
+| --- | --- | --- |
+| `merchant_order_id` | Sua requisição de pagamento ou devolução | Relacione seu pedido com a operação correspondente |
+| `txn_id` | Resposta do pagamento, detalhes ou lançamento correspondente no extrato | Consulte o pagamento e relacione seus registros |
+| `settlement_id` | Detalhes do pagamento ou lançamento do extrato | Guarde a referência de liquidação separada de `txn_id` |
+| `refund_id` | Resposta da solicitação de devolução | Consulte os detalhes e o status dessa devolução |
+| `settlement_refund_id` | Resposta da solicitação de devolução | Guarde a referência de liquidação própria da devolução |
+| `parent_txn_id`, `parent_settlement_id` | Lançamento de devolução no extrato | Relacione a devolução ao pagamento original |
+| `case_id` | Resposta do caso MED | Relacione o caso MED com seus detalhes |
+| `end_to_end_id`, `root_end_to_end_id` | Requisição MED e detalhes do caso | Relacione o Pix original ao seu caso MED |
+
+Use o `txn_id` retornado na resposta do pagamento quando você tiver esse identificador. Se você usar o extrato, localize o lançamento correspondente ao pagamento.
+
+O extrato apresenta registros em ordem cronológica decrescente e pode incluir pagamentos, devoluções e disputas. Não selecione o primeiro lançamento sem relacioná-lo à sua operação.
+
+## Escolha a fonte para cada conferência
+
+| Fonte | O que você pode confirmar | O que não confirma |
+| --- | --- | --- |
+| Resposta da solicitação | O resultado da requisição e os identificadores retornados | A conclusão apenas por `code` |
+| Status do pagamento ou da devolução | O status informado da operação | O histórico completo do saldo da conta |
+| Detalhes da transação | Montante, participantes, status e tarifas aplicáveis | Todas as variações de saldo |
+| Lançamento do extrato | A transação listada, o status e os vínculos com o pagamento original | Lançamentos separados de tarifas, bloqueios ou desbloqueios |
+| Callback | O conteúdo do evento recebido | Que seus próprios registros estão completos |
+| Resposta de saldo da conta | Os montantes total, disponível e bloqueado informados | Um saldo histórico no fim do período do extrato |
+| Detalhes do caso MED | Montantes solicitado, bloqueado e devolvido | Uma devolução concluída apenas pelo montante bloqueado |
+
+Todos os resultados de negócio em JSON usam HTTP 200. Leia `code` antes de `data`; mesmo quando `code` é `200`, confira o status da operação.
+
+## Procedimento diário de conciliação
+
+<Steps>
+  <Step title="Defina a conta e o período">
+    Escolha uma conta e um ambiente. Defina `start_date` e `end_date` na [consulta do extrato](/pt-br/api-reference/accounts/get-account-statement).
+
+    Guarde cada [resposta de saldo](/pt-br/api-reference/accounts/get-account-balance) com o horário da requisição. O saldo atual não é um saldo histórico de fechamento.
+  </Step>
+  <Step title="Leia todas as páginas do extrato">
+    Omita `cursor` na primeira requisição. Nas seguintes, reutilize o `cursor` e o `snapshot_timestamp` retornados, sem alterar a conta nem os filtros.
+
+    Continue até não haver um próximo cursor válido. Não use `page` nem uma contagem total para determinar que a leitura terminou.
+
+    O padrão de `page_size` é `20`. Se você informar esse campo, use um inteiro de `1` a `100`.
+  </Step>
+  <Step title="Relacione os registros com seus pedidos">
+    Relacione cada lançamento pela conta e pelos identificadores da transação. Depois, compare `amount`, `payer`, `payee` e `txn_status`.
+
+    `is_credit` compara o documento do recebedor com o documento da conta consultada. Ele não compara os identificadores bancários ou de conta.
+
+    Quando pagador e recebedor compartilham o mesmo CPF ou CNPJ, determine a direção pelos identificadores bancários e de conta dos participantes. Compare esses identificadores com a conta selecionada; não use apenas `is_credit`.
+
+    Use aritmética decimal para os montantes em strings de BRL, como `"10.50"`.
+
+    Mantenha as devoluções separadas dos pagamentos originais. Remova registros duplicados antes de somar os montantes concluídos.
+  </Step>
+  <Step title="Resolva as operações incompletas">
+    Para um pagamento enviado, consulte o [status do pagamento](/pt-br/api-reference/payout/get-payment-status) com `txn_id` e confira os [detalhes](/pt-br/api-reference/payout/get-payment-details).
+
+    Para uma devolução que você iniciou, consulte o [status da devolução](/pt-br/api-reference/refunds/get-refund-status) com `refund_id` e confira os [detalhes](/pt-br/api-reference/refunds/get-refund-details).
+
+    Verifique os [callbacks](/pt-br/environments-and-credentials#verificar-callbacks) antes de aplicá-los. Guarde os conteúdos válidos, responda com HTTP 200 e processe-os de forma assíncrona.
+
+    Remova duplicidades conforme a página de callback de [recebimento](/pt-br/api-reference/payin/callbacks), [pagamento Pix](/pt-br/api-reference/payout/pix/callbacks) ou [devolução](/pt-br/api-reference/refunds/callbacks) do seu evento.
+
+    Consulte os detalhes quando um callback divergir do resultado que você armazenou.
+  </Step>
+  <Step title="Confira tarifas, bloqueios e divergências">
+    Compare a `credit_fee` ou `debit_fee` aplicável nos detalhes da transação com a configuração de tarifas da conta.
+
+    Confira os montantes bloqueados na resposta da conta e os [detalhes do caso MED](/pt-br/api-reference/med/get-med-case-details). Separe essas conferências dos totais do extrato.
+
+    Registre operações sem correspondência e diferenças para acompanhamento. Repita a consulta relevante antes de interpretar dados ausentes como um resultado financeiro.
+  </Step>
+</Steps>
+
+## Confirme os resultados de pagamentos e devoluções
+
+Para recebimentos Pix, consulte os [detalhes da transação recebida](/pt-br/api-reference/payin/get-transaction-details) e localize o lançamento correspondente no extrato. Concilie cada recebimento separadamente.
+
+Os detalhes de recebimentos ocultam pagamentos cuja transação ainda não foi concluída. A ausência de um registro, por si só, não comprova falha no pagamento.
+
+Use esta tabela para `txn_status` nos detalhes ou no extrato. A resposta de status do pagamento também usa `txn_status`; a de devolução usa `refund_status`.
+
+Os detalhes do pagamento e seus lançamentos no extrato usam um status de exibição derivado. O endpoint de status informa o status original do pagamento.
+
+Após uma devolução, a consulta de status pode continuar retornando `2` (COMPLETED). Os detalhes ou o extrato podem mostrar `6` (REFUNDED) ou `7` (PARTIALLY_REFUNDED) para o mesmo pagamento.
+
+Essa diferença, por si só, não indica resultados financeiros conflitantes. Concilie separadamente o pagamento original e cada registro distinto de devolução ou disputa vinculado a ele.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `1` PENDING | Aguarda processamento | Ainda não comprova conclusão | Consulte novamente |
+| `5` PROCESSING | Em processamento | Ainda não comprova conclusão | Consulte novamente |
+| `2` COMPLETED | Operação concluída | Conclusão informada da operação | Confira montante e identificadores |
+| `3` FAILED | Operação com falha | Falha informada | Confira os detalhes |
+| `4` CANCELLED | Operação cancelada | Cancelamento informado | Confira os detalhes |
+| `6` REFUNDED | Pagamento original integralmente devolvido | Pagamento original marcado como integralmente devolvido | Concilie separadamente o pagamento original e as devoluções distintas vinculadas |
+| `7` PARTIALLY_REFUNDED | Pagamento original parcialmente devolvido | Pagamento original marcado como parcialmente devolvido | Concilie separadamente o pagamento original e cada devolução parcial distinta |
+| `8` DISPUTED | Pagamento original contestado | Disputa informada, sem comprovar devolução concluída | Concilie separadamente o pagamento original e os registros distintos de disputa vinculados |
+
+Para o remetente da devolução, a consulta de status atualiza devoluções em status não final. Se essa atualização falhar, a resposta ainda pode informar o último status armazenado.
+
+O recebedor de uma devolução só pode consultar os detalhes após a conclusão. Antes disso, a consulta de status retorna `PROCESSING` genérico, inclusive quando houve falha.
+
+Não interprete esse status na visão do recebedor como prova de que o processamento continua. Use o status do remetente e os registros correspondentes para esclarecer um resultado incerto.
+
+## Relacione as devoluções ao pagamento original
+
+Em um lançamento do extrato cujo `txn_type` é `2` (REFUND), `txn_id` identifica a devolução e `settlement_id` identifica sua liquidação.
+
+Use `parent_txn_id` e `parent_settlement_id` para localizar o pagamento original. Guarde `refund_id` e `settlement_refund_id` da resposta da solicitação, sem substituí-los pelos identificadores do pagamento original.
+
+A resposta da solicitação de devolução não preenche `merchant_order_id`; guarde o identificador que você enviou. Os detalhes não preenchem identificadores de liquidação; mantenha as referências da solicitação e do extrato.
+
+Calcule o total de devoluções comuns a partir das devoluções distintas vinculadas cujo `txn_status` é `2` (COMPLETED). Exclua devoluções pendentes ou com falha e guarde cada devolução parcial separadamente.
+
+## Confira o MED sem confundir bloqueios com devoluções
+
+Consulte o [caso MED](/pt-br/api-reference/med/get-med-case-details), seu pagamento original e a [notificação de infração](/pt-br/api-reference/med/get-infraction-report-details).
+
+Guarde o identificador do Pix original enviado em `end_to_end_id` ao [criar um caso MED](/pt-br/api-reference/med/create-med-case). Os detalhes identificam o Pix contestado por `root_end_to_end_id`.
+
+Guarde `original_transaction.transaction_id` conforme retornado. Não presuma que todo identificador chamado `transaction_id` pode substituir `txn_id`.
+
+Compare `requested_amount`, `blocked_amount_total` e `returned_amount_total` separadamente. Um montante bloqueado não comprova que o pagador recebeu uma devolução.
+
+A visão do pagador nos detalhes do MED filtra os registros vinculados de notificações de infração, devoluções e destinação de recursos. Arrays vazios não comprovam que não existem tarefas vinculadas.
+
+Confirme uma devolução efetiva pelos registros de transação correspondentes. Separe os montantes recuperados pelo MED do seu total de devoluções Pix comuns.
+
+## Compare extrato, tarifas e saldos
+
+O extrato lista registros de transação. Ele não inclui lançamentos separados de tarifas, bloqueios ou desbloqueios; somá-lo não permite reconstruir todas as variações de saldo.
+
+Compare `balance`, `available_amount` e `frozen_amount` separadamente. A resposta também separa `med_frozen_amount` de `other_frozen_amount`.
+
+<Warning>
+  A consulta de saldo pode retornar `code` igual a `200` com esses montantes definidos como `"0"` quando a obtenção do saldo falha. Consulte novamente ou fale com o suporte antes de concluir que a conta está sem recursos.
+</Warning>
+
+Um resultado `fee_configs` vazio não comprova isenção de tarifas; a obtenção da configuração pode falhar sem causar erro na consulta da conta. Confirme a configuração antes de tratar a conta como isenta.
+
+## Recupere um resultado desconhecido
+
+Guarde o ID do pedido original e os dados da requisição após um timeout, perda de resposta ou callback ausente. Não envie um novo pagamento ou uma nova devolução independente para resolver a incerteza.
+
+A consulta de status do pagamento exige `txn_id`; a de devolução exige `refund_id`. O ID do pedido, sozinho, não é aceito por nenhum desses endpoints de status.
+
+Se você perdeu a resposta da solicitação, procure a operação correspondente nos registros disponíveis do extrato e dos detalhes. Acione o suporte quando não conseguir confirmar essa correspondência.
+
+Envie ao suporte a conta, o ambiente, o ID do pedido, o montante, o horário da requisição e os identificadores disponíveis. Para devoluções, inclua a referência de liquidação original.
+
+Inclua o cabeçalho de resposta `xxx-log-id` e uma resposta com dados sensíveis mascarados. Não envie sua SK nem dados sensíveis completos. Consulte o [catálogo de erros](/pt-br/api-reference/error-catalog) para erros de consulta.
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Extrato da conta" icon="list" href="/pt-br/api-reference/accounts/get-account-statement">
+    Leia os registros de transação de um período fixo.
+  </Card>
+  <Card title="Detalhes do pagamento" icon="magnifying-glass" href="/pt-br/api-reference/payout/get-payment-details">
+    Localize um pagamento enviado pelos identificadores.
+  </Card>
+  <Card title="Detalhes da devolução" icon="rotate-left" href="/pt-br/api-reference/refunds/get-refund-details">
+    Confira uma devolução Pix comum.
+  </Card>
+  <Card title="Detalhes do caso MED" icon="shield-check" href="/pt-br/api-reference/med/get-med-case-details">
+    Acompanhe a recuperação e os montantes informados.
+  </Card>
+</CardGroup>

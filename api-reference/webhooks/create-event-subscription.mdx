@@ -1,0 +1,88 @@
+---
+title: "Create event subscription"
+sidebarTitle: "Create subscription"
+description: "Register a callback URL for Pix, refund or KYB events in your credential scope. Returns the subscription ID, configured URL and activation status."
+openapi: "openapi/en.json POST /v3/webhooks/create"
+keywords: ["/v3/webhooks/create", "webhook", "callback", "subscription"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Create a webhook subscription for Pix, refund or KYB events. With USER credentials, transaction subscriptions apply to the user and application, not one account.
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the account bound to your credential. Events `1` through `5` are allowed; event `6` is rejected.
+
+    You may omit `X-ISPB` and `X-Account-Number`. If you send them, send both with the bound account values and include them in the signature.
+
+    If you provide `account_number` in the body, it must match the bound account. A different account returns `4004003`.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Use events `1` through `5`. For transaction events (`1` through `4`), provide `account_number` in the body, preserving leading zeros.
+
+    That number is required for validation but does not create an account-specific subscription. For event `5`, omit it or send an empty string.
+
+    Omit `X-ISPB` and `X-Account-Number`, including empty headers.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    Use event `6` (MASTER_ACCOUNT_KYB). Omit `account_number` or send an empty string.
+
+    Omit `X-ISPB` and `X-Account-Number`, including empty headers.
+  </Tab>
+</Tabs>
+
+Sign the exact body you send. See [Sign requests](/environments-and-credentials#sign-requests).
+
+For ACCOUNT, creation and reactivation require the bound account to be open.
+
+## Configure the receiver
+
+Use an HTTPS callback endpoint you control. Leading and trailing whitespace in `callback_url` is removed, and the result must be nonempty.
+
+Creation confirms the saved configuration, not whether the URL is reachable.
+
+Prepare your receiver to [verify callbacks](/environments-and-credentials#verify-callbacks) with the SK of the credential used to create the subscription.
+
+## Retries and duplicates
+
+For USER, the same user, application and event identify one subscription. For ACCOUNT, the bound account, application and event identify one subscription.
+
+An existing ACTIVE subscription returns `4001013` (Already processed). Creating an existing INACTIVE ACCOUNT or USER subscription reactivates it.
+
+Reactivation replaces the URL and signing credential. It preserves `webhook_id` and the original `created_at`.
+
+For PLATFORM, creation returns `4001013` for an existing subscription, including one whose status is INACTIVE. Update the existing subscription to reactivate it.
+
+After a timeout or network error, query the subscription before you retry. A creation retry can return a conflict if the first request succeeded.
+
+## Read the result
+
+All JSON business results return HTTP 200. Read `code` before you use `data`; invalid JSON returns HTTP 400 with plain text.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `0` UNSPECIFIED | Status unavailable | No activation evidence | Query the subscription |
+| `1` ACTIVE | Subscription enabled | Configuration is active | Verify received callbacks |
+| `2` INACTIVE | Subscription disabled | Configuration is inactive | Update to reactivate |
+
+ACTIVE does not prove callback delivery or payment completion. See [Webhook handling](/api-reference/webhooks/overview).
+
+## Try it in the Playground
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner scope="owner" method="POST" path="/v3/webhooks/create" body={{"event_type": 1, "callback_url": "https://merchant.example.test/webhooks", "account_number": "00000001"}} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Get event subscription" icon="magnifying-glass" href="/api-reference/webhooks/get-event-subscription">
+    Check the stored configuration.
+  </Card>
+  <Card title="Update event subscription" icon="pen-to-square" href="/api-reference/webhooks/update-event-subscription">
+    Change the URL or activation status.
+  </Card>
+</CardGroup>

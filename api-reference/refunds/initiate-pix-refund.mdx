@@ -1,0 +1,94 @@
+---
+title: "Initiate Pix refund"
+sidebarTitle: "Initiate refund"
+description: "Submit a full or partial refund of a completed incoming Pix payment. Returns refund identifiers and a pending status for tracking the final outcome."
+openapi: "openapi/en.json POST /v3/refunds/pix"
+keywords: ["/v3/refunds/pix", "Pix refund", "reconciliation", "refund status"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Submits a refund from the original payee account and returns identifiers for tracking. A `code` of `200` confirms acceptance, not completion.
+
+| Credentials | Idempotency | Result |
+| --- | --- | --- |
+| ACCOUNT, USER | `merchant_order_id` | Asynchronous |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the account bound to your AK. You can omit account headers; if you send them, both must match the bound account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send `X-ISPB` and `X-Account-Number` for an account owned by the USER. Include both in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use an ACCOUNT or USER credential for the participating account.</Warning>
+  </Tab>
+</Tabs>
+
+The account must be the payee of the original Pix payment. The payment must be completed and have a positive remaining returnable amount.
+
+The account sending the refund must currently be allowed to send payments. A send-blocked account is rejected before refund acceptance.
+
+## Amount and deadline
+
+Send a decimal string in BRL, such as `"10.50"`. The amount must be positive and exactly representable with two decimal places.
+
+Extra trailing zeros, such as `"10.500"`, are accepted. Nonzero decimal places beyond the second are rejected.
+
+The amount must not exceed the remaining returnable amount. That calculation excludes previous refunds, chargebacks and amounts reserved for pending returns.
+
+The deadline is 90 days after the original transaction's initiation time. The request is rejected after that deadline.
+
+## Identify the original payment
+
+Use the specific payment's settlement ID from [incoming payment details](/api-reference/payin/get-transaction-details) or its matching credit [statement entry](/api-reference/accounts/get-account-statement).
+
+Do not automatically select the first entry. Store the original ID alongside the refund identifiers.
+
+If a service error prevents the lookup of the original transaction, the call returns `4003014` with message `Unable to retrieve the original transaction at this time`. Check `original_settlement_id` and the account context, then query before retrying.
+
+## Read the acceptance
+
+An accepted response returns status `1` (TXN_STATUS_PENDING). Save `data.refund_id` and `data.settlement_refund_id`, together with the submitted `merchant_order_id`.
+
+The response does not populate `data.merchant_order_id`. Funds are blocked after acceptance; insufficient available balance can cause failure during processing.
+
+Track the same refund through [status checks](/api-reference/refunds/get-refund-status) or [callbacks](/api-reference/refunds/callbacks). Completion requires final status `2` (COMPLETED) and statement reconciliation.
+
+## Retries and duplicates
+
+Start `merchant_order_id` with today's UTC date in `YYMMDD`, then add a unique suffix. Update the example date before testing.
+
+Use only ASCII letters, digits, hyphens and underscores.
+
+The date must overlap the current UTC time window of ±1 hour. Generate distinct IDs across accounts, users and operations.
+
+An order ID outside that window returns `400` with message `merchant_order_id date does not match current time (UTC ±1h)`.
+
+The reservation lasts 48 hours. A duplicate returns `4001013` without replaying the original response; it does not prove refund failure.
+
+After a timeout or temporary error, query the saved identifiers. A not-found result immediately after acceptance can be temporary.
+
+Do not create another refund before resolving the outcome. Without identifiers, retain the request details and contact support with `xxx-log-id`.
+
+Sign every attempt with a new `X-Nonce` and `X-Timestamp`. See [authentication errors](/api-reference/error-catalog#authentication-errors).
+
+## Try it in the Playground
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/refunds/pix" body={{"original_settlement_id": "E876543212026111017000000000000001", "merchant_order_id": "261110-refund-001", "amount": "10.50"}} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Get refund status" icon="arrows-rotate" href="/api-reference/refunds/get-refund-status">
+    Track the existing refund outcome.
+  </Card>
+  <Card title="Refund callbacks" icon="bell" href="/api-reference/refunds/callbacks">
+    Receive signed results.
+  </Card>
+</CardGroup>

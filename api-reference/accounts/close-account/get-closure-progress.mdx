@@ -1,0 +1,93 @@
+---
+title: "Get account closure progress"
+sidebarTitle: "Closure progress"
+description: "Retrieve the original account closure operation and its current status, reasons and next action. This read-only query does not execute or retry closure."
+openapi: "openapi/en.json POST /v3/bank_account/close/query"
+keywords: ["/v3/bank_account/close/query", "account closure", "eligibility", "closure progress"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Retrieves the current progress of the original closure operation. This read-only query neither advances closure nor triggers a retry.
+
+| Credentials | Idempotency | Result |
+| --- | --- | --- |
+| ACCOUNT, USER | Read-only | Current operation |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the credential of the target account. The request's `account_number` must match the account authorized by your credential.
+
+    Account-target headers are optional. If you send them, send both and match the credential's ISPB and account number.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send `X-ISPB` and `X-Account-Number` for an account owned by your USER. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use an authorized ACCOUNT or USER credential.</Warning>
+  </Tab>
+</Tabs>
+
+The body selects no separate ISPB. Your credential and account-target headers determine it; `account_number` must match that account.
+
+Use authorized USER credentials after closure because cleanup deactivates ACCOUNT credentials. USER queries require ownership and valid account bindings throughout the account hierarchy.
+
+The target account and required parent accounts must be ACTIVE or CLOSED. INACTIVE and BLOCKED accounts do not pass this history-query authorization check.
+
+This query can retrieve an existing operation for an authorized master account. New merchant closure requests still exclude master accounts (`MA_MOR`).
+
+## Query the original operation
+
+Use the account number and operation ID saved from [Close account](/api-reference/accounts/close-account/close-account). The operation must belong to that account.
+
+A query returns recorded progress without executing closure or repeating authorization for a new closure. Repeating the query does not schedule processing.
+
+## Read the result
+
+Check `data.operation.status` separately from `account_status`. A successful query proves that you retrieved the operation, not that the account has closed.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `1` CHECKING | Eligibility checks running | Request recorded | Read reasons and next action |
+| `2` WAITING | Obligations or verification pending | Closure not confirmed | Follow `next_action` |
+| `3` DELETING_KEYS | Authorized key deletion underway | Deletion has started | Keep querying this operation |
+| `4` CLOSED | Account closed, cleanup pending | Bank account is closed | Wait for cleanup completion |
+| `5` COMPLETED | Closure and cleanup finished | Operation finished | Keep the final record |
+| `6` REJECTED | Eligibility blocks closure | No closure by this operation | Check current account state |
+
+Follow `next_action`. CONTACT_OPERATIONS takes precedence when a MANUAL reason exists; RESOLVE_AND_REAPPLY applies to REJECTED, and NONE applies to COMPLETED.
+
+REJECTED describes this operation, not the current account state. Read `account_status`; another operation may already have closed the account.
+
+Reapply with a new idempotency key only if the account remains ACTIVE and eligible after you resolve the reasons.
+
+For a running operation, WAIT_SYSTEM tells you to wait for server processing. `next_retry_at` records its scheduled time, not a retry performed by this page.
+
+An empty `reasons` list, zero `count` or zero timestamp alone does not prove completion. Current checks do not populate record IDs in `references`.
+
+## Unknown or unavailable results
+
+An unknown operation ID, or one belonging to another account, returns business code `4004010`. Account-scope denial returns `4004003`; an unavailable query can return `501`.
+
+These JSON results use HTTP 200. Keep the original operation ID, check authorization and retry the query with a fresh signature when needed.
+
+Include `xxx-log-id` in support requests. Do not create a new closure request to recover a failed progress query.
+
+## Try it in the Playground
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/bank_account/close/query" body={{ account_number: "00012345", operation_id: "b5fe05e4-a055-4e68-a087-b263cdb0ea51" }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Closure workflow" icon="diagram-project" href="/api-reference/accounts/close-account/overview">
+    Understand closure and cleanup.
+  </Card>
+  <Card title="Check eligibility" icon="list-check" href="/api-reference/accounts/close-account/check-eligibility">
+    Check again before a new request.
+  </Card>
+</CardGroup>

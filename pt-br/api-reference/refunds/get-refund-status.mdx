@@ -1,0 +1,80 @@
+---
+title: "Consultar status da devolução"
+sidebarTitle: "Consultar status"
+description: "Acompanhe uma devolução pelo ID salvo na criação. Retorna o status registrado e tenta atualizar estados não finais quando a conta que envia consulta."
+openapi: "openapi/pt-br.json POST /v3/refunds/status/check"
+keywords: ["/v3/refunds/status/check", "devolução Pix", "conciliação", "status da devolução"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Consulta o status de uma devolução existente. Pela conta que envia, a consulta pode atualizar um estado não final antes de retornar o resultado.
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a conta vinculada à sua AK. Você pode omitir os cabeçalhos de conta; se enviados, os dois devem corresponder à conta vinculada.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta que pertença ao USER. Inclua os dois na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use uma credencial ACCOUNT ou USER para a conta participante.</Warning>
+  </Tab>
+</Tabs>
+
+A conta selecionada precisa ser a que envia ou recebe a devolução. Use `data.refund_id` salvo na resposta de [Iniciar devolução Pix](/pt-br/api-reference/refunds/initiate-pix-refund).
+
+## Atualização do status
+
+A consulta pela conta que envia tenta buscar o resultado atualizado de devoluções não finais. Estados finais não passam por essa atualização.
+
+Se a atualização falhar, mas a devolução continuar disponível para leitura, a resposta pode retornar `code` igual a `200` com o último status registrado.
+
+Uma resposta bem-sucedida não confirma que a atualização foi concluída. Confirme a conclusão nos detalhes e no extrato.
+
+## Visão da conta que recebe
+
+Para a conta que recebe, toda devolução não concluída retorna `5` (TXN_STATUS_PROCESSING), inclusive devoluções com falha. Essa consulta não atualiza esses estados.
+
+Esse resultado não comprova que o processamento está avançando. A conta que recebe vê `2` (TXN_STATUS_COMPLETED) apenas após o registro da conclusão.
+
+## Status
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `0` UNSPECIFIED | Estado desconhecido | Não comprova conclusão | Verifique os detalhes |
+| `1` PENDING | Requisição aceita | Apenas aceitação | Consulte a mesma devolução |
+| `5` PROCESSING | Resultado ainda não confirmado | Não comprova conclusão | Consulte pela conta que envia |
+| `2` COMPLETED | Devolução concluída | Conclusão registrada | Confira o valor no extrato |
+| `3` FAILED | Falha na devolução | Falha registrada | Verifique detalhes e callback |
+
+Uma devolução parcial concluída também usa status `2` (COMPLETED). Confira o valor nos [detalhes](/pt-br/api-reference/refunds/get-refund-details) e no [extrato](/pt-br/api-reference/accounts/get-account-statement).
+
+## Erros e novas consultas
+
+Um resultado não localizado logo após a aceitação pode ser temporário. Continue consultando a mesma devolução, sem criar outra solicitação.
+
+`4003014` pode indicar indisponibilidade temporária da leitura ou outra operação em andamento. Esse código, por si só, não comprova falha da devolução.
+
+Se ocorrer erro temporário, mantenha o ID e o contexto da conta. Assine a próxima consulta com novos `X-Nonce` e `X-Timestamp`.
+
+Inclua `xxx-log-id` nos pedidos de suporte. Consulte o [catálogo de erros](/pt-br/api-reference/error-catalog) para interpretar os códigos de negócio.
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/refunds/status/check" body={{"refund_id": "refund-example-001"}} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar detalhes" icon="magnifying-glass" href="/pt-br/api-reference/refunds/get-refund-details">
+    Confira o valor, participantes e status.
+  </Card>
+  <Card title="Callbacks de devoluções" icon="bell" href="/pt-br/api-reference/refunds/callbacks">
+    Acompanhe os resultados por notificação.
+  </Card>
+</CardGroup>

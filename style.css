@@ -1,0 +1,396 @@
+/* Pagsmile Open API docs — global styles
+   Brand: Navy #0E2A4B (text/primary), Mint #2BC196 (accent), Sky #1DA1E8, Slate #6F7A97, Mist #F4F9FC */
+
+:root {
+  --pgs-navy: #0E2A4B;
+  --pgs-mint: #2BC196;
+  --pgs-mint-ink: #12795C;
+  --pgs-sky: #1DA1E8;
+  --pgs-slate: #6F7A97;
+  --pgs-mist: #F4F9FC;
+  --pgs-line: rgba(14, 42, 75, 0.12);
+  --pgs-input-line: #7B8797;
+  --pgs-surface: #FFFFFF;
+  --pgs-ink: #0E2A4B;
+  --pgs-muted: #52607D;
+}
+
+html.dark {
+  --pgs-line: rgba(226, 236, 248, 0.12);
+  --pgs-input-line: #617087;
+  --pgs-surface: #0B1A2E;
+  --pgs-ink: #E6EEF7;
+  --pgs-muted: #9AA8BF;
+  --pgs-mint-ink: #5FD9B4;
+}
+
+/* Tables: quieter header, tabular numbers, comfortable rhythm */
+.prose table {
+  font-variant-numeric: tabular-nums;
+}
+.prose thead th {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.prose td code,
+.prose th code {
+  white-space: nowrap;
+}
+
+/* Long regex / hashes inside table cells may wrap */
+.prose td code.break,
+.prose td:last-child code {
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* Compact summaries fit mobile; reference tables with four or more columns still scroll. */
+/* Mintlify gives every td min-width:150px, so a 4-column table needs 600px and overflows the
+   ~550px text column on API pages. On desktop let the table fit; code with spaces (messages) may
+   wrap, identifiers without spaces stay whole. */
+@media (min-width: 641px) {
+  #content-area table td {
+    min-width: 0;
+  }
+  #content-area table td:not(:first-child) code {
+    white-space: normal;
+  }
+}
+@media (max-width: 640px) {
+  #content-area table:not(:has(th:nth-child(4))):not(:has(td:nth-child(4))) {
+    width: 100%;
+    table-layout: fixed;
+  }
+  #content-area table:not(:has(th:nth-child(4))):not(:has(td:nth-child(4))) th,
+  #content-area table:not(:has(th:nth-child(4))):not(:has(td:nth-child(4))) td {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  #content-area table:not(:has(th:nth-child(4))):not(:has(td:nth-child(4))) code {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* ---------- Interactive tools (PlaygroundSigner, WebhookVerifier) ---------- */
+.pgs {
+  border: 1px solid var(--pgs-line);
+  border-radius: 14px;
+  background: var(--pgs-surface);
+  padding: 20px;
+  color: var(--pgs-ink);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.pgs-intro,
+.pgs-note {
+  margin: 0 0 14px;
+  color: var(--pgs-muted);
+}
+.pgs-endpoint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+.pgs-endpoint code {
+  font-size: 13px;
+}
+.pgs-verb {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #FFFFFF;
+  background: var(--pgs-navy);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+html.dark .pgs-verb {
+  background: var(--pgs-mint);
+  color: #07111F;
+}
+.pgs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.pgs-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.pgs-grid .pgs-field {
+  margin-bottom: 0;
+}
+.pgs-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pgs-muted);
+  letter-spacing: 0.01em;
+}
+.pgs-input {
+  width: 100%;
+  border: 1px solid var(--pgs-input-line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--pgs-ink);
+  padding: 8px 10px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.pgs-input:focus-visible {
+  border-color: var(--pgs-mint-ink);
+  box-shadow: 0 0 0 3px rgba(43, 193, 150, 0.22);
+}
+.pgs-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.pgs-area {
+  resize: vertical;
+  min-height: 72px;
+}
+.pgs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 8px;
+}
+.pgs-btn {
+  border: 1px solid var(--pgs-line);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pgs-ink);
+  background: transparent;
+  cursor: pointer;
+  transition: transform 80ms ease, background 120ms ease;
+}
+.pgs-btn:hover {
+  background: rgba(43, 193, 150, 0.08);
+}
+.pgs-btn:active {
+  transform: translateY(1px);
+}
+.pgs-btn:focus-visible,
+.pgs-copy:focus-visible,
+html.dark .pgs-btn:focus-visible,
+html.dark .pgs-copy:focus-visible {
+  outline: 2px solid var(--pgs-mint-ink);
+  outline-offset: 2px;
+}
+.pgs-primary {
+  background: var(--pgs-navy);
+  border-color: var(--pgs-navy);
+  color: #FFFFFF;
+}
+.pgs-primary:hover {
+  background: #163B66;
+}
+html.dark .pgs-primary {
+  background: var(--pgs-mint);
+  border-color: var(--pgs-mint);
+  color: #07111F;
+}
+.pgs-msg {
+  margin: 8px 0 0;
+  font-weight: 600;
+  color: var(--pgs-mint-ink);
+}
+.pgs-out {
+  margin-top: 14px;
+  border-top: 1px dashed var(--pgs-line);
+  padding-top: 14px;
+}
+.pgs-rows {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pgs-row {
+  display: grid;
+  grid-template-columns: minmax(112px, 136px) 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(14, 42, 75, 0.035);
+}
+html.dark .pgs-row {
+  background: rgba(230, 238, 247, 0.04);
+}
+.pgs-key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pgs-muted);
+}
+.pgs-val {
+  margin: 0;
+  min-width: 0;
+}
+.pgs-val code {
+  font-size: 12px;
+  word-break: break-all;
+  background: transparent;
+  padding: 0;
+}
+.pgs-copy {
+  border: 0;
+  background: transparent;
+  color: var(--pgs-mint-ink);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.pgs-details {
+  margin-top: 10px;
+}
+.pgs-details summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pgs-muted);
+}
+.pgs-pre {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(14, 42, 75, 0.05);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+html.dark .pgs-pre {
+  background: rgba(230, 238, 247, 0.05);
+}
+.pgs-checks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pgs-check {
+  font-size: 13px;
+}
+.pgs-ok span {
+  color: var(--pgs-mint-ink);
+  font-weight: 700;
+}
+.pgs-fail span {
+  color: #C0392B;
+  font-weight: 700;
+}
+@media (max-width: 640px) {
+  .pgs-row {
+    grid-template-columns: 1fr auto;
+  }
+  .pgs-key {
+    grid-column: 1 / -1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pgs-btn,
+  .pgs-input {
+    transition: none;
+  }
+}
+
+/* Brand tile icons in Cards (home "Start here") */
+.card div:has(> img[src^="/icons/"]) { width: 44px !important; height: 44px !important; }
+.card img[src^="/icons/"] { width: 44px !important; height: 44px !important; border-radius: 10px; }
+
+/* Setup wizard widgets (credential setup, IP allowlist helper, signer) */
+.pgs-sec {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--pgs-line);
+  border-radius: 12px;
+  min-width: 0;
+}
+.pgs-legend {
+  margin: 0 0 6px;
+  padding: 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pgs-ink);
+}
+.pgs-warn {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #9A5B00;
+}
+html.dark .pgs-warn {
+  color: #F2B35C;
+}
+.pgs-caution span {
+  color: #9A5B00;
+  font-weight: 700;
+}
+html.dark .pgs-caution span {
+  color: #F2B35C;
+}
+.pgs-check .pgs-check-msg {
+  display: block;
+  margin: 2px 0 0 1.4em;
+  color: inherit;
+  font-weight: 400;
+}
+.pgs-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.pgs-row .pgs-pre {
+  margin: 0;
+}
+
+/* Credential setup: stacked env-var rows and endpoint label next to the test button */
+.pgs-row.pgs-row-stack {
+  grid-template-columns: 1fr auto;
+  row-gap: 4px;
+}
+.pgs-row.pgs-row-stack .pgs-key {
+  grid-column: 1 / -1;
+}
+.pgs-row.pgs-row-stack .pgs-pre {
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+.pgs-ep {
+  align-self: center;
+  font-size: 12px;
+  color: var(--pgs-muted);
+  background: transparent;
+  padding: 0;
+}
+
+.pgs-copy:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pgs-prev {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.pgs-input[aria-invalid="true"] {
+  border-color: #b45309;
+  box-shadow: 0 0 0 1px #b45309;
+}

@@ -1,0 +1,88 @@
+---
+title: "Accounts and funds"
+sidebarTitle: "Overview"
+description: "Select an account, read available and blocked balances, and inspect statement entries. Understand partial balance responses before reconciling account funds."
+keywords: ["account balance", "available funds", "blocked funds", "account statement"]
+---
+
+Use account queries to check balances and review movements for one account. Identify the account with its ISPB and account number, using the credential rules below.
+
+## Query flow
+
+<Steps>
+  <Step title="Select the account">
+    Use the bound account with ACCOUNT credentials, or select an owned account with USER credentials and both account-target headers.
+  </Step>
+  <Step title="Read the balance snapshot">
+    Call [Get account balance](/api-reference/accounts/get-account-balance) with an empty JSON object (`{}`). Check the account identifiers and distinguish available from blocked funds.
+  </Step>
+  <Step title="Review account movements">
+    Query [statement entries](/api-reference/accounts/get-account-statement) for the period you need. Cross-check the movements when a balance is unexpected or appears unavailable.
+  </Step>
+</Steps>
+
+## Endpoints
+
+| Endpoint | What it does |
+| --- | --- |
+| [Get account balance](/api-reference/accounts/get-account-balance) | Returns one account's balances, ACTIVE Pix keys and available configuration. |
+| [Get account statement](/api-reference/accounts/get-account-statement) | Returns statement entries for an account. |
+
+The account balance query serves ACCOUNT and USER credentials through the same endpoint, `POST /v3/bank_account`. It does not enumerate subaccounts or aggregate their balances.
+
+## Account selection
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Your AK identifies its bound account. Omit both `X-ISPB` and `X-Account-Number`, or send both with values matching that account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. The account balance query returns only that account.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call the account balance endpoint. Use ACCOUNT or USER credentials for the target account.</Warning>
+  </Tab>
+</Tabs>
+
+Include account-target headers in the [signature](/environments-and-credentials#sign-requests) whenever you send them. Account selection does not belong in the balance request body.
+
+## Available and blocked funds
+
+Read monetary amounts as decimal strings in BRL, such as `"10.50"`. Keep available funds separate from the account's total balance.
+
+| Balance field | Meaning |
+| --- | --- |
+| `balance` | Total account balance, including blocked funds. |
+| `available_amount` | Balance minus the total blocked amount. |
+| `frozen_amount` | Total blocked amount, including the reported MED block. |
+
+The reported `med_frozen_amount` cannot exceed `frozen_amount`. The response calculates `other_frozen_amount` as the difference, with a minimum of `"0"`.
+
+## Interpret partial responses
+
+<Warning>
+  When balance retrieval fails, the account query can still return `code` equal to `200` and monetary amounts of `"0"`. There is no fallback indicator. Query again and cross-check statement entries before treating a single zero response as proof of an empty account.
+</Warning>
+
+MED information can be unavailable independently of the other balances. Its amount then falls back to `"0"`, so the remaining blocked amount can include MED blocks.
+
+Pix keys and event subscriptions can be empty if retrieval fails. Limit and fee configuration can be unavailable without failing the whole account query.
+
+See [Get account balance](/api-reference/accounts/get-account-balance) for configuration caveats and response fields. A balance snapshot does not prove completion of a particular payment.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Get account balance" icon="wallet" href="/api-reference/accounts/get-account-balance">
+    Query the account with ACCOUNT or USER credentials.
+  </Card>
+  <Card title="Get account statement" icon="list" href="/api-reference/accounts/get-account-statement">
+    Inspect movements for reconciliation.
+  </Card>
+  <Card title="Account closure" icon="lock" href="/api-reference/accounts/close-account/overview">
+    Review the account closure workflow.
+  </Card>
+  <Card title="Reconciliation" icon="scale-balanced" href="/api-reference/reconciliation">
+    Match account movements to transaction records.
+  </Card>
+</CardGroup>

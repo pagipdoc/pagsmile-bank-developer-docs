@@ -1,0 +1,106 @@
+---
+title: "Gerar QR Code dinâmico"
+sidebarTitle: "QR Code dinâmico"
+description: "Crie um QR Code Pix dinâmico com valor em BRL e prazo de validade para uma conta. Retorna o payload Base64, o ID do QR Code e o ID do pedido."
+openapi: "openapi/pt-br.json POST /v3/qr_code/generate/dynamic"
+keywords: ["/v3/qr_code/generate/dynamic", "QR Code Pix dinâmico", "recebimento Pix", "merchant_order_id"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Cria um QR Code Pix dinâmico para a conta-alvo. Quando `code` é `200`, o QR Code foi gerado; nenhum pagamento está confirmado.
+
+| Credenciais | Idempotência | Resultado |
+| --- | --- | --- |
+| ACCOUNT, USER | Pedido duplicado rejeitado | QR Code gerado |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a conta vinculada à sua AK. Se você enviar `X-ISPB` e `X-Account-Number`, os dois devem corresponder a essa conta.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta que pertença ao USER. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use uma credencial ACCOUNT ou USER para a conta recebedora.</Warning>
+  </Tab>
+</Tabs>
+
+A conta deve estar ativa, permitir recebimentos e não ter [encerramento](/pt-br/api-reference/accounts/close-account/overview) em andamento. O documento do titular e o tipo de conta devem estar preenchidos.
+
+Use uma chave Pix ACTIVE pertencente a essa conta. A conta, o documento do titular e o tipo de documento registrados na chave devem corresponder aos da conta.
+
+Uma chave desconhecida retorna `4004004` com a mensagem `PIX key not found`.
+
+O nome do titular deve conter caracteres ASCII imprimíveis ou espaços em branco. Outros caracteres não ASCII nesse nome são rejeitados.
+
+## Valor e validade
+
+Envie `amount` como string decimal em BRL, maior que `0`, com no máximo duas casas decimais, como `"10.50"`. Não envie números JSON.
+
+`expires` é um prazo em segundos. Omita o campo ou envie `0` para usar `7200` segundos.
+
+## Dados opcionais do pagador
+
+Informe `payer_name` e `payer_document_id` juntos ou omita ambos. Essa regra também se aplica quando `payer_verify` é `false`.
+
+O documento deve ter 11 ou 14 caracteres. Essa validação verifica o comprimento, não a autenticidade do documento.
+
+Quando `payer_verify` é `true`, os dois campos são incluídos na criação do QR Code. O nome do pagador deve conter caracteres ASCII imprimíveis ou espaços em branco.
+
+Quando `payer_verify` é `false`, os dados do pagador não são incluídos. Definir o campo como `true` sem informar os dados não os adiciona.
+
+## IDs de pedido e novas tentativas
+
+Esta requisição não tem campo `txid`. O servidor gera `qr_code_id`; salve o identificador retornado sem alterações.
+
+Comece `merchant_order_id` com uma data UTC válida no formato `YYMMDD`. O intervalo desse dia deve ter interseção com a janela de uma hora antes ou depois do horário UTC atual.
+
+Use a data UTC de hoje nas requisições usuais. Somente letras, dígitos, hífens e sublinhados são permitidos.
+
+Use um ID de pedido único entre suas contas e operações que utilizam IDs de pedido. A verificação compartilhada de duplicidade mantém o ID por 48 horas.
+
+Um ID de pedido já reservado é rejeitado. Reenviá-lo não retorna o QR Code original como sucesso idempotente.
+
+O fim da reserva não comprova falha na geração. Esclareça a tentativa original antes de gerar outro QR Code.
+
+Se você perder a resposta, consulte os [detalhes do QR Code](/pt-br/api-reference/payin/get-qr-code-details) com o `qr_code_id` salvo. Sem esse ID, preserve o ID do pedido e contate o suporte.
+
+Não crie outro pedido para determinar o resultado do pagamento original. Informe o ambiente, a conta, o ID do pedido, o horário e `xxx-log-id` ao solicitar suporte.
+
+Assine cada tentativa com novos `X-Nonce` e `X-Timestamp`. Uma falha na verificação da assinatura também consome o nonce.
+
+## Interpretar o resultado
+
+Salve `data.qr_code_id` e `data.merchant_order_id`. A resposta contém o payload de pagamento Base64 em `data.payload_base64`; `data.payload_image_base64` vem vazio.
+
+Decodifique `data.payload_base64` de Base64 para obter o texto de pagamento Pix em UTF-8. Exiba o texto decodificado como código Pix Copia e Cola e gere a imagem do QR Code a partir do mesmo texto. Não use o conteúdo Base64 como imagem nem como código pronto para pagamento.
+
+Use os [callbacks de recebimento](/pt-br/api-reference/payin/callbacks) e os [detalhes da transação](/pt-br/api-reference/payin/get-transaction-details) para confirmar o pagamento. Gerar o QR Code não comprova crédito em conta.
+
+## Testar no Playground
+
+Substitua a data do pedido de exemplo pela data UTC de hoje e use uma chave Pix ACTIVE pertencente à conta-alvo. Assine o corpo final.
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/qr_code/generate/dynamic" body={{ amount: "10.50", city: "SAO PAULO", merchant_order_id: "261110_ORDER_001", pix_key: "8e67c99a-7c55-4e91-9557-512b5e198561", pix_key_type: 5 }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Detalhes do QR Code" icon="qrcode" href="/pt-br/api-reference/payin/get-qr-code-details">
+    Consulte o QR Code que você gerou.
+  </Card>
+  <Card title="Callbacks de recebimento" icon="bell" href="/pt-br/api-reference/payin/callbacks">
+    Processe as notificações de recebimento.
+  </Card>
+  <Card title="QR Code estático" icon="qrcode" href="/pt-br/api-reference/payin/generate-static-qr-code">
+    Compare o outro endpoint de geração.
+  </Card>
+  <Card title="Visão geral de recebimentos" icon="arrow-down-to-line" href="/pt-br/api-reference/payin/overview">
+    Acompanhe o fluxo de recebimento e conciliação.
+  </Card>
+</CardGroup>

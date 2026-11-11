@@ -1,0 +1,90 @@
+---
+title: "Inicializar pagamento via QR Code"
+sidebarTitle: "Inicializar pagamento QR"
+description: "Consulte um QR Code Pix e obtenha o recebedor, o valor e uma referência de confirmação válida por cinco minutos. Confira os dados antes de confirmar."
+openapi: "openapi/pt-br.json POST /v3/transfers/pix/qr-code-initiate"
+keywords: ["/v3/transfers/pix/qr-code-initiate", "pagamento Pix por QR Code", "referência de pagamento", "QR Code com vencimento"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Consulta um QR Code Pix e retorna o recebedor, o valor e uma referência de confirmação. A inicialização não envia o pagamento; confira os dados antes de confirmar.
+
+| Credenciais | Idempotência | Resultado |
+| --- | --- | --- |
+| ACCOUNT, USER | Nova referência por chamada | Síncrono |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a conta vinculada à sua AK. Os cabeçalhos de seleção da conta são opcionais; se enviados, os dois devem corresponder à conta vinculada.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta que pertença ao USER. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use uma credencial ACCOUNT ou USER para a conta do pagador.</Warning>
+  </Tab>
+</Tabs>
+
+O usuário associado precisa estar ativo e ter acesso a pagamentos habilitado.
+
+Um QR Code com vencimento também exige um código de município nos dados da conta do pagador, não neste corpo da requisição.
+
+## Preparar o payload do QR Code
+
+Envie o texto completo do pagamento Pix em Base64 padrão, com o preenchimento necessário. Uma imagem ou um identificador de QR Code não substitui o texto do pagamento.
+
+Este endpoint aceita QR Codes estáticos, dinâmicos para pagamento imediato e dinâmicos com vencimento. QR Codes compostos não são aceitos.
+
+## Conferir os dados do pagamento
+
+Mostre o recebedor e o valor ao pagador antes da confirmação. O documento do recebedor pode vir mascarado conforme a sua configuração.
+
+Para um QR Code estático sem valor definido, escolha um valor positivo em BRL ao confirmar. A inicialização pode retornar um valor vazio ou zero.
+
+Para um QR Code dinâmico de pagamento imediato com valor fixo e positivo, confirme o valor retornado na inicialização. A comparação é numérica: `10.5` e `10.50` correspondem.
+
+Para um QR Code com vencimento, use o valor calculado de `data.amount`, em vez do valor original de `data.dynamic_due_properties.face_amount`.
+
+Os dados do QR Code com vencimento também incluem ajustes e o endereço do recebedor, quando informados. Para os demais tipos, são `null`.
+
+Não use `data.amount_editable` para decidir se o valor pode ser alterado: este endpoint deixa o campo como `false`. A confirmação verifica o valor separadamente.
+
+## Validade da referência
+
+Envie `data.ref_id` sem alterações para [Confirmar pagamento via QR Code](/pt-br/api-reference/payout/pix/confirm-qr-code-payment), usando a mesma conta do pagador em até cinco minutos.
+
+A validade da referência é separada da validade do QR Code. Não calcule o prazo de validade restante a partir de `data.expires`.
+
+Quando a referência expirar, inicialize novamente e confira os dados atualizados do pagamento. A referência não é o ID do seu pedido nem da transação.
+
+## Repetições e resultados desconhecidos
+
+A inicialização retorna uma nova referência por chamada bem-sucedida. Ela não confirma nem liquida um pagamento.
+
+Se você já enviou a confirmação e não conhece o resultado, consulte o pagamento original antes de iniciar outra tentativa de pagamento.
+
+Assine cada tentativa com novos `X-Nonce` e `X-Timestamp`. Informe o cabeçalho de resposta `xxx-log-id` ao entrar em contato com o suporte.
+
+Consultas repetidas de chaves inválidas podem atingir o limite do diretório Pix, que retorna `4004029`. O limite também pode afetar outras contas da mesma instituição. Aguarde antes de tentar novamente; não presuma um intervalo fixo.
+
+## Testar no Playground
+
+Antes de enviar a requisição, substitua o exemplo fictício pelo texto completo do pagamento em Base64 de um QR Code do seu próprio Sandbox.
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/transfers/pix/qr-code-initiate" body={{ qr_code_payload: "MDAwMjAxMjY0NDAwMTRCUi5HT1YuQkNCLlBJWDAxMjJmaW5hbmNlQGV4YW1wbGUuY29tLmJyNTIwNDAwMDA1MzAzOTg2NTQwNTEwLjUwNTgwMkJSNTkxMkxPSkEgRVhFTVBMTzYwMDlTQU8gUEFVTE82MjA3MDUwMyoqKjYzMDRCM0Mz" }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Confirmar pagamento via QR Code" icon="paper-plane" href="/pt-br/api-reference/payout/pix/confirm-qr-code-payment">
+    Envie o pagamento com a referência de inicialização.
+  </Card>
+  <Card title="Consultar detalhes do pagamento" icon="receipt" href="/pt-br/api-reference/payout/get-payment-details">
+    Consulte o pagamento original após a confirmação.
+  </Card>
+</CardGroup>

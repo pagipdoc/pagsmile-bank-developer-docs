@@ -1,0 +1,114 @@
+---
+title: "Confirmar pagamento via chave Pix"
+sidebarTitle: "Confirmar por chave"
+description: "Envie um pagamento Pix com a referência da inicialização e a mesma conta do pagador. Retorna ID do pedido, ID da transação e status de processamento."
+openapi: "openapi/pt-br.json POST /v3/transfers/pix/key-confirm"
+keywords: ["/v3/transfers/pix/key-confirm", "pagamento via chave Pix", "merchant_order_id", "confirmação de pagamento"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Envie o pagamento via chave Pix depois de conferir o recebedor na inicialização. Uma confirmação bem-sucedida aceita o processamento assíncrono; ela não comprova a conclusão do pagamento.
+
+| Credenciais | Idempotência | Resultado |
+| --- | --- | --- |
+| ACCOUNT, USER | `merchant_order_id` | Assíncrono |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a conta vinculada à sua AK. Omita os dois cabeçalhos de conta ou envie `X-ISPB` e `X-Account-Number` correspondentes a essa conta.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta que pertença ao USER. Inclua os dois na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use credenciais ACCOUNT ou USER para a conta do pagador.</Warning>
+  </Tab>
+</Tabs>
+
+Use a mesma conta do pagador de [Inicializar pagamento via chave Pix](/pt-br/api-reference/payout/pix/initialize-pix-key-payment). Permissões de pagamento, limite disponível e verificações de risco continuam valendo.
+
+## Usar a referência da inicialização
+
+Envie o `data.ref_id` recebido, sem alterações, como `ref_id` em até um minuto após a inicialização. Não gere a referência por conta própria.
+
+Se `ref_id` estiver ausente ou vazio, você recebe `4000`. Uma referência expirada ou indisponível retorna `4003012`.
+
+O envio bem-sucedido consome a referência. Não a reutilize para criar outro pagamento.
+
+## Valores
+
+Envie `amount` como string decimal positiva em BRL, por exemplo `"10.50"`. O valor precisa ser representável exatamente com duas casas decimais.
+
+Zeros adicionais no final da parte decimal são aceitos, como em `"10.500"`. Se você informou um valor na inicialização, use o mesmo valor numérico aqui; uma divergência retorna `400`.
+
+O corpo da requisição não tem campo de moeda. O pagamento usa BRL.
+
+## IDs de pedido e duplicidades
+
+Inicie `merchant_order_id` com a data UTC atual no formato `YYMMDD`. O dia indicado precisa ter interseção com a janela de uma hora antes a uma hora depois do horário UTC atual.
+
+Use apenas letras ASCII, dígitos, hífens e sublinhados. Escolha um ID único para cada pagamento, inclusive entre contas do pagador.
+
+Os IDs de pedidos aceitos ficam protegidos contra duplicidade por 48 horas. Uma duplicidade retorna `4001013`, em vez de repetir a resposta de sucesso original.
+
+Preserve o ID original ao verificar um resultado incerto.
+
+## Interpretar o resultado
+
+Quando `code` é `200`, salve `data.txn_id` e `data.merchant_order_id`. A resposta da confirmação tem `data.txn_status` igual a `5` (TXN_STATUS_PROCESSING).
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `5` TXN_STATUS_PROCESSING | Em processamento | Envio aceito | Consulte o pagamento |
+| `2` TXN_STATUS_COMPLETED | Concluído | Pagamento concluído | Concilie o pagamento |
+| `3` TXN_STATUS_FAILED | Falha registrada | Falha registrada localmente | Concilie antes de substituir o pagamento |
+
+O status de conclusão vem de uma [consulta de status](/pt-br/api-reference/payout/get-payment-status), [consulta de detalhes](/pt-br/api-reference/payout/get-payment-details) ou [callback](/pt-br/api-reference/payout/pix/callbacks) posterior.
+
+Para Pix, `FAILED` indica uma falha registrada pela Pagsmile; não comprova que o banco deixou de movimentar os recursos. Concilie os detalhes do pagamento com o lançamento correspondente no extrato antes de criar um pagamento substituto. Veja a regra de duas horas em [Consultar status do pagamento](/pt-br/api-reference/payout/get-payment-status).
+
+Esta resposta retorna `payee` e `payer` como `null`, e `settlement_id` como string vazia. Obtenha os dados dos participantes no endpoint de detalhes do pagamento.
+
+## Recuperar um resultado desconhecido
+
+Se a confirmação terminar em timeout ou retornar um erro de sistema, consulte o pagamento original antes de enviá-lo novamente.
+
+Use o `txn_id` salvo ou um `settlement_id` disponível para consultar os [detalhes do pagamento](/pt-br/api-reference/payout/get-payment-details).
+
+Se a resposta de envio se perdeu e você não tem nenhum dos identificadores, localize o [lançamento correspondente no extrato](/pt-br/api-reference/accounts/get-account-statement).
+
+Se não conseguir localizar o lançamento correspondente no extrato, contate o suporte com o ID original do pedido, a conta, o valor, o horário da requisição e o `xxx-log-id`.
+
+Não crie outro pagamento para resolver a incerteza ou contornar um erro de duplicidade. Veja as [orientações gerais para resultados desconhecidos](/pt-br/api-reference/payout/overview#tratar-um-resultado-desconhecido).
+
+Para erros de negócio, leia `code` no JSON da resposta HTTP 200. Informe o cabeçalho de resposta `xxx-log-id` nas solicitações de suporte.
+
+Assine cada nova requisição com novos `X-Nonce` e `X-Timestamp`. Veja [erros de autenticação](/pt-br/api-reference/error-catalog#erros-de-autenticação).
+
+## Testar no Playground
+
+Substitua a referência de exemplo pelo resultado da sua inicialização. Atualize o ID do pedido com a data UTC atual e escolha um sufixo único.
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/transfers/pix/key-confirm" body={{ ref_id: "8e67c99a-7c55-4e91-9557-512b5e198561", merchant_order_id: "261110_pix_0001", amount: "10.50" }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Inicializar pagamento via chave Pix" icon="magnifying-glass" href="/pt-br/api-reference/payout/pix/initialize-pix-key-payment">
+    Consulte o recebedor e obtenha uma referência.
+  </Card>
+  <Card title="Consultar status do pagamento" icon="clock" href="/pt-br/api-reference/payout/get-payment-status">
+    Confira o resultado do processamento.
+  </Card>
+  <Card title="Consultar detalhes do pagamento" icon="receipt" href="/pt-br/api-reference/payout/get-payment-details">
+    Obtenha os detalhes do pagamento e dos participantes.
+  </Card>
+  <Card title="Callbacks Pix" icon="bell" href="/pt-br/api-reference/payout/pix/callbacks">
+    Receba atualizações sobre seu pagamento.
+  </Card>
+</CardGroup>

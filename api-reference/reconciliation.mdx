@@ -1,0 +1,183 @@
+---
+title: "Reconcile payments, refunds and MED"
+sidebarTitle: "Reconciliation"
+description: "Match payments, refunds and MED cases with statement entries, details and callbacks. Check completed amounts, fees and balances without duplicating records."
+keywords: ["reconciliation", "statement", "txn_id", "Pix refund", "MED"]
+---
+
+Use Pagsmile reconciliation to match your orders with payment, refund and MED records for each account. Confirm the matching operation's status before counting its amount as completed.
+
+## Keep the identifiers separate
+
+Save the request you send and the identifiers you receive. Preserve the account and environment alongside each record; an order identifier alone does not identify every financial record.
+
+| Identifier | Where you obtain it | How you use it |
+| --- | --- | --- |
+| `merchant_order_id` | Your payment or refund request | Match your order with the corresponding operation |
+| `txn_id` | Payment submission, details or matching statement entry | Query the payment and match its records |
+| `settlement_id` | Payment details or statement entry | Retain the settlement reference separately from `txn_id` |
+| `refund_id` | Refund submission | Query that refund's details and status |
+| `settlement_refund_id` | Refund submission | Retain the refund's separate settlement reference |
+| `parent_txn_id`, `parent_settlement_id` | Refund statement entry | Link the refund to its original payment |
+| `case_id` | MED case response | Link the MED case with its detail record |
+| `end_to_end_id`, `root_end_to_end_id` | MED request and case details | Correlate the original Pix with its MED case |
+
+Use the `txn_id` returned by payment submission whenever you have it. If you use statements instead, find the entry that matches the target payment.
+
+The statement list is time-descending and can contain payments, refunds and disputes. Do not select its first entry without matching it to your operation.
+
+## Choose the source for each check
+
+| Source | What you can confirm | What it does not confirm |
+| --- | --- | --- |
+| Submission response | The request result and returned identifiers | Completion from `code` alone |
+| Payment or refund status | The reported status of that operation | The account's full balance history |
+| Transaction details | Amount, parties, status and applicable fees | Every balance change |
+| Statement entry | The listed transaction, status and original-payment links | Separate fee or freeze/release entries |
+| Callback | The event payload you received | That your own records are complete |
+| Account balance response | Reported total, available and frozen amounts | A historical balance at the statement period's end |
+| MED case details | Requested, blocked and returned amounts | A completed return from blocked amounts alone |
+
+All JSON business results use HTTP 200. Read `code` before `data`; when `code` is `200`, still check the operation's status.
+
+## Daily reconciliation procedure
+
+<Steps>
+  <Step title="Fix the account and period">
+    Choose one account and environment. Set `start_date` and `end_date` for the [statement query](/api-reference/accounts/get-account-statement).
+
+    Save each [balance response](/api-reference/accounts/get-account-balance) with its request time. A current balance is not a historical closing balance.
+  </Step>
+  <Step title="Read all statement pages">
+    Omit `cursor` on the first request. On each following request, reuse the returned `cursor` and `snapshot_timestamp`, keeping the account and filters unchanged.
+
+    Continue until no valid next cursor remains. Do not use `page` or a total count to decide that the scan is complete.
+
+    `page_size` defaults to `20`. If you send it, use an integer from `1` to `100`.
+  </Step>
+  <Step title="Match records to your orders">
+    Match each entry by account and transaction identifiers, then compare `amount`, `payer`, `payee` and `txn_status`.
+
+    `is_credit` compares the payee's document with the queried account's document. It does not compare bank or account identifiers.
+
+    When payer and payee share the same CPF/CNPJ, determine direction by matching their bank and account identifiers to the selected account. Do not rely on `is_credit` alone.
+
+    Use decimal arithmetic for amount strings in BRL, such as `"10.50"`.
+
+    Keep refunds separate from their original payments. Deduplicate records before adding completed amounts.
+  </Step>
+  <Step title="Resolve incomplete operations">
+    For an outgoing payment, query [payment status](/api-reference/payout/get-payment-status) with its `txn_id` and inspect [payment details](/api-reference/payout/get-payment-details).
+
+    For a refund you initiated, query [refund status](/api-reference/refunds/get-refund-status) with its `refund_id` and inspect [refund details](/api-reference/refunds/get-refund-details).
+
+    Verify [callbacks](/environments-and-credentials#verify-callbacks) before applying them. Store valid payloads, return HTTP 200, then process them asynchronously.
+
+    Deduplicate according to the [pay-in](/api-reference/payin/callbacks), [Pix payout](/api-reference/payout/pix/callbacks) or [refund](/api-reference/refunds/callbacks) callback page for your event.
+
+    Query details when a callback conflicts with your stored result.
+  </Step>
+  <Step title="Check fees, frozen amounts and discrepancies">
+    Compare applicable `credit_fee` or `debit_fee` in transaction details with the account's fee configuration.
+
+    Check frozen amounts in the account response and review [MED case details](/api-reference/med/get-med-case-details). Keep these checks separate from statement totals.
+
+    Record unmatched operations and differences for follow-up. Rerun the relevant query before treating missing data as a financial outcome.
+  </Step>
+</Steps>
+
+## Confirm payment and refund outcomes
+
+For incoming Pix, inspect [pay-in transaction details](/api-reference/payin/get-transaction-details) and match the corresponding statement entry. Reconcile each receipt separately.
+
+Pay-in details hide payments whose underlying transaction is not completed. A missing record alone does not prove a failed payment.
+
+Use this table for `txn_status` in details or statements. The payment-status response also uses `txn_status`; the refund-status response uses `refund_status`.
+
+Payment details and payment entries in statements use a derived display status. The payment-status endpoint reports the underlying payment status.
+
+After a refund, the status query can still return `2` (COMPLETED). Details or statements can show `6` (REFUNDED) or `7` (PARTIALLY_REFUNDED) for the same payment.
+
+This difference alone does not indicate conflicting financial outcomes. Reconcile the original payment and each distinct linked return or dispute record separately.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `1` PENDING | Awaiting processing | No completion evidence | Query again |
+| `5` PROCESSING | Processing | No completion evidence | Query again |
+| `2` COMPLETED | Completed operation | Reported operation completion | Match amount and identifiers |
+| `3` FAILED | Failed operation | Reported failure | Inspect details |
+| `4` CANCELLED | Cancelled operation | Reported cancellation | Inspect details |
+| `6` REFUNDED | Original payment fully returned | Original payment marked fully returned | Reconcile original payment and distinct linked returns separately |
+| `7` PARTIALLY_REFUNDED | Original payment partially returned | Original payment marked partially returned | Reconcile original payment and each distinct partial return separately |
+| `8` DISPUTED | Original payment disputed | Reported dispute, not a completed return | Reconcile original payment and distinct linked dispute records separately |
+
+For the refund sender, the status query refreshes nonterminal refunds. If that refresh fails, the response can still contain the last stored status.
+
+A refund receiver can query details only after completion. Before completion, its status query returns generic `PROCESSING`, including when the refund has failed.
+
+Do not treat that receiver-side status as evidence that processing continues. Use the refund sender's status and matching records to resolve an uncertain result.
+
+## Link refunds to the original payment
+
+In a statement entry whose `txn_type` is `2` (REFUND), `txn_id` identifies the refund and `settlement_id` identifies its settlement.
+
+Use `parent_txn_id` and `parent_settlement_id` to match the original payment. Save `refund_id` and `settlement_refund_id` from submission rather than replacing them with the original payment's identifiers.
+
+Refund submission does not fill `merchant_order_id` in the response, so retain the identifier you sent. Refund details do not populate settlement identifiers; keep the submission and statement references.
+
+Calculate your ordinary-refund total from distinct linked refunds whose `txn_status` is `2` (COMPLETED). Exclude pending and failed refunds, and retain each partial refund separately.
+
+## Check MED without equating blocks with returns
+
+Review the [MED case](/api-reference/med/get-med-case-details) alongside its original payment and the [infraction report](/api-reference/med/get-infraction-report-details).
+
+Keep the original Pix identifier you send as `end_to_end_id` when [creating a MED case](/api-reference/med/create-med-case). Case details identify the disputed Pix through `root_end_to_end_id`.
+
+Retain `original_transaction.transaction_id` as returned. Do not assume that every identifier named `transaction_id` is interchangeable with `txn_id`.
+
+Compare `requested_amount`, `blocked_amount_total` and `returned_amount_total` separately. A blocked amount does not prove that the payer has received a return.
+
+The payer's MED detail view filters linked infraction, refund and funds-disposition records. Empty arrays do not prove that no linked tasks exist.
+
+Confirm an actual return against the matching transaction records. Keep MED recovery amounts separate from your ordinary Pix-refund total.
+
+## Compare statements, fees and balances
+
+The statement lists transaction records. It does not provide separate fee or freeze/release entries, so you cannot reconstruct all balance changes by summing it.
+
+Compare `balance`, `available_amount` and `frozen_amount` separately. The response also separates `med_frozen_amount` from `other_frozen_amount`.
+
+<Warning>
+  A balance lookup can return `code` equal to `200` with these amounts set to `"0"` when balance retrieval fails. Query again or contact support before concluding that the account is empty.
+</Warning>
+
+An empty `fee_configs` result does not prove a fee exemption; fee-configuration retrieval can fail without failing the account query. Confirm the configuration before treating it as fee-free.
+
+## Recover from an unknown result
+
+Keep the original order identifier and request details after a timeout, lost response or missing callback. Do not submit a new independent payment or refund to resolve uncertainty.
+
+Payment-status queries require `txn_id`; refund-status queries require `refund_id`. A merchant order identifier alone is not accepted by either status endpoint.
+
+If you lost the submission response, search the available statement and detail records for the matching operation. Escalate when you cannot establish that match.
+
+Send support the account, environment, order identifier, amount, request time and available transaction or refund identifiers. For refunds, include the original settlement reference.
+
+Include the response header `xxx-log-id` and a masked response. Do not send your SK or complete sensitive data. See the [error catalog](/api-reference/error-catalog) for query errors.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Account statement" icon="list" href="/api-reference/accounts/get-account-statement">
+    Read transaction records across a fixed period.
+  </Card>
+  <Card title="Payment details" icon="magnifying-glass" href="/api-reference/payout/get-payment-details">
+    Resolve an outgoing payment by its identifiers.
+  </Card>
+  <Card title="Refund details" icon="rotate-left" href="/api-reference/refunds/get-refund-details">
+    Check an ordinary Pix refund.
+  </Card>
+  <Card title="MED case details" icon="shield-check" href="/api-reference/med/get-med-case-details">
+    Review recovery progress and reported amounts.
+  </Card>
+</CardGroup>

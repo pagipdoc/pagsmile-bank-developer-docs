@@ -1,0 +1,173 @@
+---
+title: "Pagsmile Open API"
+sidebarTitle: "Overview"
+description: "Open managed accounts, collect with Pix QR codes, pay out by Pix or TED, refund, handle MED cases and receive signed callbacks with one signed JSON API."
+mode: "wide"
+keywords: ["Pagsmile", "Open API", "Pix", "Brazil banking API", "managed accounts"]
+---
+
+This site covers the whole integration: credentials and request signing, every v3 endpoint with a Playground and signed code samples, callbacks and their verification, and the error codes the API returns. Every endpoint takes a signed `POST` request with a JSON body, in Sandbox and in Production.
+
+## Start here
+
+<Columns cols={4}>
+  <Card title="Quickstart" icon="/icons/rapid-activation.svg" href="/quickstart">
+    Register, get your credentials and make a first signed call.
+  </Card>
+  <Card title="Set up API access" icon="/icons/secure-lock.svg" href="/api-access-setup">
+    Allow your server's IP, enter your keys once and sign requests on every page.
+  </Card>
+  <Card title="API reference" icon="/icons/api-integration.svg" href="/api-reference/overview">
+    Every endpoint with schemas, signed code samples and a Playground.
+  </Card>
+  <Card title="MED and disputes" icon="/icons/shield-check-outline.svg" href="/api-reference/med/overview">
+    Open and track MED cases and read infraction reports.
+  </Card>
+</Columns>
+
+## One call, end to end
+
+A request carries four signature headers and a JSON body. JSON business responses use the same envelope: read `code` first, then `data`.
+
+Handle HTTP 400 `text/plain` transport failures separately; do not parse them as JSON.
+
+<Columns cols={2}>
+
+```http Request
+POST /v3/pix_keys/create HTTP/1.1
+Host: ebanking-openapi-sandbox.pagsmile.com.br
+Content-Type: application/json
+User-Agent: your-app/1.0
+X-Client-ID: ak_live_example
+X-Timestamp: 1791792000000
+X-Nonce: 9f86d081884c7d659a2feaa0c55ad015
+X-Signature: <64 lowercase hex characters>
+
+{"pix_key_type":5}
+```
+
+```json Response (HTTP 200)
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "pix_key": "8e67c99a-7c55-4e91-9557-512b5e198561",
+    "pix_key_type": 5,
+    "status": 1,
+    "created_at": 1791792000000
+  },
+  "time": 1791792000000
+}
+```
+
+</Columns>
+
+## Build by product
+
+<CardGroup cols={4}>
+  <Card title="Onboarding" icon="user-plus" href="/api-reference/onboarding/overview">
+    Create and query MOR, VA and PA managed accounts.
+  </Card>
+  <Card title="Accounts" icon="building-columns" href="/api-reference/accounts/overview">
+    Balance, statement entries and account closure.
+  </Card>
+  <Card title="Pix keys" icon="key" href="/api-reference/pix-keys/overview">
+    Register and delete the keys that receive Pix.
+  </Card>
+  <Card title="Pay-ins" icon="qrcode" href="/api-reference/payin/overview">
+    Dynamic and static Pix QR codes and pay-in details.
+  </Card>
+  <Card title="Payouts" icon="paper-plane" href="/api-reference/payout/overview">
+    Pix by key, QR code or bank details, TED and internal transfers.
+  </Card>
+  <Card title="Refunds" icon="rotate-left" href="/api-reference/refunds/overview">
+    Refund a Pix pay-in and track the refund.
+  </Card>
+  <Card title="MED" icon="scale-balanced" href="/api-reference/med/overview">
+    MED cases and infraction reports for Pix disputes.
+  </Card>
+  <Card title="Webhooks" icon="bell" href="/api-reference/webhooks/overview">
+    Subscribe to events and verify signed callbacks.
+  </Card>
+</CardGroup>
+
+<Accordion title="How the products connect" icon="diagram-project">
+
+Onboarding creates managed accounts. An account receives pay-ins, sends payouts, owns Pix keys and has statements.
+
+<Tree>
+  <Tree.Folder name="Onboarding" defaultOpen>
+    <Tree.Folder name="Account" defaultOpen>
+      <Tree.Folder name="Pay-ins" defaultOpen>
+        <Tree.File name="Refunds" />
+        <Tree.File name="MED cases" />
+      </Tree.Folder>
+      <Tree.File name="Payouts" />
+      <Tree.File name="Pix keys" />
+      <Tree.File name="Statements" />
+    </Tree.Folder>
+  </Tree.Folder>
+</Tree>
+
+Webhooks report events for pay-ins, payouts and refunds.
+
+The tree shows object relationships, not the call order. A refund and a MED case both point to the original Pix pay-in, and each has its own eligibility rules.
+
+</Accordion>
+
+## Your first call in four steps
+
+<Steps>
+  <Step title="Get credentials and allowlist your IP">
+    Each AK/SK pair has one credential type (`ACCOUNT`, `USER` or `PLATFORM`) and one environment. Requests from an IP address that is not on the credential's allowlist fail with `4004103`. See [Environments and credentials](/environments-and-credentials).
+  </Step>
+  <Step title="Sign the request">
+    Send `X-Client-ID`, `X-Timestamp`, `X-Nonce` and `X-Signature` on every call. A timestamp more than 5 minutes off and a reused nonce are both rejected. See [Sign requests](/environments-and-credentials#sign-requests).
+  </Step>
+  <Step title="Read code, not the HTTP status">
+    Every JSON business result, success or error, returns HTTP 200. When `code` is `200`, the request was accepted; any other value is described in the [error catalog](/api-reference/error-catalog).
+  </Step>
+  <Step title="Confirm the outcome">
+    Use [webhooks](/api-reference/webhooks/overview) and the details endpoints to confirm the final status before you release goods or funds.
+  </Step>
+</Steps>
+
+## Environments
+
+| Environment | Base URL |
+| --- | --- |
+| Sandbox | `https://ebanking-openapi-sandbox.pagsmile.com.br` |
+| Production | `https://ebanking-openapi.pagsmile.com.br` |
+
+Credentials are issued per environment. A Sandbox AK does not work in Production.
+
+## Tools on this site
+
+<CardGroup cols={3}>
+  <Card title="Signature tool" icon="pen-nib" href="/environments-and-credentials#sign-requests">
+    Compute the signature headers in your browser and check them against the published test vectors.
+  </Card>
+  <Card title="Callback verifier" icon="shield-halved" href="/environments-and-credentials#verify-callbacks">
+    Paste a received callback and its headers to check the signature before you trust it.
+  </Card>
+  <Card title="API Playground" icon="play" href="/api-reference/overview">
+    Fill in parameters and send a request from any endpoint page, as a form or as JSON.
+  </Card>
+</CardGroup>
+
+The signature tool and the callback verifier run only in your browser. Nothing you type in them is sent anywhere.
+
+## Core terms
+
+| Term | Meaning |
+| --- | --- |
+| <Tooltip tip="Master Account">MA</Tooltip> | Master account that establishes the party and the ownership of its managed accounts. |
+| Managed account | An account created under an MA: MOR, VA or PA. |
+| MOR | Operating account that reuses the approved compliance records of its parent MA. |
+| VA | Managed account that belongs to a parent MA and has its own compliance records and bank account. |
+| PA | Payment account that belongs to a parent MA, or to a VA under that MA, and has its own compliance records and bank account. |
+| `PLATFORM`, `USER`, `ACCOUNT` | The three API credential types. They decide which accounts a call can act on. |
+| <Tooltip tip="Identificador do Sistema de Pagamentos Brasileiro: the 8-digit code of an institution that participates in the Brazilian Payments System.">ISPB</Tooltip> | Institution identifier. Together with the account number, it identifies a bank account. |
+| Pix key | Identifier that points to the account that receives a Pix. It is not an API credential. |
+| End-to-end ID | ID of the original Pix transaction. Refunds and MED cases refer to it. |
+| <Tooltip tip="Mecanismo Especial de Devolução: the Central Bank of Brazil's special return mechanism for Pix.">MED</Tooltip> | Pix special return mechanism, with its related infraction reports. |

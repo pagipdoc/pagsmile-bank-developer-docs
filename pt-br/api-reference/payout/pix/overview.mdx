@@ -1,0 +1,111 @@
+---
+title: "Fluxos de pagamento Pix"
+sidebarTitle: "Visão geral"
+description: "Envie Pix por chave, QR Code ou dados bancários. Confira o recebedor, guarde o ID da transação e confirme o resultado pela consulta de status ou pelo callback."
+keywords: ["pagamento Pix", "chave Pix", "pagamento por QR Code", "dados bancários"]
+---
+
+Envie Pix por chave, QR Code ou dados bancários. Os pagamentos por chave e QR Code exigem inicialização antes da confirmação; com dados bancários, o envio é direto.
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a conta vinculada à sua AK. Omita `X-ISPB` e `X-Account-Number`, ou envie os dois com valores correspondentes à conta vinculada.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` para selecionar uma conta de titularidade do USER. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem enviar esses pagamentos. Use credenciais ACCOUNT ou USER da conta do pagador.</Warning>
+  </Tab>
+</Tabs>
+
+Envie o valor do pagamento como string decimal em BRL, por exemplo `"10.50"`. Confira o recebedor antes de enviar o pagamento.
+
+## Escolher um fluxo
+
+<Tabs>
+  <Tab title="Chave Pix" icon="key">
+    <Steps>
+      <Step title="Inicializar o pagamento">
+        Chame [Inicializar pagamento via chave Pix](/pt-br/api-reference/payout/pix/initialize-pix-key-payment) com `pix_key`. Guarde `data.ref_id` e confira `data.payee`.
+
+        Você pode enviar `amount` na inicialização para uma verificação prévia do saldo. Se informar esse campo, use o mesmo valor na confirmação.
+      </Step>
+      <Step title="Confirmar com a referência">
+        Chame [Confirmar pagamento via chave Pix](/pt-br/api-reference/payout/pix/confirm-pix-key-payment) com `ref_id`, `amount` e `merchant_order_id`.
+
+        A referência vale por um minuto. Confirme com a mesma conta do pagador. Após a aceitação, não reutilize a referência.
+      </Step>
+      <Step title="Acompanhar o pagamento">
+        Guarde `data.txn_id` e consulte `data.txn_status`. Use o endpoint de status ou de detalhes para confirmar o resultado.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="QR Code Pix" icon="qrcode">
+    <Steps>
+      <Step title="Inicializar o pagamento">
+        Chame [Inicializar pagamento via QR Code](/pt-br/api-reference/payout/pix/initialize-qr-code-payment). Confira o recebedor e o valor retornados, e guarde `data.ref_id`.
+      </Step>
+      <Step title="Confirmar com a referência">
+        Chame [Confirmar pagamento via QR Code](/pt-br/api-reference/payout/pix/confirm-qr-code-payment) com `ref_id`, `amount` e `merchant_order_id`. Use a mesma conta do pagador.
+
+        A referência vale por cinco minutos; o QR Code tem seu próprio prazo de validade. Para um QR Code dinâmico com valor definido e não editável, use o valor retornado na inicialização.
+
+        Após a aceitação, não reutilize a referência.
+      </Step>
+      <Step title="Acompanhar o pagamento">
+        Guarde `data.txn_id` e consulte `data.txn_status`. Use o endpoint de status ou de detalhes para confirmar o resultado.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Dados bancários" icon="building-columns">
+    <Steps>
+      <Step title="Conferir o recebedor">
+        Reúna os dados bancários e do documento do recebedor. Siga os requisitos de [Pagar via Pix com dados bancários](/pt-br/api-reference/payout/pix/pay-with-bank-account-details).
+      </Step>
+      <Step title="Enviar o pagamento">
+        Envie os dados do recebedor, `amount` e `merchant_order_id` para esse endpoint. Não há chamadas separadas de inicialização e confirmação.
+      </Step>
+      <Step title="Acompanhar o pagamento">
+        Guarde `data.txn_id` e consulte `data.txn_status`. Use o endpoint de status ou de detalhes para confirmar o resultado.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Confirmar o resultado
+
+Um envio aceito retorna `data.txn_status` igual a `5` (TXN_STATUS_PROCESSING). Confira o status antes de atualizar seus registros. A inicialização não envia o pagamento, e a aceitação não comprova a conclusão.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `5` TXN_STATUS_PROCESSING | Em processamento | Não comprova conclusão | Consulte o pagamento original |
+| `2` TXN_STATUS_COMPLETED | Concluído | Resultado de pagamento bem-sucedido | Concilie o lançamento correspondente |
+| `3` TXN_STATUS_FAILED | Falha registrada | Falha registrada localmente | Concilie antes de substituir o pagamento |
+
+Para Pix, `FAILED` indica uma falha registrada pela Pagsmile; não comprova que o banco deixou de movimentar os recursos. Concilie os detalhes do pagamento com o lançamento correspondente no extrato antes de criar um pagamento substituto. Veja a regra de duas horas em [Consultar status do pagamento](/pt-br/api-reference/payout/get-payment-status).
+
+O [callback de pagamento Pix](/pt-br/api-reference/payout/pix/callbacks) informa os resultados ao webhook configurado para a conta do pagador.
+
+Se a resposta de envio se perder, siga as orientações para [resultado desconhecido](/pt-br/api-reference/payout/overview#tratar-um-resultado-desconhecido). Um `merchant_order_id` duplicado é rejeitado, sem repetir a resposta de sucesso original.
+
+Não crie outro pagamento apenas porque a primeira resposta não chegou.
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar status do pagamento" icon="clock" href="/pt-br/api-reference/payout/get-payment-status">
+    Confira o status do pagamento original.
+  </Card>
+  <Card title="Consultar detalhes do pagamento" icon="file-lines" href="/pt-br/api-reference/payout/get-payment-details">
+    Consulte a transação identificada.
+  </Card>
+  <Card title="Callbacks de pagamentos Pix" icon="bell" href="/pt-br/api-reference/payout/pix/callbacks">
+    Receba o resultado do pagamento enviado.
+  </Card>
+  <Card title="Pagamentos enviados" icon="paper-plane" href="/pt-br/api-reference/payout/overview">
+    Compare Pix com TED e transferência interna.
+  </Card>
+</CardGroup>

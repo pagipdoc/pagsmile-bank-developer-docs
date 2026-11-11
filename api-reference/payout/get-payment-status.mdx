@@ -1,0 +1,88 @@
+---
+title: "Get payment status"
+sidebarTitle: "Payment status"
+description: "Check an existing Pix, TED or internal payment and read its recorded status. The call can advance processing; success alone does not prove completion."
+openapi: "openapi/en.json POST /v3/transfers/status/check"
+keywords: ["/v3/transfers/status/check", "payment status", "Pix payout", "TED", "polling"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Check an existing payment by its transaction ID. This call can advance processing; when `code` is `200`, read `data.txn_status` before treating the payment as complete.
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the credential bound to the target account. Omit `X-ISPB` and `X-Account-Number`, or send both with values matching that account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+    The account identity and account association must be active for this status check.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use an ACCOUNT or USER credential for an account participating in the payment.</Warning>
+  </Tab>
+</Tabs>
+
+The target account must be the payer or payee of the transaction. Having the transaction ID does not grant access to another account's payment.
+
+## Choose the transaction ID
+
+Save `data.txn_id` from the payment submission response. For the two-step Pix flows, this is the [key confirmation](/api-reference/payout/pix/confirm-pix-key-payment) or [QR confirmation](/api-reference/payout/pix/confirm-qr-code-payment) response.
+
+If you recover the ID from an [account statement](/api-reference/accounts/get-account-statement), select the entry matching your payment. Statements default to newest first; the first entry may belong to another transaction.
+
+## What the check can do
+
+For Pix, the check can query the bank and update the existing payment. For TED, it reconciles the recorded settlement result without requesting a new bank status.
+
+For an internal transfer, the check can resume processing of the existing payment. It is not a passive lookup.
+
+If both Pix statuses remain `PROCESSING`, the check can mark the payment `FAILED` after the bank-reported request time exceeds two hours. This requires the bank to supply that timestamp; it does not set a deadline for successful completion.
+
+This rule records a local failure while the bank still reports `PROCESSING`. It does not confirm that the bank rejected or cancelled the payment.
+
+A processing update can fail while the transaction remains readable. In that case, `code` can still be `200` with the recorded status.
+
+## Read the status
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `0` UNSPECIFIED | Unmapped status | No completion evidence | Check details |
+| `1` PENDING | Awaiting processing | Payment exists | Check again later |
+| `2` COMPLETED | Final success | Payment completed | Reconcile the matching entry |
+| `3` FAILED | Recorded failure | Failure recorded locally | Reconcile before any replacement |
+| `4` CANCELLED | Final cancellation | Payment is cancelled | Reconcile before any replacement |
+| `5` PROCESSING | Work in progress | No completion evidence | Check again later |
+
+This endpoint returns the recorded payment status, not refund or dispute display statuses. Use [payment details](/api-reference/payout/get-payment-details) and [refund queries](/api-reference/refunds/overview) to investigate later changes.
+
+## Polling and unknown results
+
+Increase the delay between checks while the payment remains `PENDING` or `PROCESSING`. Stop routine payment polling when its status is `COMPLETED`, `FAILED` or `CANCELLED`.
+
+For Pix, further checks do not query the bank once the recorded payment status is final. A `FAILED` result from the two-hour rule leaves the bank outcome unresolved. Compare payment details and the matching statement entry before any replacement payment.
+
+After a timeout or a temporary query error, check the same payment again. Do not submit a new payment because the status request failed.
+
+Business code `4003014` reports a query or processing error; it does not, by itself, prove the payment failed. Compare the details and matching statement entry.
+
+If the result remains unresolved, contact support with `txn_id` and the response header `xxx-log-id`. Sign each attempt with a new nonce and timestamp; see [authentication errors](/api-reference/error-catalog#authentication-errors).
+
+## Try it in the Playground
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/transfers/status/check" body={{ txn_id: "f94eeb41-39e6-4f65-bad7-11fa322739a8" }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Get payment details" icon="magnifying-glass" href="/api-reference/payout/get-payment-details">
+    Read participants, amount and display status.
+  </Card>
+  <Card title="Get account statement" icon="receipt" href="/api-reference/accounts/get-account-statement">
+    Match the payment to its statement entry.
+  </Card>
+</CardGroup>

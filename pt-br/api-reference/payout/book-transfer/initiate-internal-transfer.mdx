@@ -1,0 +1,112 @@
+---
+title: "Iniciar transferência interna"
+sidebarTitle: "Iniciar transferência"
+description: "Envie uma transferência entre contas internas diferentes e elegíveis da mesma instituição. Retorna o ID da transação e o status PROCESSING para consultar o resultado."
+openapi: "openapi/pt-br.json POST /v3/transfers/internal"
+keywords: ["/v3/transfers/internal", "book transfer", "transferência interna", "merchant_order_id"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Envie uma transferência entre contas internas diferentes com o mesmo ISPB. Um envio bem-sucedido aceita a transferência para processamento assíncrono, sem confirmar a conclusão.
+
+| Credenciais | Chave de duplicidade | Resultado |
+| --- | --- | --- |
+| ACCOUNT, USER | `merchant_order_id` | Assíncrono |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a credencial vinculada à conta do pagador. Omita `X-ISPB` e `X-Account-Number`, ou envie ambos com os dados dessa conta.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta pertencente ao USER. Esses cabeçalhos selecionam o pagador, não o recebedor.
+
+    Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use uma credencial ACCOUNT ou USER da conta do pagador.</Warning>
+  </Tab>
+</Tabs>
+
+A conta do pagador precisa estar habilitada para enviar pagamentos. Confira os dados bancários e o documento do recebedor antes do envio.
+
+## Conferir a conta do recebedor
+
+A conta do recebedor deve existir, estar ativa, estar habilitada para receber pagamentos e não ter encerramento em andamento.
+
+O ISPB, o número da conta, a agência e o tipo de conta devem corresponder à requisição. O número e o tipo do documento devem corresponder ao titular.
+
+Um ISPB do recebedor diferente do ISPB do pagador retorna `4001` com a mensagem `Invalid payee.bank_code value`.
+
+Use uma conta diferente da conta do pagador. Este endpoint não transfere para outra instituição; use [TED](/pt-br/api-reference/payout/ted/initiate-ted-payment) nesse caso.
+
+## Preparar o valor da transferência
+
+Envie o valor do pagamento como string decimal em BRL, como `"10.00"`. Ele deve ser positivo e representável exatamente com duas casas decimais.
+
+As tarifas aplicáveis às duas contas são verificadas antes da aceitação. O montante deve superar a tarifa total do recebedor, para que o crédito permaneça positivo.
+
+Os limites de pagamento configurados também se aplicam às transferências internas. Uma rejeição por limite retorna o código de negócio `4001998`; esta página não define um limite numérico universal.
+
+## Interpretar o resultado
+
+Todos os resultados de negócio em JSON retornam HTTP `200`. Leia `code` antes de usar `data`; apenas corpos ilegíveis ou JSON inválido retornam HTTP `400` com texto simples.
+
+Quando `code` é `200`, salve `data.txn_id` e o `merchant_order_id` original. Use o ID da transação salvo para [consultar a transferência](/pt-br/api-reference/payout/get-payment-status).
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `5` PROCESSING | Aceito para processamento | Apenas o envio | Consulte a transferência original |
+| `2` COMPLETED | Transferência concluída | Conclusão confirmada | Concilie a transferência |
+| `3` FAILED | Transferência falhou | Falha registrada | Confira os detalhes |
+| `4` CANCELLED | Transferência cancelada | Cancelamento registrado | Confira os detalhes |
+
+O envio retorna `5` (PROCESSING). Consulte o status ou os detalhes no mesmo contexto da conta do pagador antes de considerar a transferência concluída.
+
+A resposta do envio retorna `null` em `payee`, `payer` e `error`. Obtenha os dados dos participantes em [Consultar detalhes do pagamento](/pt-br/api-reference/payout/get-payment-details).
+
+## Repetições e duplicidades
+
+Use um ID de pedido único entre contas e operações do mesmo ambiente. IDs aceitos ficam reservados por até 48 horas.
+
+<AccordionGroup>
+  <Accordion title="O resultado do envio é desconhecido" icon="clock-rotate-left">
+    Após um timeout, uma falha de rede ou um erro de sistema, verifique a transferência original antes de reenviar. Uma consulta imediata pode não encontrar a transação.
+
+    Consulte novamente em vez de criar outra transferência. Se você não recebeu `txn_id`, guarde o ID do pedido e o cabeçalho de resposta `xxx-log-id` para o suporte.
+  </Accordion>
+  <Accordion title="O ID do pedido já está reservado" icon="clone">
+    Uma nova requisição com um `merchant_order_id` ainda retido retorna `4001013` (Already processed). Ela não repete a resposta de sucesso original.
+
+    Alterar o ID do pedido pode criar outra transferência. Veja [Visão geral de pagamentos](/pt-br/api-reference/payout/overview) para tratar um resultado desconhecido.
+  </Accordion>
+  <Accordion title="Falha na assinatura" icon="signature">
+    Assine cada tentativa com novos `X-Nonce` e `X-Timestamp`. O nonce é consumido mesmo se a assinatura falhar.
+
+    Veja [erros de autenticação](/pt-br/api-reference/error-catalog#erros-de-autenticação).
+  </Accordion>
+</AccordionGroup>
+
+## Testar no Playground
+
+Substitua os dados fictícios pelos de uma conta válida para recebimento no Sandbox. Use o ISPB do pagador e atualize o prefixo `YYMMDD` do pedido para a data UTC atual.
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/transfers/internal" body={{ payee: { name: "Demo Receiver", document_id: "12345678909", document_type: 1, bank_account: "00000002", bank_account_type: 1, bank_branch: "0001", bank_code: "12345678" }, amount: "10.00", currency: "BRL", merchant_order_id: "261110-internal-001" }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Transferências internas" icon="route" href="/pt-br/api-reference/payout/book-transfer/overview">
+    Acompanhe o fluxo de envio e confirmação.
+  </Card>
+  <Card title="Consultar status do pagamento" icon="magnifying-glass" href="/pt-br/api-reference/payout/get-payment-status">
+    Confirme o resultado da transferência original.
+  </Card>
+  <Card title="Consultar detalhes do pagamento" icon="file-lines" href="/pt-br/api-reference/payout/get-payment-details">
+    Confira os dados da transferência e dos participantes.
+  </Card>
+</CardGroup>

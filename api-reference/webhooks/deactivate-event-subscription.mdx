@@ -1,0 +1,78 @@
+---
+title: "Deactivate event subscription"
+sidebarTitle: "Deactivate subscription"
+description: "Disable a callback subscription in your credential scope without deleting it. Returns its unchanged subscription ID and the deactivation response time."
+openapi: "openapi/en.json POST /v3/webhooks/delete"
+keywords: ["/v3/webhooks/delete", "webhook", "callback", "subscription"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Deactivate a webhook subscription without deleting its configuration. With USER credentials, this affects the shared user subscription, not only the account named in the request.
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the account bound to your credential. Events `1` through `5` are allowed; event `6` is rejected.
+
+    You may omit `X-ISPB` and `X-Account-Number`. If you send them, send both with the bound account values and include them in the signature.
+
+    If you provide `account_number` in the body, it must match the bound account. A different account returns `4004003`.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Use events `1` through `5`. For transaction events (`1` through `4`), provide `account_number` in the body, preserving leading zeros.
+
+    That number is required for validation but does not create an account-specific subscription. For event `5`, omit it or send an empty string.
+
+    Omit `X-ISPB` and `X-Account-Number`, including empty headers.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    Use event `6` (MASTER_ACCOUNT_KYB). Omit `account_number` or send an empty string.
+
+    Omit `X-ISPB` and `X-Account-Number`, including empty headers.
+  </Tab>
+</Tabs>
+
+Sign the exact body you send. See [Sign requests](/environments-and-credentials#sign-requests).
+
+## Select the subscription
+
+Without `subscription_id`, selection uses your credential owner, application and event. ACCOUNT selection also uses the bound account.
+
+With `subscription_id`, selection uses the ID and authenticated owner. It does not also match the supplied event or application.
+
+You must still send `event_type` and any conditionally required `account_number`. Use the ID from `webhook_id` in a previous response.
+
+## Confirm deactivation
+
+When `code` is `200`, the subscription has been disabled. The configuration remains available, and its ID does not change.
+
+The response has no subscription status. Query the subscription and confirm its `status` is `2` (INACTIVE).
+
+The response timestamp `deleted_at` records when the success response was produced. It is not a stored deletion timestamp.
+
+<Warning>
+  For USER transaction subscriptions, deactivation applies to the shared user and application subscription. The body account number does not limit the effect to one account.
+</Warning>
+
+After a timeout or network error, query the subscription before you retry. Use [Update event subscription](/api-reference/webhooks/update-event-subscription) to reactivate it.
+
+All JSON business results return HTTP 200. A response whose `code` is `4004004` means the subscription was not found; invalid JSON returns HTTP 400 with plain text.
+
+## Try it in the Playground
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner scope="owner" method="POST" path="/v3/webhooks/delete" body={{"event_type": 1, "account_number": "00000001", "subscription_id": "sub_usr_8e67c99a7c554e919557512b5e198561"}} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Get event subscription" icon="magnifying-glass" href="/api-reference/webhooks/get-event-subscription">
+    Check the stored configuration.
+  </Card>
+  <Card title="Update event subscription" icon="pen-to-square" href="/api-reference/webhooks/update-event-subscription">
+    Change the URL or activation status.
+  </Card>
+</CardGroup>

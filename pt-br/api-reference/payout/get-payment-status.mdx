@@ -1,0 +1,88 @@
+---
+title: "Consultar status do pagamento"
+sidebarTitle: "Status do pagamento"
+description: "Consulte um pagamento Pix, TED ou interno e confira o status registrado. A chamada pode avançar o processamento; o sucesso da consulta não comprova a conclusão."
+openapi: "openapi/pt-br.json POST /v3/transfers/status/check"
+keywords: ["/v3/transfers/status/check", "status do pagamento", "pagamento Pix", "TED", "consulta periódica"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Consulte um pagamento existente pelo ID da transação. Esta chamada pode avançar o processamento; quando `code` for `200`, leia `data.txn_status` antes de considerar o pagamento concluído.
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a credencial vinculada à conta-alvo. Omita `X-ISPB` e `X-Account-Number` ou envie ambos com os dados dessa conta.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta que pertença ao USER. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+    A identidade e o vínculo da conta devem estar ativos para esta consulta de status.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use uma credencial ACCOUNT ou USER de uma conta participante do pagamento.</Warning>
+  </Tab>
+</Tabs>
+
+A conta-alvo deve ser a do pagador ou do recebedor da transação. Ter o ID da transação não dá acesso ao pagamento de outra conta.
+
+## Escolher o ID da transação
+
+Guarde `data.txn_id` da resposta de envio do pagamento. Nos fluxos Pix de duas etapas, use a resposta de [confirmação por chave](/pt-br/api-reference/payout/pix/confirm-pix-key-payment) ou de [confirmação por QR Code](/pt-br/api-reference/payout/pix/confirm-qr-code-payment).
+
+Se você recuperar o ID pelo [extrato da conta](/pt-br/api-reference/accounts/get-account-statement), selecione o lançamento correspondente ao pagamento. Por padrão, o extrato mostra os registros mais recentes primeiro; o primeiro pode ser de outra transação.
+
+## O que a consulta pode fazer
+
+Para Pix, a consulta pode verificar o status no banco e atualizar o pagamento existente. Para TED, concilia o resultado de liquidação registrado sem solicitar um novo status ao banco.
+
+Para uma transferência interna, a consulta pode retomar o processamento do pagamento existente. Não é apenas uma consulta de dados.
+
+Se ambos os status Pix permanecerem em `PROCESSING`, a consulta pode marcar o pagamento como `FAILED`. Isso pode ocorrer quando já se passaram mais de duas horas desde o horário da requisição informado pelo banco. O banco precisa informar esse horário; a regra não define um prazo para conclusão bem-sucedida.
+
+Essa regra registra uma falha local enquanto o banco ainda informa `PROCESSING`. Ela não confirma que o banco rejeitou ou cancelou o pagamento.
+
+A atualização do processamento pode falhar mesmo quando a transação continua disponível para consulta. Nesse caso, `code` ainda pode ser `200`, com o status registrado.
+
+## Interpretar o status
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `0` UNSPECIFIED | Status não mapeado | Não comprova conclusão | Consulte os detalhes |
+| `1` PENDING | Aguardando processamento | O pagamento existe | Consulte novamente mais tarde |
+| `2` COMPLETED | Sucesso final | O pagamento foi concluído | Concilie o lançamento correspondente |
+| `3` FAILED | Falha registrada | Falha registrada localmente | Concilie antes de substituir o pagamento |
+| `4` CANCELLED | Cancelamento final | O pagamento está cancelado | Concilie antes de um novo pagamento |
+| `5` PROCESSING | Processamento em andamento | Não comprova conclusão | Consulte novamente mais tarde |
+
+Este endpoint retorna o status registrado do pagamento, não os status de exibição de devolução ou contestação. Use os [detalhes do pagamento](/pt-br/api-reference/payout/get-payment-details) e as [consultas de devolução](/pt-br/api-reference/refunds/overview) para investigar alterações posteriores.
+
+## Consultas periódicas e resultados desconhecidos
+
+Aumente o intervalo entre as consultas enquanto o pagamento estiver em `PENDING` ou `PROCESSING`. Pare as consultas periódicas quando o status for `COMPLETED`, `FAILED` ou `CANCELLED`.
+
+Para Pix, novas consultas não verificam o status no banco quando o status registrado do pagamento já é final. Um resultado `FAILED` pela regra de duas horas deixa o resultado no banco indefinido. Compare os detalhes do pagamento e o lançamento correspondente no extrato antes de enviar um pagamento substituto.
+
+Após um timeout ou erro temporário de consulta, consulte novamente o mesmo pagamento. Não envie um novo pagamento porque a consulta de status falhou.
+
+O código de negócio `4003014` indica erro de consulta ou processamento; por si só, não comprova que o pagamento falhou. Compare os detalhes com o lançamento correspondente no extrato.
+
+Se o resultado continuar indefinido, contate o suporte com `txn_id` e o cabeçalho de resposta `xxx-log-id`. Assine cada tentativa com novos nonce e timestamp; veja [erros de autenticação](/pt-br/api-reference/error-catalog#erros-de-autenticação).
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/transfers/status/check" body={{ txn_id: "f94eeb41-39e6-4f65-bad7-11fa322739a8" }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar detalhes do pagamento" icon="magnifying-glass" href="/pt-br/api-reference/payout/get-payment-details">
+    Confira participantes, quantia e status de exibição.
+  </Card>
+  <Card title="Consultar extrato da conta" icon="receipt" href="/pt-br/api-reference/accounts/get-account-statement">
+    Localize o lançamento correspondente ao pagamento.
+  </Card>
+</CardGroup>

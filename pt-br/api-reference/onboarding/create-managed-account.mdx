@@ -1,0 +1,184 @@
+---
+title: "Criar conta gerenciada"
+sidebarTitle: "Criar conta"
+description: "Crie uma conta MOR, VA ou PA com credenciais USER. Retorna a referência da conta, o status atual e uma URL de verificação hospedada quando disponível."
+openapi: "openapi/pt-br.json POST /v3/onboarding/managed_accounts/create"
+keywords: ["/v3/onboarding/managed_accounts/create", "conta gerenciada", "MOR", "VA", "PA"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Cria uma conta MOR, VA ou PA para o USER titular. A PA sempre exige uma conta superior em `linked_account`, independentemente do modo de conformidade.
+
+| Credenciais | Idempotência | Resultado |
+| --- | --- | --- |
+| USER | Mantenha `reference_id` | Status atual da conta |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    <Warning>Credenciais ACCOUNT não podem criar contas gerenciadas. Use a credencial do USER titular da MA superior.</Warning>
+  </Tab>
+  <Tab title="USER" icon="user">
+    Use a AK/SK do USER titular, sem `X-ISPB` nem `X-Account-Number`. Informe a conta superior da PA no corpo da requisição, não nos cabeçalhos.
+
+    O USER precisa ter a criação de contas gerenciadas habilitada e exatamente uma MA válida com status ACTIVE. A MA deve ter uma conta bancária correspondente com status ACTIVE.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use a credencial do USER titular.</Warning>
+  </Tab>
+</Tabs>
+
+Assine exatamente o corpo JSON que você envia. Veja os cabeçalhos obrigatórios e as regras de IP em [Assinar requisições](/pt-br/environments-and-credentials#assinar-requisições).
+
+## Escolher um modelo de conta
+
+<View title="MOR">
+
+### Regras da MOR
+
+A MOR reutiliza as informações de conformidade aprovadas da MA superior. O USER titular determina essa MA.
+
+A MA precisa de conformidade com status APPROVED ou FORCE_APPROVED, documentos de identidade válidos e evidências de aprovação disponíveis para reutilização.
+
+Omita `compliance_mode`, `compliance_payload`, `provider_session_info`, `return_url` e `linked_account`. A MOR recusa modos diferentes de zero, objetos de conformidade ou sessão, URLs de retorno não vazias e qualquer objeto de conta vinculada.
+
+A resposta tem `verification_url` vazia. Isso não significa que a ativação terminou; confira o status da conta.
+
+</View>
+
+<View title="VA">
+
+### Regras da VA
+
+A VA envia seus próprios dados de verificação do solicitante. O USER titular determina a MA superior; não envie `linked_account`.
+
+Escolha HOSTED_LINK, API_BODY ou PROVIDER_SESSION. Em produção, VA aceita solicitantes com CNPJ. Sandbox também aceita CPF; essa política mais ampla não comprova elegibilidade em produção.
+
+Para uma nova VA, a tarifa de abertura é cobrada da MA superior após a criação da sessão de verificação. Uma falha na cobrança impede a criação da conta.
+
+</View>
+
+<View title="PA">
+
+### Regras da PA
+
+A PA envia seus próprios dados de verificação do solicitante. Escolha HOSTED_LINK, API_BODY ou PROVIDER_SESSION.
+
+Envie `linked_account` com `ispb` e `account_number` em todos os modos. Nenhum dos dois campos pode ficar em branco.
+
+Selecione a MA ACTIVE do USER titular ou uma VA ACTIVE diretamente abaixo dessa MA. MOR e PA não podem ser contas superiores.
+
+A conta selecionada e a MA titular devem ter contas bancárias correspondentes com status ACTIVE. A conta bancária superior não pode estar em encerramento.
+
+Para uma nova PA, a tarifa de abertura é cobrada dessa conta superior direta após a criação da sessão de verificação.
+
+</View>
+
+## Escolher como enviar os dados de verificação
+
+Para VA e PA, os dados básicos do solicitante ficam em `compliance_payload` nos três modos. Não envie dados de conformidade para MOR.
+
+| Modo | O que você envia |
+| --- | --- |
+| HOSTED_LINK (`1`) | Dados do solicitante e `return_url` |
+| API_BODY (`2`) | Dados do solicitante e da verificação detalhada |
+| PROVIDER_SESSION (`3`) | Dados do solicitante e IDs de verificação existentes |
+
+Com HOSTED_LINK, `return_url` fica no nível superior do corpo e não pode ficar em branco. Use a `verification_url` retornada para concluir o envio de dados pelo link.
+
+Com API_BODY, CPF exige `user_data`; CNPJ exige `business_data`. Os campos pessoais obrigatórios não podem ficar em branco, e os dados da empresa exigem nome fantasia.
+
+Siga o modelo de verificação utilizado para respostas adicionais, datas e conteúdo dos arquivos. Passar pela validação inicial dos campos não significa aprovação da verificação.
+
+Com PROVIDER_SESSION, envie um `provider_session_info.provider_session_id` não vazio. Um ID de perfil ou caso, isoladamente, não basta. Esses identificadores são ignorados nos outros modos.
+
+Somente API_BODY aceita um array não vazio em `client_reference_data`. Mantenha-o dentro de `compliance_payload`, não no nível superior.
+
+## Tarifas de abertura
+
+A abertura de MOR, VA ou PA inclui uma tarifa configurada em BRL. A MA superior paga por MOR e VA; a conta superior direta paga por PA.
+
+A conta pagadora precisa ter saldo disponível suficiente e status bancário ACTIVE, sem encerramento em andamento. Uma nova tentativa compatível reutiliza uma cobrança já confirmada.
+
+Quando `code` é `4001999`, adicione fundos à conta pagadora e repita com o mesmo `reference_id` e corpo original.
+
+`4004004` com a mensagem `Account creation fee configuration was not found. Please contact support.` indica que a configuração necessária da tarifa de abertura de conta não foi encontrada. Entre em contato com o suporte; repetir a mesma requisição não resolve.
+
+A MOR pode reservar a solicitação de abertura antes da confirmação da tarifa. Mesmo um erro com `data` igual a `null` não comprova que nenhuma solicitação existe.
+
+## Interpretar o resultado
+
+Todo resultado de negócio em JSON usa HTTP `200`. Quando `code` é `200`, leia `data.status`; a aceitação, por si só, não comprova ativação.
+
+| `data.status` | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `0` UNSPECIFIED | Status não mapeado | Não comprova ativação | Consulte a conta |
+| `1` PENDING | Abertura pendente | Solicitação registrada | Conclua a verificação ou aguarde |
+| `2` ACTIVE | Conta ativa | Ativação registrada | Consulte os dados da conta |
+| `3` FROZEN | Conta bloqueada | Bloqueio registrado | Contate o suporte |
+| `4` CLOSED | Conta encerrada | Encerramento registrado | Não utilize a conta |
+| `5` REJECTED | Abertura recusada | Recusa registrada | Confira o motivo da recusa |
+| `6` EXPIRED | Abertura expirada | Expiração registrada | Confira antes de uma nova solicitação |
+
+Este endpoint não retorna um status de conta separado para a espera pelo envio de dados pelo link. Esse estado é distinto do status PENDING da conta.
+
+Salve `data.reference_id` e [consulte a conta](/pt-br/api-reference/onboarding/get-managed-account) para acompanhar a abertura. Uma `verification_url` vazia nunca comprova ativação.
+
+## Repetições e duplicidades
+
+Para VA e PA, o código de negócio `504` indica que o resultado do envio de conformidade é incerto, sem cobrança da tarifa de abertura. Repita com o mesmo `reference_id` e sem alterar o corpo da requisição.
+
+O código de negócio `400` com esta `message` exata identifica um envio de conformidade recusado: `Compliance submission was rejected. The account creation fee was not charged. Correct the request and retry with a new reference_id.` Corrija os dados enviados e repita com um novo `reference_id`; a tarifa de abertura não foi cobrada.
+
+A regra de usar uma nova referência se aplica somente a essa mensagem de recusa, não a todo erro de validação com código `400`.
+
+<AccordionGroup>
+  <Accordion title="O resultado é desconhecido" icon="clock-rotate-left">
+    Consulte a conta com o `reference_id` original. Se você repetir a solicitação de criação, mantenha o mesmo USER, modelo, conta superior e corpo original.
+
+    Não gere outra referência porque a resposta se perdeu. A abertura inclui cobrança de tarifa; um timeout não comprova que nada aconteceu.
+  </Accordion>
+  <Accordion title="Falha nos campos obrigatórios ou nas permissões" icon="list-check">
+    Para PA, o código `4000` com `Field linked_account is required` indica conta superior ausente ou incompleta. Confira os dois campos.
+
+    O código `4004003` indica permissão negada. Confira o tipo de credencial, a habilitação de contas gerenciadas e a titularidade da conta superior antes de repetir.
+
+    Não use novas tentativas de criação para atualizar uma conta existente. Use outra referência apenas para uma nova solicitação de abertura.
+  </Accordion>
+  <Accordion title="Falha na assinatura" icon="signature">
+    Assine cada tentativa com novos cabeçalhos `X-Nonce` e `X-Timestamp`. O nonce é consumido mesmo quando a validação da assinatura falha.
+
+    Mantenha o `reference_id` de negócio. Veja [erros de autenticação](/pt-br/api-reference/error-catalog#erros-de-autenticação).
+  </Accordion>
+</AccordionGroup>
+
+Se o erro persistir, informe ao suporte o `code`, a `message` e o cabeçalho `xxx-log-id` da resposta. Não inclua sua SK.
+
+## Testar no Playground
+
+O exemplo cria uma solicitação MOR em Sandbox. Use sua credencial USER de Sandbox e sua própria referência, nome fantasia e e-mail de notificação.
+
+O assinador calcula o hash e a assinatura a partir do corpo exibido. Qualquer alteração no corpo exige uma nova assinatura.
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner scope="user" lang="pt" method="POST" path="/v3/onboarding/managed_accounts/create" body={{ reference_id: "mor-example-001", model: 1, trading_name: "Empresa Exemplo", notification_email: "finance@example.test" }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar conta gerenciada" icon="magnifying-glass" href="/pt-br/api-reference/onboarding/get-managed-account">
+    Acompanhe o status com a referência salva.
+  </Card>
+  <Card title="Listar contas gerenciadas" icon="list" href="/pt-br/api-reference/onboarding/list-managed-accounts">
+    Localize as contas do seu USER.
+  </Card>
+  <Card title="Callbacks de verificação" icon="bell" href="/pt-br/api-reference/onboarding/kyb-callbacks">
+    Receba atualizações do status de verificação.
+  </Card>
+  <Card title="Modelos de conta" icon="sitemap" href="/pt-br/account-models">
+    Compare MOR, VA e PA.
+  </Card>
+</CardGroup>

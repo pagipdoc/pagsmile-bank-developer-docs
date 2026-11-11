@@ -1,0 +1,94 @@
+---
+title: "Internal transfers"
+sidebarTitle: "Overview"
+description: "Transfer between eligible internal accounts at the same institution. Check the payee's account details and use the transaction ID to confirm completion."
+keywords: ["book transfer", "internal transfer", "account eligibility", "merchant_order_id"]
+---
+
+Transfer between different internal accounts at the same institution. The payee's ISPB must match the payer's ISPB, and the payee must be eligible to receive payments.
+
+## Transfer flow
+
+<Steps>
+  <Step title="Prepare the transfer">
+    Confirm the receiving account and its holder's document details. Create and save your `merchant_order_id` before submitting the transfer.
+  </Step>
+  <Step title="Submit the internal transfer">
+    Call [Initiate internal transfer](/api-reference/payout/book-transfer/initiate-internal-transfer). When `code` is `200`, save `data.txn_id`; the transfer is accepted for asynchronous processing.
+  </Step>
+  <Step title="Confirm the outcome">
+    Use the saved ID as `txn_id` in [Get payment status](/api-reference/payout/get-payment-status) or [Get payment details](/api-reference/payout/get-payment-details).
+
+    Keep the payer account context for these queries. A response whose `txn_status` is `2` (COMPLETED) confirms completion.
+  </Step>
+</Steps>
+
+## Endpoints
+
+| Endpoint | What it does |
+| --- | --- |
+| [Initiate internal transfer](/api-reference/payout/book-transfer/initiate-internal-transfer) | Submit a transfer between internal accounts. |
+| [Get payment status](/api-reference/payout/get-payment-status) | Check the transaction's current status. |
+| [Get payment details](/api-reference/payout/get-payment-details) | Retrieve the transfer and participant details. |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the credential bound to the payer account. Omit both `X-ISPB` and `X-Account-Number`, or send both with values matching that account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. These headers select the payer, not the payee.
+
+    Include both headers in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot submit these transfers. Use an ACCOUNT or USER credential for the payer account.</Warning>
+  </Tab>
+</Tabs>
+
+The payer account must be enabled to send payments. Internal transfers use the payer's configured payment limits, taking the payee's document type into account.
+
+## Eligible receiving accounts
+
+The receiving account must exist, be active, be enabled to receive payments and have no closure in progress.
+
+Its ISPB, account number, branch and account type must match your request. The document number and document type must match the account holder.
+
+Use a different account from the payer. This endpoint does not transfer to another institution; use [TED](/api-reference/payout/ted/overview) for that route.
+
+## Statuses
+
+When `code` is `200` on submission, `data.txn_status` is `5` (PROCESSING). Acceptance does not prove that the receiving account has been credited.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `5` PROCESSING | Accepted for processing | Submission only | Query the original transfer |
+| `2` COMPLETED | Transfer completed | Confirmed completion | Reconcile the transfer |
+| `3` FAILED | Transfer failed | Recorded failure | Review payment details |
+| `4` CANCELLED | Transfer cancelled | Recorded cancellation | Review payment details |
+
+These are outcomes to check, not a promise that every transfer passes through each status.
+
+## Retries and duplicates
+
+Use an order ID unique across accounts and operations in the same environment. Accepted IDs remain reserved for up to 48 hours.
+
+A retained `merchant_order_id` triggers `4001013` on another submission. The API rejects the duplicate instead of returning the original success response.
+
+After a timeout, network failure or system error, investigate the original transfer before resubmitting. An early query may not find the transaction yet.
+
+Query again rather than creating a new transfer. If you did not receive `txn_id`, retain the original order ID and response header `xxx-log-id` for support.
+
+See [Payout overview](/api-reference/payout/overview) for handling an unknown submission result.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Initiate internal transfer" icon="arrow-right-arrow-left" href="/api-reference/payout/book-transfer/initiate-internal-transfer">
+    Prepare and sign an internal transfer request.
+  </Card>
+  <Card title="Reconciliation" icon="list-check" href="/api-reference/reconciliation">
+    Match a completed transfer with its account records.
+  </Card>
+</CardGroup>

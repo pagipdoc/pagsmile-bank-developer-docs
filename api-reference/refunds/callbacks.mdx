@@ -1,0 +1,107 @@
+---
+title: "Refund callbacks"
+sidebarTitle: "Callbacks"
+description: "Receive signed Pix and TED refund results for REFUND_IN and REFUND_OUT subscriptions. Verify each delivery, acknowledge receipt and deduplicate processing."
+openapi: "openapi/en.json webhook refundTransactionEvent"
+keywords: ["Pix refund", "TED refund", "reconciliation", "refund status"]
+---
+
+import { WebhookVerifier } from "/snippets/webhook-verifier.jsx";
+
+Receives Pix and TED refund results for accounts with an active event subscription. A failed refund is notified only to the account sending it.
+
+## Events and direction
+
+| Subscribed event | Who receives it |
+| --- | --- |
+| `3` REFUND_IN | Original payer, receiving the refund |
+| `4` REFUND_OUT | Original payee, sending the refund |
+
+Configure the event for the appropriate account. External-bank accounts do not receive these Pagsmile callbacks.
+
+Both events share the payload, with visibility differences. There is no `event_type` or `flow_direction`; use the subscribed event and receiving account.
+
+In the body, `payer` sends the refund and is the original payee. `payee` receives the refund and is the original payer.
+
+`flow_type` is the recorded refund flow. Do not use it alone to identify the direction of this delivery.
+
+## Refund result
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `TXN_STATUS_COMPLETED` | Refund completed | Completion recorded | Match amount and statement |
+| `TXN_STATUS_FAILED` | Refund failed | Failure recorded | Investigate as refund sender |
+
+A failed refund produces only REFUND_OUT. Do not wait for REFUND_IN to discover failure on the receiving account.
+
+Enums are strings containing their full names. `created_at` and `completed_at` are also strings, in Unix milliseconds; unset times can be omitted.
+
+Amounts are decimal strings in BRL. The callback does not use the REST response envelope.
+
+## Identifiers and original payment
+
+For an initiated refund, `txn_id` corresponds to `data.refund_id` from initiation. Its `settlement_txn_id` corresponds to `data.settlement_refund_id`.
+
+Returns arising from disputes also use these REFUND callbacks. Their `txn_id` and `settlement_txn_id` can be dispute transaction and settlement identifiers, without a refund-initiation response.
+
+`original_txn` links the original payment. Its amount is the original payment amount, not the top-level refund amount.
+
+For REFUND_IN, the order in `original_txn` is the original payment order. For REFUND_OUT, it is the original QR order, when available.
+
+Top-level `merchant_order_id` appears only in REFUND_OUT, when available. Top-level fees are omitted; original payment fees can appear in `original_txn`.
+
+## Delivery and duplicates
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    The callback omits `delivery_id`. Deduplicate using the receiving account, subscribed event and `txn_id`.
+  </Tab>
+  <Tab title="USER" icon="user">
+    The callback includes `delivery_id`, which stays unchanged across retries of the same delivery. Use that ID to deduplicate.
+
+    Delivery depends on account access, an active event subscription and a valid signing credential. Revoking or changing these conditions can cancel pending deliveries.
+  </Tab>
+</Tabs>
+
+Do not depend on arrival order. Link each callback to its return transaction without overwriting the original payment.
+
+For an initiated refund, if your local result and the callback disagree, query the [existing refund](/api-reference/refunds/get-refund-status) as the sender.
+
+For a dispute return, correlate the callback through `original_txn` and the matching statement entry. Refund queries cover refund records, not dispute returns.
+
+A not-found result for a dispute identifier does not invalidate the callback or prove financial failure. Avoid executing the same financial action twice.
+
+## Verify and acknowledge
+
+Preserve the raw body bytes. Check the six headers: `Content-Type`, `X-Client-ID`, `X-Timestamp`, `X-Nonce`, `X-Content-Hash` and `X-Signature`.
+
+Check the timestamp against your validity window and recalculate the raw body's SHA-256. Verify HMAC-SHA256 with the received AK's SK, using constant-time comparison.
+
+After signature verification, atomically record the AK and nonce to prevent replay. The nonce is 32 lowercase hexadecimal characters.
+
+ACCOUNT callbacks sign the URL-decoded path; USER callbacks preserve URL escaping. Follow the full protocol in [Verify callbacks](/environments-and-credentials#verify-callbacks).
+
+Durably store the callback and return HTTP `200`. Process business data asynchronously after acknowledgement.
+
+Transport errors and responses other than HTTP `200` can trigger retries. Acknowledgement does not prove your business processing finished.
+
+<Accordion title="Verify a callback you received" icon="shield-check">
+  <WebhookVerifier />
+</Accordion>
+
+## Missing notification
+
+Check the subscription URL and event, account access and signing credential. For an initiated refund, query the refund status if the callback does not arrive.
+
+Retain the return transaction ID and, when present, `delivery_id` when requesting investigation. Do not initiate another refund because a callback is missing.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Get refund status" icon="arrows-rotate" href="/api-reference/refunds/get-refund-status">
+    Recover the result without another refund.
+  </Card>
+  <Card title="Create event subscription" icon="bell" href="/api-reference/webhooks/create-event-subscription">
+    Configure refund events.
+  </Card>
+</CardGroup>

@@ -1,0 +1,106 @@
+---
+title: "Consultar saldo da conta"
+sidebarTitle: "Consultar saldo"
+description: "Consulte saldos, montantes bloqueados, chaves Pix ativas e configurações de uma conta. Envie um corpo JSON vazio e selecione a conta com suas credenciais."
+openapi: "openapi/pt-br.json POST /v3/bank_account"
+keywords: ["/v3/bank_account", "saldo da conta", "saldo disponível", "recursos bloqueados", "subconta"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Retorna os dados e um snapshot do saldo de uma conta. Envie um objeto JSON vazio (`{}`); sua credencial e os cabeçalhos de seleção determinam a conta.
+
+| Credenciais | Idempotência | Resultado |
+| --- | --- | --- |
+| ACCOUNT, USER | Não há (consulta) | Síncrono |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Consulte a conta vinculada à sua AK. Omita `X-ISPB` e `X-Account-Number`, ou envie ambos com os dados da conta vinculada.
+
+    Inclua os cabeçalhos de seleção enviados na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta que pertença ao USER. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+
+    Cada requisição consulta uma conta. Este endpoint não lista subcontas nem retorna saldos agregados.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use uma credencial ACCOUNT ou uma credencial USER com os dois cabeçalhos de seleção da conta.</Warning>
+  </Tab>
+</Tabs>
+
+O corpo da requisição não tem campos de negócio. Não inclua `account_number`, filtros nem campos de paginação nele.
+
+## Interpretar os saldos
+
+Quando `code` é `200`, confira se `data.account_number` e `data.ispb` identificam a conta solicitada. Esta consulta não tem campo de status de processamento.
+
+Os montantes são strings decimais em BRL, como `"10.50"`. O saldo total inclui os recursos bloqueados; o saldo disponível desconta esses recursos.
+
+O montante bloqueado por MED faz parte do bloqueio total. O montante informado não pode superar o bloqueio total; o restante bloqueado tem mínimo de `"0"`.
+
+Um snapshot do saldo não comprova a conclusão de um pagamento específico. Confira os [lançamentos do extrato](/pt-br/api-reference/accounts/get-account-statement) e os detalhes da transação correspondente.
+
+## Dados ausentes ou parciais
+
+<Warning>
+  A consulta do saldo pode falhar mesmo quando `code` é `200`. Nesse caso, os montantes retornam `"0"`, sem indicador na resposta. Consulte novamente e confira os lançamentos do extrato antes de considerar uma resposta zerada como prova de saldo zero.
+</Warning>
+
+Os dados de MED podem estar indisponíveis mesmo com os demais saldos disponíveis. Nesse caso, o montante de MED retorna `"0"`.
+
+O restante bloqueado pode então incluir bloqueios por MED. Não considere esse montante como uma discriminação confirmada de bloqueios não relacionados ao MED.
+
+<AccordionGroup>
+  <Accordion title="Chaves Pix" icon="key">
+    A resposta inclui apenas chaves cujo `status` é `1` (ACTIVE), da primeira página, com até 99 chaves consultadas. Uma lista vazia também pode indicar falha na consulta das chaves. Esta requisição não oferece paginação de chaves.
+  </Accordion>
+  <Accordion title="Limites e tarifas" icon="sliders">
+    A configuração de limites e suas seções podem ser `null`; montantes indisponíveis são strings vazias. Nenhum desses casos indica limite zero nem ausência de limites.
+
+    A visão de limites de saque reutiliza os limites de transferência para CNPJ. Os montantes de saque para CPF são strings vazias; não os use para determinar um limite de saque.
+
+    A configuração de tarifas pode ser `null` quando indisponível. Uma lista vazia, por si só, não comprova que nenhuma tarifa se aplica.
+  </Accordion>
+  <Accordion title="Assinaturas de eventos" icon="bell">
+    Credenciais ACCOUNT retornam assinaturas ativas da conta e da aplicação. Credenciais USER retornam assinaturas do usuário e da aplicação, sem filtrar pelos cabeçalhos de seleção da conta.
+
+    A lista pode ficar vazia se a consulta falhar. Use `webhook_id` para identificar uma assinatura retornada; os campos de identificação de compatibilidade ficam vazios.
+  </Accordion>
+</AccordionGroup>
+
+## Novas tentativas e suporte
+
+Você pode repetir esta consulta após um timeout ou erro de rede. Assine cada tentativa com novos `X-Nonce` e `X-Timestamp`.
+
+Todos os resultados de negócio em JSON usam HTTP `200`; leia `code` antes de usar `data`. Corpos ilegíveis e JSON inválido retornam HTTP `400` com texto simples.
+
+Se houver falha na seleção da conta, confira o tipo de credencial, a titularidade e os dois cabeçalhos da conta. Consulte o [catálogo de erros](/pt-br/api-reference/error-catalog) para erros de negócio e autenticação.
+
+Se os saldos continuarem divergentes, envie ao suporte de integração o horário da consulta, a resposta mascarada e o cabeçalho de resposta `xxx-log-id`. Não inclua sua SK.
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/bank_account" body={{}} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar extrato da conta" icon="list" href="/pt-br/api-reference/accounts/get-account-statement">
+    Confira as movimentações da conta em um período.
+  </Card>
+  <Card title="Criar chave Pix" icon="key" href="/pt-br/api-reference/pix-keys/create-pix-key">
+    Registre uma chave para receber Pix na conta.
+  </Card>
+  <Card title="Assinaturas de eventos" icon="bell" href="/pt-br/api-reference/webhooks/list-event-subscriptions">
+    Consulte assinaturas pelo endpoint dedicado.
+  </Card>
+  <Card title="Contas e saldos" icon="building-columns" href="/pt-br/api-reference/accounts/overview">
+    Escolha a consulta de conta para sua tarefa.
+  </Card>
+</CardGroup>

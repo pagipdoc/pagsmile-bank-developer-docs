@@ -1,0 +1,136 @@
+---
+title: "Consultar extrato da conta"
+sidebarTitle: "Extrato"
+description: "Consulte pagamentos, devoluções e disputas de uma conta pela data de início. Retorna lançamentos do extrato, status das transações e um cursor de paginação."
+openapi: "openapi/pt-br.json POST /v3/statements"
+keywords: ["/v3/statements", "extrato da conta", "histórico de transações", "paginação por cursor", "conciliação"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Consulte pagamentos, devoluções e disputas de uma conta em um intervalo de tempo. Os resultados vêm do mais recente ao mais antigo; um lançamento de saída não comprova a conclusão.
+
+| Credenciais | Idempotência | Resultado |
+| --- | --- | --- |
+| ACCOUNT, USER | Consulta somente leitura | Síncrono |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Consulte a conta vinculada à sua AK. Omita `X-ISPB` e `X-Account-Number`, ou envie os dois com valores correspondentes à conta vinculada.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta que pertença ao USER. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use credenciais ACCOUNT ou USER da conta que você quer consultar.</Warning>
+  </Tab>
+</Tabs>
+
+## Escolher o intervalo de tempo
+
+Envie `start_date` e `end_date` em milissegundos Unix (UTC). Os dois são obrigatórios e diferentes de zero; `start_date` precisa ser menor que `end_date`.
+
+Use timestamps positivos. O intervalo inclui os dois limites, mas exclui lançamentos na data de `snapshot_timestamp` ou depois dela.
+
+O filtro usa a data de início da transação, apresentada na resposta como `created_at`. Ele não usa a data de conclusão ou de liquidação.
+
+## Consultar todas as páginas
+
+<Steps>
+  <Step title="Consultar a primeira página">
+    Omita `cursor`. Defina o intervalo de tempo e os filtros. O padrão de `page_size` é `20`; você pode solicitar de `1` a `100` lançamentos.
+  </Step>
+  <Step title="Continuar com o cursor retornado">
+    Envie `data.cursor` e `data.snapshot_timestamp` na próxima requisição. Mantenha a conta, o intervalo de tempo e os filtros inalterados.
+
+    Reutilize os dois componentes do cursor, `timestamp` e `id`. Sem ID ou com timestamp não positivo, o limite do cursor não é aplicado.
+  </Step>
+  <Step title="Concluir a consulta para a frente">
+    Continue até `data.cursor` ser `null`. A resposta não preenche `data.page` nem informa a quantidade de páginas.
+  </Step>
+</Steps>
+
+Os lançamentos seguem a data de início em ordem decrescente, depois o ID da transação também em ordem decrescente. O próximo cursor tem `direction` igual a `1` (FORWARD).
+
+O snapshot é um limite superior de tempo, não um conjunto de resultados congelado. Na conciliação recorrente, consulte novamente um intervalo sobreposto e elimine duplicatas por `txn_id`.
+
+Atualize os registros existentes quando o status mudar. Defina a sobreposição conforme seu processo de conciliação; este endpoint não recomenda um período específico de nova consulta.
+
+## Entender direções e montantes
+
+Com `funds_type` igual a `1` (CREDIT), você consulta lançamentos em que a conta-alvo é a recebedora e a transação subjacente está concluída.
+
+Com `funds_type` igual a `2` (DEBIT), você consulta lançamentos em que a conta-alvo é a pagadora, inclusive os que ainda não foram concluídos.
+
+Omitir o filtro de direção ou enviar `0` inclui os dois grupos. Um pagamento recebido e concluído pode exibir um status posterior, como REFUNDED.
+
+Os montantes são strings decimais em BRL, por exemplo `"10.50"`. O endpoint não acrescenta um sinal negativo aos montantes de débito.
+
+`is_credit` compara o documento do recebedor com o da entidade autenticada. Para contas com o mesmo documento, confirme a direção pelos dados das contas em `payer` e `payee`.
+
+Não some os montantes do extrato para calcular o saldo disponível da conta. Use o [endpoint de saldo](/pt-br/api-reference/accounts/get-account-balance).
+
+## Interpretar o status da transação
+
+Quando `code` é `200`, a consulta foi bem-sucedida. Confira `txn_status` e `txn_type` do lançamento correspondente antes de considerar um pagamento ou uma devolução concluídos.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `0` UNSPECIFIED | Status não informado | Sem comprovação de conclusão | Consulte os detalhes |
+| `1` PENDING | Aguardando processamento | Não comprova conclusão | Consulte o status |
+| `2` COMPLETED | Transação concluída | Esta transação foi concluída | Confira os identificadores |
+| `3` FAILED | Transação com falha | Falha registrada | Confira os detalhes |
+| `4` CANCELLED | Transação cancelada | Cancelamento registrado | Confira os detalhes |
+| `5` PROCESSING | Em processamento | Não comprova conclusão | Consulte o status |
+| `6` REFUNDED | Pagamento devolvido integralmente | Pagamento indica devolução integral | Confira os lançamentos de devolução |
+| `7` PARTIALLY_REFUNDED | Pagamento devolvido parcialmente | Pagamento indica devolução parcial | Confira os lançamentos de devolução |
+| `8` DISPUTED | Pagamento em disputa | Apenas o estado de disputa | Confira os lançamentos vinculados |
+
+Para lançamentos PAYMENT, `txn_status` é o status exibido do pagamento. Para lançamentos DISPUTE, pendente e em processamento aparecem como `5` (PROCESSING).
+
+Lançamentos de devolução e disputa se vinculam ao pagamento original por `parent_txn_id` e `parent_settlement_id`.
+
+Para TED, `settlement_id` fica vazio até a conclusão da liquidação. Um identificador vazio, por si só, não comprova falha.
+
+<Note>Localize a transação desejada pelos identificadores. O primeiro lançamento é o mais recente entre os encontrados; não o selecione automaticamente como o pagamento desejado.</Note>
+
+## Repetições e erros
+
+<AccordionGroup>
+  <Accordion title="A consulta falha ou excede o tempo de espera" icon="clock-rotate-left">
+    Repita a consulta somente leitura com os mesmos filtros, cursor e snapshot. Assine cada tentativa com novos `X-Nonce` e `X-Timestamp`.
+
+    Limites de data ou `page_size` inválidos retornam o código de negócio `4001`. Corrija a requisição antes de repetir.
+  </Accordion>
+  <Accordion title="O tipo de transação é recusado" icon="filter">
+    Use `0` para todos os tipos aceitos, `1` para PAYMENT, `2` para REFUND ou `6` para DISPUTE. Outros valores retornam `400` com `txn_type is invalid`.
+  </Accordion>
+  <Accordion title="Você precisa de ajuda com uma consulta" icon="life-ring">
+    Inclua `xxx-log-id` da resposta, o código de negócio `code` e a mensagem `message` na solicitação de suporte. Veja o [catálogo de erros](/pt-br/api-reference/error-catalog).
+  </Accordion>
+</AccordionGroup>
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/statements" body={{ start_date: 1791724800000, end_date: 1791811200000, page_size: 20 }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar saldo da conta" icon="wallet" href="/pt-br/api-reference/accounts/get-account-balance">
+    Consulte os saldos da conta-alvo.
+  </Card>
+  <Card title="Consultar detalhes do pagamento" icon="receipt" href="/pt-br/api-reference/payout/get-payment-details">
+    Confira o pagamento correspondente ao ID da transação.
+  </Card>
+  <Card title="Consultar detalhes da devolução" icon="rotate-left" href="/pt-br/api-reference/refunds/get-refund-details">
+    Confira uma devolução e seu pagamento original.
+  </Card>
+  <Card title="Conciliação" icon="scale-balanced" href="/pt-br/api-reference/reconciliation">
+    Relacione transações, callbacks e lançamentos do extrato.
+  </Card>
+</CardGroup>

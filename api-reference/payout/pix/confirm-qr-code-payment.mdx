@@ -1,0 +1,114 @@
+---
+title: "Confirm QR code payment"
+sidebarTitle: "Confirm QR payment"
+description: "Submit a Pix QR code payment with its initialization reference and a BRL amount. Returns the transaction ID and status for outcome tracking."
+openapi: "openapi/en.json POST /v3/transfers/pix/qr-code-confirm"
+keywords: ["/v3/transfers/pix/qr-code-confirm", "Pix QR payment", "payment confirmation", "merchant order ID"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Submits a Pix QR code payment with the initialization reference and returns its transaction ID and status. A successful request alone does not prove settlement.
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the account bound to your AK. Account-target headers are optional; if you send them, both must match the bound account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use an ACCOUNT or USER credential for the payer account.</Warning>
+  </Tab>
+</Tabs>
+
+The associated user must be active and have payout access enabled. A blocked payer account cannot submit this payment.
+
+Use the same payer account as [initialization](/api-reference/payout/pix/initialize-qr-code-payment), and confirm within five minutes.
+
+A nonempty reference that is unavailable returns `4003012`. It may have expired or been consumed after successful submission.
+
+## Choose the amount
+
+Send a positive decimal string in BRL, such as `"10.50"`. It must be exactly representable with two decimal places.
+
+Equivalent amounts such as `"10.5"` and `"10.50"` match numerically. Extra trailing zeros are accepted; zero, negative amounts and `"10.555"` are rejected.
+
+For a static QR code without an amount, supply the amount agreed with the payee. For a fixed positive dynamic instant-payment amount, match the initialized amount.
+
+For a due-date QR code, use the calculated `data.amount` from initialization, rather than the original amount before adjustments.
+
+Do not use initialization's `data.amount_editable` to decide whether an amount can change. That field remains `false` regardless of the applicable amount checks.
+
+You may omit `currency` or send `BRL`. The endpoint ignores the supplied currency and submits the payment in BRL without conversion.
+
+## Identify your order
+
+The merchant order ID accepts only ASCII letters, digits, hyphens and underscores.
+
+Use a merchant order ID whose first six characters form a valid `YYMMDD` UTC date. The date's day must overlap the current one-hour-before or one-hour-after window.
+
+An order ID outside that window returns `400` with message `Invalid parameter`.
+
+Generate the ID from the current UTC date. The example date is illustrative; update it before sending a Playground request.
+
+Keep the order ID with the returned transaction ID. Check an unknown payment outcome before resubmitting or creating another order ID.
+
+## Read the result
+
+All JSON business results return HTTP 200. Read `code` before `data`, then check the transaction status.
+
+A successful confirmation returns `data.txn_status` equal to `5` (PROCESSING). The payment continues asynchronously; acceptance does not prove completed settlement.
+
+Save `data.txn_id` and use [payment status](/api-reference/payout/get-payment-status) or [payment details](/api-reference/payout/get-payment-details) to confirm the outcome.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `5` PROCESSING | Processing | Settlement still unconfirmed | Check the original payment |
+| `2` COMPLETED | Completed | Payment completed | Reconcile the payment |
+| `3` FAILED | Recorded failure | Failure recorded locally | Reconcile before any replacement |
+| `4` CANCELLED | Cancelled | Payment cancelled | Review payment details |
+
+For Pix, `FAILED` records a Pagsmile failure; it does not prove that funds did not move at the bank. Reconcile payment details and the matching statement entry before creating any replacement payment. See [Get payment status](/api-reference/payout/get-payment-status) for the two-hour rule.
+
+The confirmation response leaves participant details `null` and `data.settlement_id` empty. Retrieve the payment details for those fields.
+
+## Retries and unknown results
+
+A successful submission consumes the initialization reference. Do not treat a fresh reference as permission to pay the same order again.
+
+Reserved merchant order IDs are retained for duplicate detection for 48 hours. Detection uses the order ID alone, so avoid reusing it across accounts.
+
+A duplicate returns `4001013` with message `merchant_order_id already exists`; it does not replay the original success response.
+
+If confirmation times out or returns a system error, query the original payment before another submission.
+
+Payment details requires a saved `txn_id` or `settlement_id`; an order ID alone is insufficient. Use the `settlement_id` saved from initialization together with the original `merchant_order_id` if you did not receive a transaction ID.
+
+Without either identifier, match the original payment to its [account statement](/api-reference/accounts/get-account-statement) or contact support with the original order ID and `xxx-log-id`. Do not submit a replacement while the outcome remains unknown.
+
+Sign each attempt with a new `X-Nonce` and `X-Timestamp`. Include the response header `xxx-log-id` when you contact support.
+
+## Try it in the Playground
+
+Replace the sample reference with one returned by initialization. Update the order date and amount, then sign the final request body.
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/transfers/pix/qr-code-confirm" body={{ ref_id: "8e67c99a-7c55-4e91-9557-512b5e198561", amount: "10.50", merchant_order_id: "261110-qr-payment-001" }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Initialize QR code payment" icon="qrcode" href="/api-reference/payout/pix/initialize-qr-code-payment">
+    Obtain and review the payment reference.
+  </Card>
+  <Card title="Get payment status" icon="clock" href="/api-reference/payout/get-payment-status">
+    Check the original transaction outcome.
+  </Card>
+  <Card title="Get payment details" icon="receipt" href="/api-reference/payout/get-payment-details">
+    Query by transaction or settlement identifier.
+  </Card>
+</CardGroup>

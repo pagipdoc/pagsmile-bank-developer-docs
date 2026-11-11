@@ -1,0 +1,82 @@
+---
+title: "Cancel MED case"
+sidebarTitle: "Cancel case"
+description: "Request cancellation of an eligible MED case for the selected account. Returns case details so you can confirm its status and track funds separately."
+openapi: "openapi/en.json POST /v3/med/cancel"
+keywords: ["/v3/med/cancel", "MED cancellation", "can_cancel", "Pix dispute"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Requests cancellation of a MED case. Check the latest case details and confirm that `can_cancel` is `true` before you call.
+
+| Credentials | Idempotency | Result |
+| --- | --- | --- |
+| ACCOUNT, USER | No request key | Case status |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the credential bound to the case account. Omit account headers, or send both `X-ISPB` and `X-Account-Number` with matching account values.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. Include both in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use ACCOUNT or USER credentials for the case account.</Warning>
+  </Tab>
+</Tabs>
+
+The case must belong to the selected account. Use `data.med_case.case_id` from [case creation](/api-reference/med/create-med-case).
+
+## Check cancellation eligibility
+
+Cancellation is allowed only while the case status is `1` (CREATED), `2` (TRACKED), `3` (AWAITING_ANALYSIS) or `4` (ANALYZED).
+
+The current `can_cancel` flag reflects those statuses. The associated recovery or dispute operation ID must also be available.
+
+A case whose status is `7` (CANCELLED) is not eligible for another successful cancellation request.
+
+## Confirm the result
+
+All JSON business results use HTTP 200, including validation failures and missing cases. Read the root `code` before `data`.
+
+A case that is not eligible returns `400` with message `invalid argument: case is not cancellable`. An unknown `case_id` returns `4004004` with message `case not found`.
+
+When `code` is `200`, read `data.med_case.status`. Only a returned status of `7` (CANCELLED) confirms recorded cancellation.
+
+Releasing blocked funds can finish after this response. Continue checking the case and actual balance; cancellation alone does not prove a release or return.
+
+The response leaves `infractions`, `refunds` and `fund_dispositions` empty. The timeline is also empty when linked tasks or funds records exist.
+
+An empty array does not prove that no related events occurred. Use [case details](/api-reference/med/get-med-case-details) to continue tracking the case.
+
+Do not schedule analysis from this response's `analysis_deadline` alone. It can contain the original creation time rather than the analysis deadline.
+
+## Retries and duplicates
+
+After a timeout or unknown result, query the case before you retry. If it is already CANCELLED, do not send another cancellation.
+
+If the case remains eligible, check `can_cancel` again before a new attempt. Sign each attempt with new `X-Nonce` and `X-Timestamp` values.
+
+For a missing case, check both `case_id` and the account context. Include the response header `xxx-log-id` when you contact support.
+
+## Try it in the Playground
+
+Replace the example `case_id` with the case you intend to cancel before signing. Use Sandbox credentials for Sandbox requests.
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/med/cancel" body={{ case_id: "med_case_1791792000000000000" }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Get MED case details" icon="magnifying-glass" href="/api-reference/med/get-med-case-details">
+    Confirm eligibility and the recorded result.
+  </Card>
+  <Card title="MED overview" icon="shield-halved" href="/api-reference/med/overview">
+    Distinguish case status from recovery outcomes.
+  </Card>
+</CardGroup>

@@ -1,0 +1,96 @@
+---
+title: "Consultar detalhes do pagamento"
+sidebarTitle: "Detalhes do pagamento"
+description: "Localize um pagamento enviado pelo ID da transação ou de liquidação. Retorna participantes, quantia e status de exibição, com dados limitados para pedidos pendentes."
+openapi: "openapi/pt-br.json POST /v3/transfers/details"
+keywords: ["/v3/transfers/details", "detalhes do pagamento", "txn_id", "settlement_id", "conciliação"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Consulte um pagamento existente e confira seus identificadores, participantes, quantia e status de exibição. Informe `txn_id` ou `settlement_id`; apenas o ID do pedido não atende ao requisito.
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a credencial vinculada à conta-alvo. Omita `X-ISPB` e `X-Account-Number` ou envie ambos com os dados dessa conta.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta que pertença ao USER. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+    Você também pode consultar o histórico de uma conta encerrada. As verificações de titularidade e vínculo da conta continuam obrigatórias.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use uma credencial ACCOUNT ou USER de uma conta participante do pagamento.</Warning>
+  </Tab>
+</Tabs>
+
+A conta-alvo deve ser a do pagador ou do recebedor da transação. A consulta de pedido pendente só está disponível para a conta correspondente do pagador.
+
+## Escolher o identificador do pagamento
+
+Use `data.txn_id` da resposta de envio do pagamento. Nos fluxos Pix de duas etapas, use a resposta de [confirmação por chave](/pt-br/api-reference/payout/pix/confirm-pix-key-payment) ou de [confirmação por QR Code](/pt-br/api-reference/payout/pix/confirm-qr-code-payment).
+
+Se você usar o [extrato da conta](/pt-br/api-reference/accounts/get-account-statement), localize o lançamento correspondente ao pagamento antes de copiar seu `txn_id`. Por padrão, o extrato mostra os registros mais recentes primeiro; o primeiro não é necessariamente o pagamento desejado.
+
+Você também pode consultar por `settlement_id`. Se ambos os identificadores estiverem preenchidos, `txn_id` tem prioridade. O endpoint não compara `settlement_id` nem tenta consultá-lo se a busca pela transação falhar.
+
+## Pedidos pendentes e detalhes incompletos
+
+Quando a consulta pelo identificador não encontra uma transação, o `merchant_order_id` opcional pode identificar um pedido pendente correspondente. O endpoint retorna detalhes limitados com status `5` (PROCESSING) e origem `2` (API).
+
+Essa resposta inclui os IDs da transação e do pedido, mas não os dados dos participantes nem a quantia. Consulte novamente com os mesmos identificadores; dados ausentes não significam conclusão.
+
+O endpoint não preenche as datas de conclusão nem os objetos específicos de Pix ou TED. Uma data zerada ou objeto `null` não indica se o pagamento teve sucesso.
+
+## Interpretar o status de exibição
+
+Quando `code` é `200`, a consulta teve sucesso. Use `data.details.txn_status` e concilie o lançamento correspondente no extrato antes de confirmar o resultado da movimentação.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `0` UNSPECIFIED | Status não mapeado | Não comprova conclusão | Consulte o status e concilie |
+| `1` PENDING | Aguardando processamento | O pagamento existe | Consulte o status mais tarde |
+| `2` COMPLETED | Sucesso final do pagamento | O pagamento foi concluído | Concilie o lançamento correspondente |
+| `3` FAILED | Falha registrada | Falha registrada localmente | Concilie antes de substituir o pagamento |
+| `4` CANCELLED | Cancelamento final do pagamento | O pagamento está cancelado | Concilie antes de um novo pagamento |
+| `5` PROCESSING | Processamento em andamento | Não comprova conclusão | Consulte o status mais tarde |
+| `6` REFUNDED | Exibição de devolução total | Devolução total é exibida | Concilie os registros de devolução |
+| `7` PARTIALLY_REFUNDED | Exibição de devolução parcial | Devolução parcial é exibida | Concilie cada devolução |
+| `8` DISPUTED | Exibição de contestação | Contestação é exibida | Investigue os registros relacionados |
+
+Para Pix, `FAILED` indica uma falha registrada pela Pagsmile; não comprova que o banco deixou de movimentar os recursos. Concilie os detalhes do pagamento com o lançamento correspondente no extrato antes de criar um pagamento substituto. Veja a regra de duas horas em [Consultar status do pagamento](/pt-br/api-reference/payout/get-payment-status).
+
+O processamento do pagamento termina em `COMPLETED`, `FAILED` ou `CANCELLED`. Os status posteriores de devolução e contestação indicam alterações relacionadas a esse pagamento.
+
+O [endpoint de consulta de status](/pt-br/api-reference/payout/get-payment-status) retorna o status registrado do pagamento e pode avançar o processamento. Ele não retorna os status de exibição de devolução ou contestação apresentados aqui.
+
+## Repetições e resultados desconhecidos
+
+Após um timeout ou erro temporário de consulta, repita a busca com os mesmos identificadores do pagamento. Não envie outro pagamento porque esta consulta falhou.
+
+Para `PENDING` ou `PROCESSING`, consulte o status e aumente o intervalo entre as tentativas. Se o pedido pendente ainda não tiver detalhes completos da transação, aguarde antes de consultar novamente.
+
+O código de negócio `4003014` pode indicar falha na consulta dos detalhes, mesmo com a mensagem "Payment processing failed". Ele não comprova uma falha final do pagamento.
+
+Se você não conseguir determinar o resultado, contate o suporte com os identificadores do pagamento e o cabeçalho de resposta `xxx-log-id`. Assine cada tentativa com novos nonce e timestamp; veja [erros de autenticação](/pt-br/api-reference/error-catalog#erros-de-autenticação).
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/transfers/details" body={{ txn_id: "f94eeb41-39e6-4f65-bad7-11fa322739a8" }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar status do pagamento" icon="clock" href="/pt-br/api-reference/payout/get-payment-status">
+    Consulte o status registrado e avance o processamento.
+  </Card>
+  <Card title="Consultar extrato da conta" icon="receipt" href="/pt-br/api-reference/accounts/get-account-statement">
+    Selecione o lançamento correspondente ao pagamento.
+  </Card>
+  <Card title="Devoluções Pix" icon="rotate-left" href="/pt-br/api-reference/refunds/overview">
+    Consulte e concilie devoluções posteriores.
+  </Card>
+</CardGroup>

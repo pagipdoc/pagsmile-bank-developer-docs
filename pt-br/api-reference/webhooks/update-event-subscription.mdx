@@ -1,0 +1,92 @@
+---
+title: "Atualizar assinatura de eventos"
+sidebarTitle: "Atualizar assinatura"
+description: "Altere a URL ou o status de ativação de uma assinatura de callback no escopo da sua credencial. Retorna a configuração; alterações conjuntas não são atômicas."
+openapi: "openapi/pt-br.json POST /v3/webhooks/update"
+keywords: ["/v3/webhooks/update", "webhook", "callback", "subscription"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Altere a URL ou o status de uma assinatura de webhook. Se você enviar as duas alterações, a URL pode mudar mesmo que a alteração de status falhe.
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a conta vinculada à sua credencial. Os eventos de `1` a `5` são permitidos; o evento `6` é rejeitado.
+
+    Você pode omitir `X-ISPB` e `X-Account-Number`. Se enviar esses cabeçalhos, informe ambos com os dados da conta vinculada e inclua-os na assinatura.
+
+    Se informar `account_number` no corpo da requisição, use o número da conta vinculada. Outra conta retorna `4004003`.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Use os eventos de `1` a `5`. Para eventos de transações (`1` a `4`), informe `account_number` no corpo da requisição e preserve os zeros à esquerda.
+
+    Esse número é obrigatório na validação, mas não cria uma assinatura específica da conta. Para o evento `5`, omita-o ou envie uma string vazia.
+
+    Omita `X-ISPB` e `X-Account-Number`, inclusive cabeçalhos vazios.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    Use o evento `6` (MASTER_ACCOUNT_KYB). Omita `account_number` ou envie uma string vazia.
+
+    Omita `X-ISPB` e `X-Account-Number`, inclusive cabeçalhos vazios.
+  </Tab>
+</Tabs>
+
+Assine o corpo exato que você envia. Veja [Assinar requisições](/pt-br/environments-and-credentials#assinar-requisições).
+
+Com ACCOUNT, alterações de URL e reativação exigem que a conta vinculada esteja aberta.
+
+## Selecionar a assinatura
+
+Sem `subscription_id`, a seleção usa o titular da credencial, a aplicação e o evento. Com ACCOUNT, também usa a conta vinculada.
+
+Com `subscription_id`, a seleção usa o ID e o titular autenticado. Ela não verifica também o evento informado ou a aplicação.
+
+Envie sempre `event_type`, mesmo ao selecionar por ID. Com USER, envie também `account_number` para eventos de transações (`1` a `4`). Use o ID de `webhook_id` de uma resposta anterior.
+
+## Aplicar uma atualização parcial
+
+Omita `callback_url` para manter a URL e a credencial de assinatura dos callbacks. Omita `status` para manter a ativação; omitir ambos retorna a configuração atual sem alterações.
+
+Uma URL informada deve ficar preenchida após remover os espaços nas pontas. Alterá-la também muda a assinatura dos callbacks para a credencial desta requisição.
+
+Prepare seu receptor para verificar callbacks com a SK dessa credencial. A reativação exige que a credencial de assinatura dos callbacks armazenada continue válida.
+
+<Warning>
+  A URL muda antes da validação ou alteração do status. Uma falha na alteração de status pode manter a nova URL e a nova credencial de assinatura.
+</Warning>
+
+Envie alterações de URL e status separadamente quando precisar conferir cada resultado. Após erro ou timeout, consulte a assinatura antes de repetir.
+
+Use `1` (ACTIVE) para ativar a assinatura ou `2` (INACTIVE) para desativá-la. Informar `0` retorna `4001` (Invalid status value).
+
+## Interpretar o resultado
+
+Os resultados de negócio em JSON retornam HTTP 200. Leia `code` antes de usar `data`; JSON inválido retorna HTTP 400 com texto simples.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `0` UNSPECIFIED | Status indisponível | Nenhuma evidência de ativação | Consulte a assinatura |
+| `1` ACTIVE | Assinatura habilitada | Configuração ativa | Verifique os callbacks recebidos |
+| `2` INACTIVE | Assinatura desabilitada | Configuração inativa | Atualize para reativar |
+
+ACTIVE não comprova a entrega de callbacks nem a conclusão de pagamentos. Veja [Tratamento de webhooks](/pt-br/api-reference/webhooks/overview).
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner scope="owner" lang="pt" method="POST" path="/v3/webhooks/update" body={{"event_type": 1, "callback_url": "https://merchant.example.test/webhooks", "account_number": "00000001"}} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar assinatura de eventos" icon="magnifying-glass" href="/pt-br/api-reference/webhooks/get-event-subscription">
+    Confira a configuração armazenada.
+  </Card>
+  <Card title="Desativar assinatura de eventos" icon="ban" href="/pt-br/api-reference/webhooks/deactivate-event-subscription">
+    Desative uma assinatura sem excluí-la.
+  </Card>
+</CardGroup>

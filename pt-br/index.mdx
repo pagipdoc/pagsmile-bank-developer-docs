@@ -1,0 +1,173 @@
+---
+title: "Pagsmile Open API"
+sidebarTitle: "Visão geral"
+description: "Abra contas gerenciadas, receba com QR Code Pix, pague por Pix ou TED, devolva, trate casos MED e receba callbacks assinados com uma única API JSON assinada."
+mode: "wide"
+keywords: ["Pagsmile", "Open API", "Pix", "API bancária", "contas gerenciadas"]
+---
+
+Este site cobre toda a integração: credenciais e assinatura de requisições, todos os endpoints v3 com Playground e exemplos de código assinados, callbacks e sua verificação, e os códigos de erro que a API retorna. Todos os endpoints recebem uma requisição `POST` assinada com corpo JSON, em Sandbox e em Produção.
+
+## Comece aqui
+
+<Columns cols={4}>
+  <Card title="Guia rápido" icon="/icons/rapid-activation.svg" href="/pt-br/quickstart">
+    Cadastre-se, obtenha as credenciais e faça a primeira chamada assinada.
+  </Card>
+  <Card title="Configurar acesso à API" icon="/icons/secure-lock.svg" href="/pt-br/api-access-setup">
+    Permita o IP do servidor, informe suas chaves uma vez e assine requisições em todas as páginas.
+  </Card>
+  <Card title="Referência da API" icon="/icons/api-integration.svg" href="/pt-br/api-reference/overview">
+    Todos os endpoints com schemas, exemplos de código assinados e Playground.
+  </Card>
+  <Card title="MED e contestações" icon="/icons/shield-check-outline.svg" href="/pt-br/api-reference/med/overview">
+    Abra e acompanhe casos MED e consulte notificações de infração.
+  </Card>
+</Columns>
+
+## Uma chamada, do início ao fim
+
+Uma requisição leva quatro cabeçalhos de assinatura e um corpo JSON. As respostas de negócio em JSON usam o mesmo envelope: leia primeiro `code` e depois `data`.
+
+Trate separadamente as falhas de transporte com HTTP 400 e corpo `text/plain`; não interprete esse corpo como JSON.
+
+<Columns cols={2}>
+
+```http Requisição
+POST /v3/pix_keys/create HTTP/1.1
+Host: ebanking-openapi-sandbox.pagsmile.com.br
+Content-Type: application/json
+User-Agent: your-app/1.0
+X-Client-ID: ak_live_example
+X-Timestamp: 1791792000000
+X-Nonce: 9f86d081884c7d659a2feaa0c55ad015
+X-Signature: <64 caracteres hexadecimais minúsculos>
+
+{"pix_key_type":5}
+```
+
+```json Resposta (HTTP 200)
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "pix_key": "8e67c99a-7c55-4e91-9557-512b5e198561",
+    "pix_key_type": 5,
+    "status": 1,
+    "created_at": 1791792000000
+  },
+  "time": 1791792000000
+}
+```
+
+</Columns>
+
+## Por produto
+
+<CardGroup cols={4}>
+  <Card title="Onboarding" icon="user-plus" href="/pt-br/api-reference/onboarding/overview">
+    Crie e consulte contas gerenciadas MOR, VA e PA.
+  </Card>
+  <Card title="Contas" icon="building-columns" href="/pt-br/api-reference/accounts/overview">
+    Saldo, lançamentos do extrato e encerramento de conta.
+  </Card>
+  <Card title="Chaves Pix" icon="key" href="/pt-br/api-reference/pix-keys/overview">
+    Registre e exclua as chaves que recebem Pix.
+  </Card>
+  <Card title="Recebimentos" icon="qrcode" href="/pt-br/api-reference/payin/overview">
+    QR Codes Pix dinâmicos e estáticos e detalhes do recebimento.
+  </Card>
+  <Card title="Pagamentos" icon="paper-plane" href="/pt-br/api-reference/payout/overview">
+    Pix por chave, QR Code ou dados bancários, TED e transferências internas.
+  </Card>
+  <Card title="Devoluções" icon="rotate-left" href="/pt-br/api-reference/refunds/overview">
+    Devolva um recebimento Pix e acompanhe a devolução.
+  </Card>
+  <Card title="MED" icon="scale-balanced" href="/pt-br/api-reference/med/overview">
+    Casos MED e notificações de infração em contestações Pix.
+  </Card>
+  <Card title="Webhooks" icon="bell" href="/pt-br/api-reference/webhooks/overview">
+    Assine eventos e verifique callbacks assinados.
+  </Card>
+</CardGroup>
+
+<Accordion title="Como os produtos se relacionam" icon="diagram-project">
+
+O onboarding cria contas gerenciadas. Uma conta recebe pagamentos, envia pagamentos, possui chaves Pix e tem extrato.
+
+<Tree>
+  <Tree.Folder name="Onboarding" defaultOpen>
+    <Tree.Folder name="Conta" defaultOpen>
+      <Tree.Folder name="Recebimentos" defaultOpen>
+        <Tree.File name="Devoluções" />
+        <Tree.File name="Casos MED" />
+      </Tree.Folder>
+      <Tree.File name="Pagamentos" />
+      <Tree.File name="Chaves Pix" />
+      <Tree.File name="Extrato" />
+    </Tree.Folder>
+  </Tree.Folder>
+</Tree>
+
+Os webhooks informam eventos de recebimentos, pagamentos e devoluções.
+
+A árvore mostra relações entre objetos, não a ordem das chamadas. Uma devolução e um caso MED apontam para o recebimento Pix original, e cada um tem as próprias regras de elegibilidade.
+
+</Accordion>
+
+## Primeira chamada em quatro passos
+
+<Steps>
+  <Step title="Obtenha as credenciais e libere o seu IP">
+    Cada par AK/SK tem um tipo de credencial (`ACCOUNT`, `USER` ou `PLATFORM`) e um ambiente. Requisições de um IP fora da lista de permissões da credencial falham com `4004103`. Veja [Ambientes e credenciais](/pt-br/environments-and-credentials).
+  </Step>
+  <Step title="Assine a requisição">
+    Envie `X-Client-ID`, `X-Timestamp`, `X-Nonce` e `X-Signature` em todas as chamadas. Um timestamp com mais de 5 minutos de diferença e um nonce repetido são rejeitados. Veja [Assinar requisições](/pt-br/environments-and-credentials#assinar-requisições).
+  </Step>
+  <Step title="Leia o code, não o status HTTP">
+    Todo resultado de negócio em JSON, de sucesso ou de erro, retorna HTTP 200. Quando `code` é `200`, a requisição foi aceita; os demais valores estão descritos no [catálogo de erros](/pt-br/api-reference/error-catalog).
+  </Step>
+  <Step title="Confirme o resultado">
+    Use os [webhooks](/pt-br/api-reference/webhooks/overview) e os endpoints de detalhes para confirmar o status final antes de liberar mercadorias ou valores.
+  </Step>
+</Steps>
+
+## Ambientes
+
+| Ambiente | URL base |
+| --- | --- |
+| Sandbox | `https://ebanking-openapi-sandbox.pagsmile.com.br` |
+| Produção | `https://ebanking-openapi.pagsmile.com.br` |
+
+As credenciais são emitidas por ambiente. Uma AK de Sandbox não funciona em Produção.
+
+## Ferramentas deste site
+
+<CardGroup cols={3}>
+  <Card title="Ferramenta de assinatura" icon="pen-nib" href="/pt-br/environments-and-credentials#assinar-requisições">
+    Calcule os cabeçalhos de assinatura no navegador e confira com os vetores de teste publicados.
+  </Card>
+  <Card title="Verificador de callbacks" icon="shield-halved" href="/pt-br/environments-and-credentials#verificar-callbacks">
+    Cole um callback recebido e os cabeçalhos para conferir a assinatura antes de confiar nele.
+  </Card>
+  <Card title="API Playground" icon="play" href="/pt-br/api-reference/overview">
+    Preencha os parâmetros e envie uma requisição em qualquer página de endpoint, como formulário ou JSON.
+  </Card>
+</CardGroup>
+
+A ferramenta de assinatura e o verificador de callbacks rodam apenas no seu navegador. Nada do que você digita neles é enviado.
+
+## Termos principais
+
+| Termo | Significado |
+| --- | --- |
+| <Tooltip tip="Master Account (conta master)">MA</Tooltip> | Conta master que define a parte e a titularidade das contas gerenciadas. |
+| Conta gerenciada | Conta criada sob uma MA: MOR, VA ou PA. |
+| MOR | Conta operacional que reutiliza os registros de conformidade aprovados da MA à qual pertence. |
+| VA | Conta gerenciada que pertence a uma MA e tem registros de conformidade e conta bancária próprios. |
+| PA | Conta de pagamento que pertence a uma MA, ou a uma VA dessa MA, e tem registros de conformidade e conta bancária próprios. |
+| `PLATFORM`, `USER`, `ACCOUNT` | Os três tipos de credencial da API. Eles definem sobre quais contas uma chamada pode atuar. |
+| <Tooltip tip="Identificador do Sistema de Pagamentos Brasileiro: código de 8 dígitos da instituição participante.">ISPB</Tooltip> | Identificador da instituição. Junto com o número da conta, identifica uma conta bancária. |
+| Chave Pix | Identificador que aponta para a conta que recebe um Pix. Não é uma credencial da API. |
+| Identificador fim a fim (End-to-end ID) | ID da transação Pix original. Devoluções e casos MED se referem a ele. |
+| <Tooltip tip="Mecanismo Especial de Devolução do Pix, definido pelo Banco Central do Brasil.">MED</Tooltip> | Mecanismo Especial de Devolução do Pix e as notificações de infração relacionadas. |

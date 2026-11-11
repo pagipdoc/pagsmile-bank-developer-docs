@@ -1,0 +1,80 @@
+---
+title: "Get refund status"
+sidebarTitle: "Get status"
+description: "Track a refund using its saved refund ID. Returns the recorded processing status and attempts a non-terminal refresh when queried by the sender."
+openapi: "openapi/en.json POST /v3/refunds/status/check"
+keywords: ["/v3/refunds/status/check", "Pix refund", "reconciliation", "refund status"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Checks the status of an existing refund. When called by the sender account, the check can refresh a non-terminal state before returning the result.
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the account bound to your AK. You can omit account headers; if you send them, both must match the bound account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send `X-ISPB` and `X-Account-Number` for an account owned by the USER. Include both in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use an ACCOUNT or USER credential for the participating account.</Warning>
+  </Tab>
+</Tabs>
+
+The selected account must send or receive the refund. Use `data.refund_id` saved from [Initiate Pix refund](/api-reference/refunds/initiate-pix-refund).
+
+## Status refresh
+
+A sender-side check attempts to obtain an updated result for non-terminal refunds. Final states skip that refresh.
+
+If refresh fails but the refund remains readable, the response can return `code` equal to `200` with the last recorded status.
+
+A successful response does not confirm that the refresh succeeded. Confirm completion in details and statements.
+
+## Recipient account view
+
+For the recipient, every non-completed refund returns `5` (TXN_STATUS_PROCESSING), including failed refunds. This check does not refresh those states.
+
+That result does not prove processing is progressing. The recipient sees `2` (TXN_STATUS_COMPLETED) only after completion is recorded.
+
+## Statuses
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `0` UNSPECIFIED | Unknown state | No completion evidence | Check details |
+| `1` PENDING | Request accepted | Acceptance only | Query the same refund |
+| `5` PROCESSING | Outcome not yet confirmed | No completion evidence | Query as refund sender |
+| `2` COMPLETED | Refund completed | Completion recorded | Match amount in statement |
+| `3` FAILED | Refund failed | Failure recorded | Check details and callback |
+
+A completed partial refund also uses status `2` (COMPLETED). Check the amount in [details](/api-reference/refunds/get-refund-details) and the [statement](/api-reference/accounts/get-account-statement).
+
+## Errors and follow-up checks
+
+A not-found result immediately after acceptance can be temporary. Continue querying the same refund instead of creating another request.
+
+`4003014` can indicate a temporary read failure or another operation in progress. The code alone does not prove refund failure.
+
+After a temporary error, keep the ID and account context. Sign the next check with a new `X-Nonce` and `X-Timestamp`.
+
+Include `xxx-log-id` in support requests. See the [error catalog](/api-reference/error-catalog) to interpret business codes.
+
+## Try it in the Playground
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/refunds/status/check" body={{"refund_id": "refund-example-001"}} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Get refund details" icon="magnifying-glass" href="/api-reference/refunds/get-refund-details">
+    Check amount, parties and status.
+  </Card>
+  <Card title="Refund callbacks" icon="bell" href="/api-reference/refunds/callbacks">
+    Track results through notifications.
+  </Card>
+</CardGroup>

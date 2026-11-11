@@ -1,0 +1,89 @@
+---
+title: "Consultar detalhes do QR code"
+sidebarTitle: "Detalhes do QR"
+description: "Consulte um QR code Pix gerado pelo ID. Retorna a referência do pedido, o payload, o indicador de pagamento e a última transação associada disponível."
+openapi: "openapi/pt-br.json POST /v3/qr_code/details"
+keywords: ["/v3/qr_code/details", "detalhes QR Pix", "status de pagamento QR", "pedido do comerciante"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Consulte um QR code Pix que você gerou e confira a referência do pedido. O sucesso da consulta não substitui a conferência de cada recebimento.
+
+| Credenciais | Idempotência | Resultado |
+| --- | --- | --- |
+| ACCOUNT, USER | Consulta sem alterações | Detalhes, transação opcional |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a conta vinculada à sua AK. Omita `X-ISPB` e `X-Account-Number`, ou envie ambos com valores não vazios que correspondam à conta.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta que pertença ao USER. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use a credencial ACCOUNT ou USER da conta recebedora.</Warning>
+  </Tab>
+</Tabs>
+
+Use `data.qr_code_id` da geração de [QR code estático](/pt-br/api-reference/payin/generate-static-qr-code) ou [dinâmico](/pt-br/api-reference/payin/generate-dynamic-qr-code). Copie o ID sem alterações nem espaços nas pontas.
+
+O QR code deve pertencer à conta selecionada. Um ID desconhecido ou vinculado a outra conta retorna `4004004` com `QR code not found`.
+
+## Interpretar o indicador de pagamento
+
+Quando `code` é `200`, a consulta foi bem-sucedida. Leia `data.is_paid` junto com `data.last_txn`; o tipo do QR code não indica a conclusão do pagamento.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `is_paid` é `true` | Há uma transação correspondente | Conclusão registrada para o QR code | Confira esse pagamento individual |
+| `is_paid` é `false` | Condições de conclusão não atendidas | Não confirma pagamento nesta consulta | Confira os recebimentos individuais |
+
+O indicador é true somente quando o status de pagamento registrado para o QR code é COMPLETED e há uma transação correspondente disponível. False não comprova que ninguém pagou.
+
+Em um QR code estático reutilizável, `last_txn` representa um pagamento associado. Não lista todos os pagamentos nem soma as quantias recebidas.
+
+## Confirmar um pagamento individual
+
+Use `data.last_txn.txn_id`, quando disponível, para consultar os [detalhes do recebimento](/pt-br/api-reference/payin/get-transaction-details). Confira se o pagamento corresponde à conta e à quantia esperadas.
+
+Uma transação com `txn_status` igual a `2` (COMPLETED) comprova a conclusão dessa transação. Não aplique esse resultado a outros pagamentos pelo mesmo QR code.
+
+O campo `merchant_order_id` no nível do QR code se refere à geração. No nível da transação, retorna string vazia aqui; não o use para identificar um recebimento individual.
+
+## Dados ausentes e novas tentativas
+
+`last_txn` pode ser `null` quando as condições de conclusão não são atendidas ou não há transação correspondente disponível para a conta selecionada. Isso não indica falha no pagamento.
+
+Uma resposta de sucesso sem detalhes do QR code pode conter identificadores vazios e campos com `false`, `0` e `null`. Esses valores indicam dados ausentes, não comprovam pagamento.
+
+Você pode repetir a consulta com o mesmo ID do QR code. Assine cada requisição com novos `X-Nonce` e `X-Timestamp`.
+
+Em caso de erro na consulta, guarde o ID do QR code e `xxx-log-id`. Consulte o [catálogo de erros](/pt-br/api-reference/error-catalog) antes de tentar novamente ou procurar suporte.
+
+## Testar no Playground
+
+Substitua o exemplo por um ID retornado na sua própria requisição de geração de QR code.
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/qr_code/details" body={{ qr_code_id: "26111016faf735091eb74c929" }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Gerar QR code estático" icon="qrcode" href="/pt-br/api-reference/payin/generate-static-qr-code">
+    Gere um QR code reutilizável sem quantia definida.
+  </Card>
+  <Card title="Gerar QR code dinâmico" icon="qrcode" href="/pt-br/api-reference/payin/generate-dynamic-qr-code">
+    Gere um QR code com quantia definida.
+  </Card>
+  <Card title="Consultar detalhes do recebimento" icon="receipt" href="/pt-br/api-reference/payin/get-transaction-details">
+    Confira a transação individual.
+  </Card>
+  <Card title="Callbacks de recebimento" icon="bell" href="/pt-br/api-reference/payin/callbacks">
+    Processe as notificações de recebimento.
+  </Card>
+</CardGroup>

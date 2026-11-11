@@ -1,0 +1,194 @@
+---
+title: "Catálogo de erros"
+sidebarTitle: "Erros"
+description: "Interprete os códigos de negócio da API Pagsmile, diferencie resultados JSON de falhas de transporte e saiba como agir em erros de autenticação ou pagamento."
+keywords: ["códigos de erro", "erros de negócio", "autenticação", "novas tentativas"]
+---
+
+Use este catálogo para tratar erros da Pagsmile Open API pelo `code`. HTTP 200, por si só, não comprova a conclusão de um pagamento, uma devolução ou uma abertura de conta.
+
+## Interpretar a resposta
+
+Todo resultado de negócio em JSON retorna HTTP 200 com `code`, `message`, `data` e `time`. Quando `code` é `200`, leia `data` e confira o status da operação.
+
+| Resposta | Significado | O que fazer |
+| --- | --- | --- |
+| HTTP 200, `code` é `200` | Chamada à API bem-sucedida | Confira os critérios de conclusão do endpoint. |
+| HTTP 200, `code` difere de `200` | Erro de negócio, validação, autenticação ou sistema | Trate o código de negócio abaixo. |
+| HTTP 400, corpo `text/plain` | Corpo ilegível ou JSON inválido | Corrija o corpo da requisição. |
+| HTTP 403, corpo `text/plain` `error code: 1010` | A borda da rede bloqueou o cliente antes da API | Envie um `User-Agent` descritivo, como `your-app/1.0`. |
+| HTTP 404, 405 ou 307 | Caminho desconhecido, método diferente de `POST` ou barra final | Use `POST` e o caminho documentado exato. |
+| HTTP 500, corpo `text/plain` como `system error` | Falha inesperada do servidor; resultado da operação original desconhecido | Consulte a operação original antes de reenviar. |
+| Timeout ou perda de conexão | Resultado desconhecido | Consulte a operação original antes de reenviar. |
+
+HTTP 500 com corpo em texto simples difere de HTTP 200 com `code` de negócio igual a `500`. Não interprete esse corpo como JSON.
+
+A borda da rede retorna HTTP 403 com o texto `error code: 1010` antes de a requisição chegar à API. Ela pode rejeitar uma requisição sem `User-Agent` ou com alguns valores padrão de bibliotecas, como `Python-urllib/3.12`. Alterar a assinatura não resolve.
+
+Use `code` nas decisões do seu código e `message` na investigação. Um código pode ter mensagens diferentes conforme o endpoint e a falha.
+
+As tabelas mostram mensagens padrão e alternativas verificadas dos endpoints documentados. O modelo `{{.field}}` traz o campo com falha. Atualmente, `4004102` e `4004103` retornam `{{.header}}` e `{{.ip}}` sem substituição; as mensagens não indicam o cabeçalho nem o IP de origem.
+
+Toda resposta inclui `xxx-log-id`. Guarde esse cabeçalho de resposta para entrar em contato com o suporte.
+
+## Erros de validação
+
+| Código | Mensagem | Significado | O que fazer |
+| --- | --- | --- | --- |
+| `400` | `Invalid parameter` | Requisição não passa pela validação de negócio. | Confira as regras de requisição do endpoint. |
+| `4000` | `Field {{.field}} is required` | Campo obrigatório ausente. | Preencha o campo indicado. |
+| `4001` | `Invalid {{.field}} value` | Campo contém um valor inválido. | Confira os valores aceitos para o campo. |
+| `4002` | `Invalid {{.field}} format` | Formato do campo inválido. | Confira o formato do campo. |
+| `4003` | `{{.field}} value out of range` | Campo fora do intervalo aceito. | Respeite os intervalos definidos pelo endpoint. |
+| `4001012` | `Time range must be within 31 days` | Intervalo de datas muito longo. | Divida a consulta em intervalos menores. |
+
+Os montantes são strings decimais em BRL, por exemplo `"10.50"`. Siga os campos obrigatórios e as regras de montante de cada endpoint.
+
+## Erros de autenticação
+
+| Código | Mensagem | Significado | O que fazer |
+| --- | --- | --- | --- |
+| `401` | `User is invalid` | Credencial ou contexto do usuário inválido. | Confira a AK e o acesso do usuário à OpenAPI. |
+| `4003008` | `Authentication required` | Contexto de autenticação obrigatório ausente. | Confira a credencial e a conta-alvo. |
+| `4004101` | `Authorization is required` | `X-Client-ID` ou outro contexto de autorização ausente. | Envie `X-Client-ID` com a sua AK. |
+| `4004102` | `Invalid {{.header}} header` | `X-Timestamp`, `X-Nonce` ou `X-Signature` ausente, ou `X-Timestamp` não numérico. | Confira os três cabeçalhos; a mensagem não indica qual. |
+| `4004103` | `IP address has no permission: {{.ip}}` | IP de origem fora da lista de permissões. | Configure seu IP de saída ou bloco CIDR. |
+| `4004104` | `X-Content-Hash does not match request body` | Hash informado difere do corpo da requisição. | Calcule o hash dos bytes exatos que você envia. |
+| `4004105` | `X-Timestamp is invalid or expired` | Timestamp fora da janela de cinco minutos. | Sincronize o relógio e use milissegundos Unix. |
+| `4004106` | `X-Nonce is invalid or has already been used` | Nonce já registrado para esta AK. | Gere um novo nonce para esta tentativa. |
+| `4004107` | `X-Signature is invalid` | Falha na verificação da assinatura. | Confira a SK e a requisição assinada. |
+
+Quando `X-Nonce` está ausente, a resposta retorna `4004102` com o modelo sem substituição `Invalid {{.header}} header`. Um nonce já registrado retorna `4004106`.
+
+Uma lista de permissões de IP vazia bloqueia todas as requisições. A lista aceita endereços IP exatos e blocos CIDR.
+
+A API registra o nonce por dez minutos por AK antes de conferir a assinatura. Uma falha na assinatura também consome esse nonce.
+
+Assine cada tentativa com novos `X-Nonce` e `X-Timestamp`. Siga [Assinar requisições](/pt-br/environments-and-credentials#assinar-requisições) para incluir o corpo e os cabeçalhos de conta aplicáveis.
+
+## Erros de conta e permissão
+
+| Código | Mensagem | Significado | O que fazer |
+| --- | --- | --- | --- |
+| `4001092` | `Invalid KYC status` | Status de conformidade não permite a operação. | Confira o status de KYC ou KYB da conta. |
+| `4002003` | `The information has been registered` | Dados de abertura de conta já cadastrados. | Consulte a solicitação ou a conta existente. |
+| `4004003` | `Permission denied` | Credencial, titularidade ou condições da conta impedem o acesso. | Confira os requisitos de credencial e conta do endpoint. |
+| `4004004` | `Not found` | Recurso indisponível no escopo solicitado. | Confira o identificador e a titularidade. |
+| `4004008` | `Account is inactive` | Conta não pode realizar a operação. | Confira o status da conta e as permissões de pagamento. |
+| `4004010` | `Account not found` | Conta não encontrada. | Confira os identificadores da conta-alvo. |
+
+Nas chamadas com escopo de conta, confira `X-ISPB` e `X-Account-Number` conforme as [regras de credenciais](/pt-br/environments-and-credentials). Erros de permissão também podem indicar um tipo de credencial não aceito pelo endpoint.
+
+## Erros por produto
+
+<AccordionGroup>
+  <Accordion title="Chaves Pix" icon="key">
+    | Código | Mensagem | Significado | O que fazer |
+    | --- | --- | --- | --- |
+    | `4001001` | `Invalid PIX key` | Falha na consulta ou validação da chave Pix. | Confira o tipo e o valor da chave. |
+    | `4001090` | `PIX key has already been linked` | Chave já cadastrada. | Confira as chaves da conta antes de tentar novamente. |
+    | `4001094` | `PIX key has already been linked by a third party, please unbind it manually and try again` | Chave vinculada a outra conta. | Resolva o vínculo existente antes de tentar novamente. |
+    | `4001096` | `The PIX key you provided is no longer valid or has been deleted. Please check and try again.` | Chave não pode mais ser usada. | Solicite uma chave válida ao recebedor. |
+    | `4004029` | `Too many requests` | Consulta de chave Pix limitada por frequência. | Reduza as consultas e aguarde antes de tentar novamente. |
+
+    Na inicialização de pagamento por chave Pix, `4001001` também pode retornar `The operation could not be completed due to fraud-related restrictions associated with the user, account, or entry.`
+
+    Para `4004029`, as mensagens de consulta podem ser `You have reached our limit for invalid pix keys. Please try again later` ou `Too many PIX key lookup attempts. Please wait and try again later.`
+
+    Veja as regras de cadastro em [Criar chave Pix](/pt-br/api-reference/pix-keys/create-pix-key) e de consulta para pagamento em [Inicializar pagamento por chave Pix](/pt-br/api-reference/payout/pix/initialize-pix-key-payment).
+  </Accordion>
+  <Accordion title="Pagamentos e QR Codes" icon="paper-plane">
+    | Código | Mensagem | Significado | O que fazer |
+    | --- | --- | --- | --- |
+    | `4001002` | `Invalid account` | Conta bancária inválida. | Confirme os dados da conta do recebedor. |
+    | `4001003` | `Invalid account type` | Tipo de conta bancária recusado. | Confira o enum de tipos de conta do endpoint. |
+    | `4001004` | `Invalid amount` | Montante inválido ou acima de um limite. | Confira as regras de montante e os limites da conta. |
+    | `4001010` | `Invalid QR code` | Conteúdo ou status do QR Code inválido. | Confira o payload completo do QR Code e seu status. |
+    | `4001011` | `Request expired` | Requisição ou sessão de pagamento expirada. | Confira o pagamento original antes de iniciar outro. |
+    | `4001013` | `Already processed` | Requisição conflita com uma operação existente. | Consulte a operação original. |
+    | `4001014` | `QR code has been used` | QR Code já pago. | Confira a transação existente. |
+    | `4001015` | `QR code expired or no longer valid` | QR Code não pode mais ser pago. | Solicite um QR Code válido. |
+    | `4001093` | `Cannot pay to yourself` | Pagador e recebedor são o mesmo. | Escolha outro recebedor. |
+    | `4001998` | `Daily limit reached` | Limite diário de pagamento esgotado. | Confira os limites antes de enviar outro pagamento. |
+    | `4001999` | `Insufficient funds` | Saldo disponível insuficiente. | Confira o saldo disponível e as tarifas aplicáveis. |
+    | `4003003` | `Transaction detail not found` | Detalhes da transação indisponíveis para essa consulta. | Confira o identificador e a conta-alvo. |
+    | `4003012` | `Failed to validate PIX transfer` | Referência de confirmação Pix indisponível ou inválida. | Confira o pagamento original e a referência de inicialização. |
+    | `4003014` | `Payment processing failed` | Processamento não retornou um resultado bem-sucedido. | Consulte o status do pagamento antes de reenviar. |
+    | `4003016` | `Transaction risk control failed` | Validação de risco ou AML recusou a transação. | Entre em contato com o suporte de integração. |
+
+    Quando o envio retorna `code` igual a `200`, use o identificador da transação para [consultar o status do pagamento](/pt-br/api-reference/payout/get-payment-status).
+
+    Para [consultar os detalhes do pagamento](/pt-br/api-reference/payout/get-payment-details), use `data.txn_id` da resposta de envio ou o lançamento do extrato correspondente ao pagamento. O primeiro lançamento do extrato não é necessariamente o seu pagamento.
+  </Accordion>
+  <Accordion title="Devoluções" icon="rotate-left">
+    | Código | Mensagem | Significado | O que fazer |
+    | --- | --- | --- | --- |
+    | `4003005` | `Failed to process refund` | Devolução falhou na validação ou excedeu o montante disponível para devolução. | Confira a transação original e o montante restante para devolução. |
+    | `4003003` | `Transaction detail not found` | Detalhes da devolução indisponíveis para essa consulta. | Confira o identificador da devolução e a conta-alvo. |
+    | `4001999` | `Insufficient funds` | Saldo disponível insuficiente. | Confira o saldo disponível da conta. |
+
+    Uma chamada bem-sucedida à API não comprova a devolução dos recursos. Consulte o [status da devolução](/pt-br/api-reference/refunds/get-refund-status) antes de criar outra devolução.
+  </Accordion>
+  <Accordion title="MED" icon="shield-halved">
+    | Código | Mensagem | Significado | O que fazer |
+    | --- | --- | --- | --- |
+    | `400` | `Invalid parameter` | Requisição MED não passa pela validação. | Confira a requisição e as condições atuais do caso. |
+    | `4004004` | `Not found` | Caso ou notificação indisponível no seu escopo. | Confira o identificador e a conta-alvo. |
+    | `4004003` | `Your account has no available balance. Please check your MEDs or available balance.` | Recuperação via MED restringe pagamentos. | Confira os casos MED e o saldo disponível. |
+
+    A restrição de pagamento por MED usa o mesmo `4004003` de `Permission denied`. Não trate toda ocorrência desse código como uma restrição de MED.
+
+    Consulte os [detalhes do MED](/pt-br/api-reference/med/get-med-case-details) e o [saldo da conta](/pt-br/api-reference/accounts/get-account-balance) para investigar.
+  </Accordion>
+  <Accordion title="Webhooks" icon="webhook">
+    | Código | Mensagem | Significado | O que fazer |
+    | --- | --- | --- | --- |
+    | `4000` | `Field {{.field}} is required` | Campo obrigatório da assinatura de eventos ausente. | Preencha o campo indicado na resposta. |
+    | `4001` | `Invalid {{.field}} value` | Status da assinatura de eventos inválido. | Confira os valores de status aceitos. |
+    | `4004003` | `Permission denied` | Credencial ou escopo do evento não permite acesso. | Confira os requisitos de credencial e conta do evento. |
+    | `4004004` | `Not found` | Assinatura de eventos indisponível no seu escopo. | Confira o identificador e o tipo de evento. |
+
+    Após um erro de atualização, [consulte a assinatura de eventos](/pt-br/api-reference/webhooks/get-event-subscription) antes de tentar novamente. A URL de callback pode ser atualizada antes de uma falha na atualização do status.
+  </Accordion>
+</AccordionGroup>
+
+## Erros de sistema e abertura de conta
+
+| Código | Mensagem | Significado | O que fazer |
+| --- | --- | --- | --- |
+| `500` | `System error, please try again later` ou `Service temporarily unavailable, please try again later` | API ou uma dependência não conseguiu concluir a chamada. | Confira a operação original antes de tentar novamente. |
+| `501` | `Service temporarily unavailable, please try again later` | Dependência necessária indisponível. | Confira o resultado original e siga as regras de nova tentativa. |
+| `502` | `Bank services are currently busy, please try again later` | Processamento bancário indisponível ou ocupado. | Consulte o resultado antes de reenviar. |
+| `503` | `This service is temporarily unavailable, please try again later` | Serviço solicitado indisponível. | Confira a disponibilidade do endpoint com o suporte. |
+| `504` | `Compliance submission status could not be confirmed. The account creation fee was not charged. Retry with the same reference_id.` | Resultado do envio para abertura de conta desconhecido. | Repita com o mesmo `reference_id` e uma nova assinatura. |
+
+Na [criação de conta gerenciada](/pt-br/api-reference/onboarding/create-managed-account), `400` pode retornar `Compliance submission was rejected. The account creation fee was not charged. Correct the request and retry with a new reference_id.`
+
+Essa rejeição exige uma requisição corrigida e um novo `reference_id`. Para `504`, mantenha o mesmo `reference_id`. Nenhuma das duas mensagens indica cobrança da tarifa de criação da conta.
+
+## Novas tentativas e suporte
+
+Após timeout, resposta de duplicidade ou falha de processamento com resultado incerto, consulte o pagamento, a devolução ou a solicitação de conta original. Não altere os identificadores de negócio apenas porque você não recebeu uma resposta.
+
+Siga as regras de idempotência do endpoint ao reenviar. Gere novos dados de assinatura a cada tentativa, incluindo timestamp e nonce, e calcule o hash do corpo exato que você envia.
+
+Para códigos desconhecidos ou erros não resolvidos, entre em contato com o suporte de integração. Informe ambiente, endpoint, horário da requisição, status HTTP, `code`, `message`, identificador do recurso e `xxx-log-id`.
+
+Oculte dados sensíveis na requisição e na resposta. Não inclua sua SK.
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Assinar requisições" icon="signature" href="/pt-br/environments-and-credentials#assinar-requisições">
+    Confira cabeçalhos, assinaturas e seleção de conta.
+  </Card>
+  <Card title="Status do pagamento" icon="magnifying-glass" href="/pt-br/api-reference/payout/get-payment-status">
+    Confirme o pagamento original antes de tentar novamente.
+  </Card>
+  <Card title="Status da devolução" icon="rotate-left" href="/pt-br/api-reference/refunds/get-refund-status">
+    Confira se a devolução foi concluída.
+  </Card>
+  <Card title="Detalhes da conta gerenciada" icon="building-columns" href="/pt-br/api-reference/onboarding/get-managed-account">
+    Confira uma solicitação de conta existente.
+  </Card>
+</CardGroup>

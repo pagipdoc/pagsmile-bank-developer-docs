@@ -1,0 +1,92 @@
+---
+title: "Pagamentos via TED"
+sidebarTitle: "Visão geral"
+description: "Envie uma TED para outro banco com os dados da conta do recebedor. Salve o ID da transação e consulte o status final antes de considerar o pagamento concluído."
+keywords: ["TED", "transferência bancária", "status do pagamento", "merchant_order_id"]
+---
+
+Envie um pagamento via TED com os dados bancários do recebedor. O banco do recebedor deve ser diferente do banco do pagador.
+
+## Fluxo do pagamento
+
+<Steps>
+  <Step title="Preparar o pagamento">
+    Confira os dados bancários e o documento do recebedor. Crie e guarde o `merchant_order_id` antes de enviar o pagamento.
+  </Step>
+  <Step title="Enviar o pagamento via TED">
+    Chame [Iniciar pagamento via TED](/pt-br/api-reference/payout/ted/initiate-ted-payment). Quando `code` é `200`, salve `data.txn_id`; o pagamento foi aceito para processamento assíncrono.
+  </Step>
+  <Step title="Confirmar o resultado">
+    Use o ID salvo como `txn_id` em [Consultar status do pagamento](/pt-br/api-reference/payout/get-payment-status) ou [Consultar detalhes do pagamento](/pt-br/api-reference/payout/get-payment-details).
+
+    Mantenha o contexto da conta do pagador nessas consultas. Uma resposta com `txn_status` igual a `2` (COMPLETED) confirma a conclusão.
+  </Step>
+</Steps>
+
+## Endpoints
+
+| Endpoint | O que faz |
+| --- | --- |
+| [Iniciar pagamento via TED](/pt-br/api-reference/payout/ted/initiate-ted-payment) | Envia um pagamento para outro banco. |
+| [Consultar status do pagamento](/pt-br/api-reference/payout/get-payment-status) | Consulta o status atual da transação. |
+| [Consultar detalhes do pagamento](/pt-br/api-reference/payout/get-payment-details) | Retorna os dados do pagamento e dos participantes. |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a credencial vinculada à conta do pagador. Omita `X-ISPB` e `X-Account-Number`, ou envie ambos com os dados dessa conta.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta pertencente ao USER. Esses cabeçalhos selecionam o pagador, não o recebedor.
+
+    Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem enviar esses pagamentos. Use uma credencial ACCOUNT ou USER da conta do pagador.</Warning>
+  </Tab>
+</Tabs>
+
+A conta do pagador precisa estar habilitada para enviar pagamentos. A TED usa os limites de pagamento configurados para o pagador, considerando o tipo de documento do recebedor.
+
+## Janelas de processamento
+
+O envio de TED ao banco segue o calendário bancário brasileiro em `America/Sao_Paulo`. O envio ao banco é interrompido 65 minutos antes do fechamento da janela ativa.
+
+Se a janela estiver fechada e houver uma próxima janela ativa, o pagamento aceito é agendado para essa janela. Continue acompanhando o pagamento original em vez de enviá-lo novamente.
+
+## Status
+
+Quando `code` é `200` no envio, `data.txn_status` é `5` (PROCESSING). A aceitação não comprova que o recebedor recebeu os recursos.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `5` PROCESSING | Aceito para processamento | Apenas o envio | Consulte o pagamento original |
+| `2` COMPLETED | Pagamento concluído | Conclusão confirmada | Concilie o pagamento |
+| `3` FAILED | Pagamento falhou | Falha registrada | Confira os detalhes |
+| `4` CANCELLED | Pagamento cancelado | Cancelamento registrado | Confira os detalhes |
+
+Esses são resultados que você deve consultar, não uma garantia de que todo pagamento passa por cada status.
+
+## Repetições e duplicidades
+
+Use um ID de pedido único entre contas e operações do mesmo ambiente. IDs aceitos ficam reservados por até 48 horas.
+
+Um novo envio com um `merchant_order_id` ainda retido retorna `4001013`. A API rejeita a duplicidade em vez de repetir a resposta de sucesso original.
+
+Após um timeout, uma falha de rede ou um erro de sistema, verifique o pagamento original antes de reenviar. Uma consulta imediata pode não encontrar a transação.
+
+Consulte novamente em vez de criar outro pagamento. Se você não recebeu `txn_id`, guarde o ID do pedido original e o cabeçalho de resposta `xxx-log-id` para o suporte.
+
+Veja [Visão geral de pagamentos](/pt-br/api-reference/payout/overview) para tratar um resultado de envio desconhecido.
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Iniciar pagamento via TED" icon="paper-plane" href="/pt-br/api-reference/payout/ted/initiate-ted-payment">
+    Prepare e assine uma requisição de TED.
+  </Card>
+  <Card title="Transferências internas" icon="arrow-right-arrow-left" href="/pt-br/api-reference/payout/book-transfer/overview">
+    Transfira entre contas elegíveis da mesma instituição.
+  </Card>
+</CardGroup>

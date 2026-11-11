@@ -1,0 +1,78 @@
+---
+title: "Desativar assinatura de eventos"
+sidebarTitle: "Desativar assinatura"
+description: "Desative uma assinatura de callback no escopo da sua credencial, sem excluí-la. Retorna o mesmo ID da assinatura e o horário da resposta de desativação."
+openapi: "openapi/pt-br.json POST /v3/webhooks/delete"
+keywords: ["/v3/webhooks/delete", "webhook", "callback", "subscription"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Desative uma assinatura de webhook sem excluir sua configuração. Com credenciais USER, a desativação afeta a assinatura compartilhada do usuário, não apenas a conta informada.
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a conta vinculada à sua credencial. Os eventos de `1` a `5` são permitidos; o evento `6` é rejeitado.
+
+    Você pode omitir `X-ISPB` e `X-Account-Number`. Se enviar esses cabeçalhos, informe ambos com os dados da conta vinculada e inclua-os na assinatura.
+
+    Se informar `account_number` no corpo da requisição, use o número da conta vinculada. Outra conta retorna `4004003`.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Use os eventos de `1` a `5`. Para eventos de transações (`1` a `4`), informe `account_number` no corpo da requisição e preserve os zeros à esquerda.
+
+    Esse número é obrigatório na validação, mas não cria uma assinatura específica da conta. Para o evento `5`, omita-o ou envie uma string vazia.
+
+    Omita `X-ISPB` e `X-Account-Number`, inclusive cabeçalhos vazios.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    Use o evento `6` (MASTER_ACCOUNT_KYB). Omita `account_number` ou envie uma string vazia.
+
+    Omita `X-ISPB` e `X-Account-Number`, inclusive cabeçalhos vazios.
+  </Tab>
+</Tabs>
+
+Assine o corpo exato que você envia. Veja [Assinar requisições](/pt-br/environments-and-credentials#assinar-requisições).
+
+## Selecionar a assinatura
+
+Sem `subscription_id`, a seleção usa o titular da credencial, a aplicação e o evento. Com ACCOUNT, também usa a conta vinculada.
+
+Com `subscription_id`, a seleção usa o ID e o titular autenticado. Ela não verifica também o evento informado ou a aplicação.
+
+Envie sempre `event_type`, mesmo ao selecionar por ID. Com USER, envie também `account_number` para eventos de transações (`1` a `4`). Use o ID de `webhook_id` de uma resposta anterior.
+
+## Confirmar a desativação
+
+Quando `code` é `200`, a assinatura foi desativada. A configuração continua disponível, e o ID permanece igual.
+
+A resposta não contém o status da assinatura. Consulte a assinatura e confirme que o `status` é `2` (INACTIVE).
+
+O timestamp `deleted_at` da resposta indica quando a resposta de sucesso foi gerada. Não é um registro de horário de exclusão.
+
+<Warning>
+  Nas assinaturas USER de transações, a desativação abrange a assinatura compartilhada do usuário e da aplicação. O número da conta no corpo não limita o efeito a uma conta.
+</Warning>
+
+Após timeout ou erro de rede, consulte a assinatura antes de repetir. Use [Atualizar assinatura de eventos](/pt-br/api-reference/webhooks/update-event-subscription) para reativá-la.
+
+Os resultados de negócio em JSON retornam HTTP 200. Uma resposta com `code` igual a `4004004` indica assinatura não encontrada; JSON inválido retorna HTTP 400 com texto simples.
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner scope="owner" lang="pt" method="POST" path="/v3/webhooks/delete" body={{"event_type": 1, "account_number": "00000001", "subscription_id": "sub_usr_8e67c99a7c554e919557512b5e198561"}} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar assinatura de eventos" icon="magnifying-glass" href="/pt-br/api-reference/webhooks/get-event-subscription">
+    Confira a configuração armazenada.
+  </Card>
+  <Card title="Atualizar assinatura de eventos" icon="pen-to-square" href="/pt-br/api-reference/webhooks/update-event-subscription">
+    Altere a URL ou o status de ativação.
+  </Card>
+</CardGroup>

@@ -1,0 +1,70 @@
+---
+title: "Histórico de alterações da documentação"
+sidebarTitle: "Histórico de alterações"
+description: "Alterações na documentação da Pagsmile Open API: correções de contrato conferidas no código-fonte, novas ferramentas de referência e páginas movidas."
+rss: true
+---
+
+Esta página lista as alterações da documentação, das mais recentes para as mais antigas. Cada entrada diz quem é afetado e se você precisa mudar a sua integração. As correções do pacote original de documentos estão listadas campo a campo em [Correções do documento de origem](/pt-br/source-corrections).
+
+<Update label="2026-11-11" tags={["Melhorias"]}>
+  ## O Playground da API envia as requisições do seu navegador
+  O Playground da API agora envia as requisições diretamente do seu navegador para a API. Antes desta mudança, ele as enviava pelo proxy da Mintlify. A Mintlify não publica os endereços IP de saída desse proxy. Nos nossos testes, requisições seguidas saíram de endereços diferentes. Por isso, não era possível incluí-los na lista de IPs permitidos de forma confiável. Isso afeta quem testa requisições no Playground da API.
+  - Ação: permita o IP público deste computador na credencial que você usa nos testes. [Configurar acesso à API](/pt-br/api-access-setup) detecta esse endereço. Requisições com `X-ISPB` ou `X-Account-Number` falham no navegador por causa da política CORS da API. Para elas, execute o comando cURL no seu servidor.
+</Update>
+<Update label="2026-11-11" tags={["Novos recursos"]}>
+  ## Configurar acesso à API
+  O novo guia [Configurar acesso à API](/pt-br/api-access-setup) percorre o painel Pagsmile Banking para os dois tipos de credencial: Credenciais da conta bancária e Credenciais do usuário (OpenVA e Onboarding). Ação: nenhuma; use o guia ao configurar um novo servidor ou trocar chaves.
+  - Lista de IPs Permitidos: o guia mostra comandos que retornam o IP público de saída do servidor a partir do host da API. Ao abrir a página, um assistente mostra o IP público deste navegador como os hosts da API da Pagsmile o veem e o sugere como entrada. Ele junta entradas novas e existentes e só oferece a lista para cópia quando todas as entradas são válidas. Também aponta entradas inválidas, endereços privados e endereços IPv6 que o campo do painel não consegue salvar.
+  - Credenciais: informe cada par de chaves uma vez. As chaves ficam apenas na memória daquela aba do navegador e nunca são gravadas. O guia gera `PAGSMILE_BASE_URL`, `PAGSMILE_AK` e `PAGSMILE_SK` para bash e PowerShell e, no Sandbox, testa a conexão com uma requisição de leitura assinada.
+  - Ferramentas de assinatura: em cada página da API, a ferramenta preenche a credencial salva adequada à operação, gera um comando cURL pronto para executar e, no Sandbox, pode enviar a requisição a partir do navegador.
+</Update>
+<Update label="2026-11-11" tags={["Correções"]}>
+  ## Correções verificadas no Sandbox
+  Estas correções vêm de chamadas assinadas ao Sandbox com credenciais de conta e de usuário. Revise os itens dos endpoints que você chama.
+  - User-Agent: Envie um `User-Agent` descritivo, como `your-app/1.0`. A borda da rede pode retornar HTTP 403 com `error code: 1010` para um valor ausente ou para alguns valores padrão de bibliotecas, como `Python-urllib/3.12`. Todos os exemplos de código agora definem esse cabeçalho. Ação: defina-o no seu cliente HTTP. Veja [Erros de autenticação](/pt-br/environments-and-credentials#erros-de-autenticação).
+  - Exemplos de código: Os exemplos de operações de escrita agora geram o prefixo de data de `merchant_order_id` em tempo de execução, o que evita falhas causadas por datas fixas desatualizadas. Ação: nenhuma.
+  - Mensagens de autenticação: `4004102` e `4004103` retornam os modelos de mensagem sem substituição. Ação: decida pelo `code` e ignore o texto de `message`. Veja o [catálogo de erros](/pt-br/api-reference/error-catalog#erros-de-autenticação).
+  - Callbacks de recebimentos Pix: `flow_type` em um callback `PIX_PAYMENT_IN` pode ser `FLOW_TYPE_TRANSFER`. No Sandbox, os pagamentos entre duas contas com o mesmo ISPB chegaram com esse valor. Ação: aceite `FLOW_TYPE_IN` e `FLOW_TYPE_TRANSFER`. Veja [Callbacks de recebimentos Pix](/pt-br/api-reference/payin/callbacks).
+  - Horários: `updated_at` de contas gerenciadas e de assinaturas de eventos pode vir em segundos Unix. Ação: trate `0` como indisponível e qualquer outro valor abaixo de `1000000000000` como segundos.
+  - Encerramento de conta: `reasons` pode ser `null`. Um encerramento conflitante ou simultâneo retorna `4001013`. Veja [Encerrar conta](/pt-br/api-reference/accounts/close-account/close-account).
+  - Códigos de erro: As páginas dos endpoints listam os códigos de negócio retornados no Sandbox, incluindo `4004004` para configuração de tarifa de abertura de conta não encontrada, `4004029` para limites de requisições, `4001` para um TED cujo ISPB do recebedor é igual ao do pagador e `400` para um código de banco do recebedor sem participante correspondente.
+  - Status de TED: O status de transação `1` (PENDING) não é um status final e é diferente do `code` da resposta. Ação: continue consultando o pagamento original.
+</Update>
+<Update label="2026-11-11" tags={["Correções"]}>
+  ## Correções de contrato
+
+  Estas correções alinham o contrato documentado ao código-fonte atual. Revise os itens dos endpoints que você já chama.
+
+  - Pagamento Pix por dados bancários e pagamentos TED: `payee.document_type` e `payee.bank_account_type` são obrigatórios. Uma requisição sem algum desses campos é rejeitada. Ação: envie os dois campos. Veja [Pagar via Pix com dados bancários](/pt-br/api-reference/payout/pix/pay-with-bank-account-details) e [Iniciar pagamento via TED](/pt-br/api-reference/payout/ted/initiate-ted-payment).
+  - Abertura de conta PA: `linked_account`, `linked_account.ispb` e `linked_account.account_number` são obrigatórios no modelo PA. Ação: envie sempre a referência da conta superior imediata. Veja [Criar conta gerenciada](/pt-br/api-reference/onboarding/create-managed-account).
+  - Saldo da conta: `POST /v3/bank_account` não tem campos de negócio. A conta vem das suas credenciais e dos cabeçalhos de seleção de conta. Ação: envie `{}`. Veja [Consultar saldo da conta](/pt-br/api-reference/accounts/get-account-balance).
+  - Detalhes do pagamento: Consulte um pagamento com o `data.txn_id` retornado no envio, ou com um lançamento do extrato que você associou ao seu pedido. Não use o primeiro lançamento do extrato: o extrato vem do mais recente para o mais antigo e o lançamento pode ser de outro pagamento. Veja [Consultar detalhes do pagamento](/pt-br/api-reference/payout/get-payment-details).
+  - Inicialização de pagamento por QR Code: Em QR Codes com vencimento, `data.dynamic_due_properties` também retorna `payee_street`, `payee_city`, `payee_state` e `payee_postal_code`. Ação: nenhuma, a menos que você valide a resposta de forma estrita. Veja [Inicializar pagamento por QR Code](/pt-br/api-reference/payout/pix/initialize-qr-code-payment).
+  - Formatos de chave Pix: Os padrões de telefone e e-mail agora mostram quantificadores simples, por exemplo `{10,11}`, em vez de chaves escapadas. Ação: se você copiou um padrão de uma versão anterior, compare de novo. Veja [Criar chave Pix](/pt-br/api-reference/pix-keys/create-pix-key).
+  - Valor do QR Code dinâmico: `amount` é uma string decimal maior que zero, com no máximo duas casas decimais. Veja [Gerar QR Code dinâmico](/pt-br/api-reference/payin/generate-dynamic-qr-code).
+  - Códigos de status HTTP: Todo resultado em JSON, inclusive erros de validação, de autenticação e de negócio, retorna HTTP 200. Leia `code` no corpo. HTTP 400 com corpo em texto simples significa que não foi possível ler ou interpretar o corpo ou os parâmetros da requisição. Veja [Catálogo de erros](/pt-br/api-reference/error-catalog#interpretar-a-resposta).
+</Update>
+
+<Update label="2026-11-11" tags={["Novos recursos"]}>
+  ## Referência interativa e ferramentas de assinatura
+
+  - API Playground: Cada página de endpoint tem um formulário de requisição com visualização em JSON e exemplos de resposta nomeados. Na época, as requisições saíam pelo proxy da Mintlify, e a API as rejeitava com o código de negócio `4004103` quando esse IP de saída não estava na sua lista de IPs permitidos. O Playground agora envia as requisições do seu navegador. Veja a entrada mais recente acima.
+  - Exemplos de código assinados: Cada endpoint tem exemplos em cURL, Python, Node.js, Go, Java e PHP que montam a string a ser assinada, calculam o `X-Signature` e enviam a requisição. Cada exemplo foi executado contra um servidor de teste que recalcula a assinatura com o mesmo algoritmo dos vetores fixos de teste.
+  - Ferramenta de assinatura e verificador de callbacks: As duas ferramentas rodam no seu navegador e não enviam nada pela rede. A ferramenta de assinatura calcula os cabeçalhos das requisições v3 documentadas com caminho ASCII e sem query string. O verificador confere um callback que você recebeu. Veja [Usar a ferramenta de assinatura](/pt-br/environments-and-credentials#usar-a-ferramenta-de-assinatura) e [Conferir um callback recebido](/pt-br/environments-and-credentials#conferir-um-callback-recebido).
+  - Início rápido em português: O [Início rápido](/pt-br/quickstart) agora está completo e corresponde à página em inglês.
+</Update>
+
+<Update label="2026-11-11" tags={["Melhorias"]}>
+  ## Páginas unificadas e movidas
+
+  - Uma página de abertura de conta: As páginas separadas de criação MOR, VA e PA agora formam uma única página, [Criar conta gerenciada](/pt-br/api-reference/onboarding/create-managed-account), com uma visualização para cada modelo. Os links antigos redirecionam.
+  - Uma página de saldo: "Consultar subcontas e saldos" descrevia a mesma chamada `POST /v3/bank_account` de [Consultar saldo da conta](/pt-br/api-reference/accounts/get-account-balance) e agora redireciona para ela.
+  - Correções fora das páginas: Os selos "Adicionado" e "Corrigido" e os painéis de correções por página foram retirados. O registro completo está em [Correções do documento de origem](/pt-br/source-corrections).
+</Update>
+
+<Update label="2026-11-10" tags={["Novas versões"]}>
+  ## Documentação da Pagsmile Open API
+
+  Primeira publicação do guia de integração e da referência da API em inglês e português do Brasil. O conteúdo foi convertido do pacote original de documentos e conferido no código-fonte. Cada ponto em que o pacote divergia do código está listado em [Correções do documento de origem](/pt-br/source-corrections).
+</Update>

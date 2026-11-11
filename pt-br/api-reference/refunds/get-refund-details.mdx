@@ -1,0 +1,82 @@
+---
+title: "Consultar detalhes da devolução"
+sidebarTitle: "Consultar detalhes"
+description: "Consulte uma devolução pelo ID da devolução ou de liquidação. Retorna o valor, participantes e status registrados para acompanhamento e conciliação."
+openapi: "openapi/pt-br.json POST /v3/refunds/details"
+keywords: ["/v3/refunds/details", "devolução Pix", "conciliação", "status da devolução"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Consulta os dados registrados de uma devolução. A conta que recebe a devolução só pode consultar detalhes depois da conclusão.
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a conta vinculada à sua AK. Você pode omitir os cabeçalhos de conta; se enviados, os dois devem corresponder à conta vinculada.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta que pertença ao USER. Inclua os dois na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use uma credencial ACCOUNT ou USER para a conta participante.</Warning>
+  </Tab>
+</Tabs>
+
+A conta selecionada precisa ser a que envia ou recebe a devolução. Uma conta sem relação com a devolução recebe `4004101`.
+
+Para a conta que recebe, devoluções não concluídas retornam `4003003`, como uma devolução não localizada. Use a conta que envia para investigar estados pendentes ou falhas.
+
+## Escolher o identificador
+
+Use os identificadores salvos na resposta de [Iniciar devolução Pix](/pt-br/api-reference/refunds/initiate-pix-refund). Envie pelo menos um identificador não vazio.
+
+Se você enviar ambos, `refund_id` tem prioridade. `settlement_refund_id` não é usado como alternativa nem conferido para verificar a correspondência.
+
+Se precisar recuperar um identificador no [extrato](/pt-br/api-reference/accounts/get-account-statement), selecione o lançamento da devolução desejada. Não escolha automaticamente o primeiro lançamento.
+
+## Interpretar o resultado
+
+Quando `code` é `200`, você recebeu os detalhes disponíveis para essa conta. Confira `data.details.txn_status` antes de considerar a devolução concluída.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `0` UNSPECIFIED | Estado desconhecido | Não comprova conclusão | Verifique os detalhes |
+| `1` PENDING | Requisição aceita | Apenas aceitação | Consulte a mesma devolução |
+| `5` PROCESSING | Resultado ainda não confirmado | Não comprova conclusão | Consulte pela conta que envia |
+| `2` COMPLETED | Devolução concluída | Conclusão registrada | Confira o valor no extrato |
+| `3` FAILED | Falha na devolução | Falha registrada | Verifique detalhes e callback |
+
+Uma devolução parcial concluída também usa status `2` (COMPLETED). Confira o valor daquela devolução, sem presumir que todo o pagamento original foi devolvido.
+
+## Limitações dos detalhes
+
+Esta resposta não preenche os IDs de liquidação original e da devolução. Também retorna datas iguais a zero e `rejection_reason` vazio, mesmo após conclusão ou falha.
+
+`pix_details` e `ted_details` são `null`; `source_type` é `0` (SOURCE_TYPE_UNSPECIFIED), inclusive em devoluções iniciadas pela API.
+
+Use `parent_txn_id` e `parent_settlement_id` do lançamento correspondente no extrato para vincular o pagamento original. Os callbacks também incluem esse vínculo em `original_txn`.
+
+## Falhas temporárias
+
+Após aceitação, a devolução pode demorar a aparecer na consulta. Um único `4003003` não comprova falha nem autoriza uma nova devolução.
+
+Mantenha os identificadores e consulte a mesma devolução após um erro temporário. Inclua `xxx-log-id` se precisar de ajuda do suporte.
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/refunds/details" body={{"refund_id": "refund-example-001"}} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar status" icon="arrows-rotate" href="/pt-br/api-reference/refunds/get-refund-status">
+    Consulte e atualize estados não finais.
+  </Card>
+  <Card title="Consultar extrato" icon="file-lines" href="/pt-br/api-reference/accounts/get-account-statement">
+    Confira o valor e o pagamento original.
+  </Card>
+</CardGroup>

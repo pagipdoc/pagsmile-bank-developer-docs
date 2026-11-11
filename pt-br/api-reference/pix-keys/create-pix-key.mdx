@@ -1,0 +1,100 @@
+---
+title: "Criar chave Pix"
+sidebarTitle: "Criar chave Pix"
+description: "Registre uma chave Pix de CPF, CNPJ, e-mail, telefone ou aleatória (EVP) em uma conta para receber Pix. Retorna o valor da chave e o status no diretório."
+openapi: "openapi/pt-br.json POST /v3/pix_keys/create"
+keywords: ["/v3/pix_keys/create", "chave pix", "pix key", "EVP", "DICT"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Registra uma chave Pix na conta-alvo para que pagadores possam enviar Pix a ela. Somente uma chave com `status` igual a `1` (ACTIVE) pode receber pagamentos.
+
+| Credenciais | Idempotência | Resultado |
+| --- | --- | --- |
+| ACCOUNT, USER | Não há | Síncrono |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    A chave é criada na conta vinculada à sua AK. `X-ISPB` e `X-Account-Number` são opcionais; se enviados, os dois devem corresponder à conta vinculada.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta que pertença ao USER. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use a credencial ACCOUNT ou USER da conta que será dona da chave.</Warning>
+  </Tab>
+</Tabs>
+
+A conta precisa estar aberta. A criação é recusada enquanto houver um [encerramento de conta](/pt-br/api-reference/accounts/close-account/overview) em andamento.
+
+## Formatos de chave
+
+Envie o valor sem pontuação nem espaços, exceto quando o formato exigir.
+
+| Tipo (`pix_key_type`) | Formato de `pix_key_value` |
+| --- | --- |
+| <Tooltip tip="Cadastro de Pessoas Físicas, o documento de contribuinte pessoa física.">CPF</Tooltip> (`1`) | 11 dígitos, por exemplo `12345678909`. |
+| <Tooltip tip="Cadastro Nacional da Pessoa Jurídica, o documento de contribuinte pessoa jurídica.">CNPJ</Tooltip> (`2`) | 14 caracteres; veja as regras abaixo. |
+| E-mail (`3`) | No máximo 77 caracteres. |
+| Celular (`4`) | Celular brasileiro com `+55`. |
+| <Tooltip tip="Endereço Virtual de Pagamento: chave aleatória em formato UUID gerada pelo diretório Pix.">EVP</Tooltip> (`5`) | Chave gerada ou UUID em minúsculas. |
+
+Chaves de CNPJ contêm 12 letras ou dígitos seguidos de 2 dígitos. Espaços nas pontas são removidos e as letras viram maiúsculas.
+
+Chaves de e-mail devem seguir `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`.
+
+Chaves de celular devem seguir `^\+55[1-9][0-9]9[0-9]{8}$`, por exemplo `+5511987654321`.
+
+Para EVP, omita `pix_key_value`, ou envie uma string vazia ou `GENERATE_EVP`, para gerar uma chave aleatória. Um valor informado por você deve ser um UUID em minúsculas.
+
+## Interpretar o resultado
+
+Quando `code` é `200`, o diretório aceitou a solicitação. Use `data.status` para saber se a chave pode ser usada.
+
+| `data.status` | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `1` ACTIVE | Registrada e vinculada à conta | A chave pode receber Pix | Compartilhe `data.pix_key` com os pagadores |
+| `2` INACTIVE | Existe, mas não está ativa | Nada sobre o uso | Ainda não compartilhe |
+| `3` BLOCKED | Registro ou validação de identidade pendente | Só que a solicitação foi registrada | Aguarde e consulte a lista de chaves |
+
+BLOCKED não indica necessariamente bloqueio por fraude. A resposta de [dados da conta](/pt-br/api-reference/accounts/get-account-balance) lista as chaves ACTIVE da conta em `data.pix_keys`.
+
+Uma conta encerrada ou fora do escopo da credencial retorna `4004003` com a mensagem `Permission denied`.
+
+## Repetições e duplicidades
+
+<AccordionGroup>
+  <Accordion title="O resultado é desconhecido (timeout ou erro de rede)" icon="clock-rotate-left">
+    Este endpoint não tem chave de idempotência. Confira `data.pix_keys` nos [dados da conta](/pt-br/api-reference/accounts/get-account-balance), mas a lista contém apenas chaves ACTIVE.
+
+    Chaves INACTIVE e BLOCKED não aparecem nessa lista. Falhas na consulta de chaves também podem resultar em uma lista vazia. A ausência da chave ou uma lista vazia não comprovam que a criação falhou nem tornam seguro repetir a solicitação.
+
+    Repetir uma solicitação de geração de chave EVP pode criar outra chave aleatória. Não repita automaticamente a geração de uma chave EVP enquanto o resultado da solicitação original permanecer desconhecido.
+  </Accordion>
+  <Accordion title="O valor da chave já existe" icon="clone">
+    Uma chave que já está ACTIVE é recusada, mesmo quando pertence à mesma conta. A verificação atual de duplicidade pode retornar `4001001` com a mensagem `Invalid PIX key`. Esse código não é exclusivo de duplicidades e não identifica quem possui a chave.
+  </Accordion>
+  <Accordion title="Falha na assinatura" icon="signature">
+    Assine cada tentativa com novos `X-Nonce` e `X-Timestamp`. O nonce é consumido mesmo quando a verificação da assinatura falha. Veja [erros de autenticação](/pt-br/api-reference/error-catalog#erros-de-autenticação).
+  </Accordion>
+</AccordionGroup>
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/pix_keys/create" body={{ pix_key_type: 5 }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Excluir chave Pix" icon="trash-can" href="/pt-br/api-reference/pix-keys/delete-pix-key">
+    Remova uma chave da conta.
+  </Card>
+  <Card title="Pagar para chave Pix" icon="paper-plane" href="/pt-br/api-reference/payout/pix/initialize-pix-key-payment">
+    Consulte uma chave e inicie um pagamento Pix.
+  </Card>
+</CardGroup>

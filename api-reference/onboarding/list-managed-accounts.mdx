@@ -1,0 +1,95 @@
+---
+title: "List managed accounts"
+sidebarTitle: "List accounts"
+description: "Find managed accounts visible to your USER with model, status and tax ID filters. Returns account details and pagination totals before visibility filtering."
+openapi: "openapi/en.json POST /v3/onboarding/managed_accounts/list"
+keywords: ["/v3/onboarding/managed_accounts/list", "managed accounts", "pagination", "tax ID filter"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Lists managed accounts visible to your USER. An empty result page does not prove that no matching accounts exist on later pages.
+
+| Credentials | Scope | Result |
+| --- | --- | --- |
+| USER | Visible managed accounts | Paginated query |
+
+## Before you call
+
+<Tabs>
+  <Tab title="USER" icon="user">
+    Use your USER credential without `X-ISPB` or `X-Account-Number`, even as empty headers.
+
+    Follow [Sign requests](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="ACCOUNT" icon="building-columns">
+    <Warning>ACCOUNT credentials cannot call this endpoint. Use the owning USER's credential.</Warning>
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use the owning USER's credential.</Warning>
+  </Tab>
+</Tabs>
+
+Your USER must have exactly one ACTIVE master account with matching ACTIVE bank account details. Otherwise, the query returns `4004003` (Permission denied).
+
+MOR and VA accounts must belong directly to that master account. A PA must have that master account or an ACTIVE VA beneath it as its direct parent. The parent's bank account must also be ACTIVE and match its account details.
+
+## Choose filters
+
+All request fields are optional. Omit `model` or `status` to leave that filter unset.
+
+The model filter accepts `1` (MOR), `2` (VA) or `3` (PA). The status filter accepts values from `1` (PENDING) through `6` (EXPIRED).
+
+An explicit model of `0` is invalid. Status values `0` and `7` are invalid filters, even though the response contract defines them. Invalid filters return `4001`.
+
+The API trims leading and trailing whitespace from `tax_id` and uppercases letters. An empty or whitespace-only value applies no tax-ID filter.
+It matches the compliance document number exactly, ignoring letter case and whitespace at the ends. Document punctuation is not removed.
+
+## Paginate without missing accounts
+
+Pages start at `1`. Omitted page numbers and values below `1` use page `1`.
+
+The default page size is `10`. Omitted sizes and values below `1` use `10`; sizes above `100` are reduced to `100`.
+
+Accounts appear in reverse insertion order, with newly created records first. Pagination is offset-based, not a stable snapshot. Each page request reads the current dataset.
+
+Model and status filters apply before pagination. Account visibility and tax-ID filters apply afterward, within the selected page.
+
+A page can therefore contain fewer accounts than `page_size`, or none. Do not stop because `managed_accounts` is empty. Continue according to `data.page.total_pages`.
+
+The totals describe records before visibility and tax-ID filtering. When you omit `model`, the count can include your master account, which does not appear in `managed_accounts`.
+
+Keep the same filters when requesting the next page. These totals are not a count of the managed accounts returned across all pages.
+
+New accounts or changes affecting filters between requests can shift records between pages. You can receive duplicates or miss accounts even with the same filters.
+
+Deduplicate the accounts you collect and repeat reconciliation when the dataset changes.
+
+## Read the result
+
+Read `code` before `data`. All JSON business results use HTTP 200, including errors.
+
+Each returned account has separate account and compliance statuses. Account status `7` (PENDING_SUBMISSION) is defined but not emitted. Check `compliance_status` equal to `2` for information awaiting submission.
+
+Missing compliance data can leave holder fields empty. For MOR and VA, `linked_account` is `null`; for PA, it identifies the direct master or VA parent.
+
+Use [Get managed account details](/api-reference/onboarding/get-managed-account#read-the-result) to interpret the account's status before starting new operations.
+
+## Try it in the Playground
+
+Sign the final request body with your USER credential. Use a new `X-Nonce` and `X-Timestamp` for each attempt.
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner scope="user" method="POST" path="/v3/onboarding/managed_accounts/list" body={{ page: { page: 1, page_size: 20 } }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Get managed account details" icon="magnifying-glass" href="/api-reference/onboarding/get-managed-account">
+    Look up one account by reference or bank account details.
+  </Card>
+  <Card title="Create managed account" icon="building-columns" href="/api-reference/onboarding/create-managed-account">
+    Create a MOR, VA or PA account.
+  </Card>
+</CardGroup>

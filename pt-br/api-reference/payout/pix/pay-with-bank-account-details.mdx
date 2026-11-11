@@ -1,0 +1,106 @@
+---
+title: "Pagar via Pix com dados bancários"
+sidebarTitle: "Dados bancários"
+description: "Envie um pagamento Pix com os dados bancários do recebedor. Retorna o ID da transação e o status PROCESSING; consulte o pagamento para confirmar a conclusão."
+openapi: "openapi/pt-br.json POST /v3/transfers/pix/bank-account"
+keywords: ["/v3/transfers/pix/bank-account", "pagamento Pix", "dados bancários", "merchant_order_id"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Envia um pagamento Pix com os dados bancários do recebedor, sem uma chamada separada de inicialização ou confirmação. Um envio bem-sucedido aceita o pagamento para processamento, não comprova sua conclusão.
+
+| Credenciais | Idempotência | Resultado |
+| --- | --- | --- |
+| ACCOUNT, USER | ID do pedido, 48 horas | Assíncrono |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Você paga pela conta vinculada à sua AK. Omita os dois cabeçalhos de seleção da conta ou envie `X-ISPB` e `X-Account-Number` correspondentes a ela.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` para selecionar uma conta do pagador pertencente ao USER. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use uma credencial ACCOUNT ou USER da conta do pagador.</Warning>
+  </Tab>
+</Tabs>
+
+A conta do pagador e as contas superiores exigidas devem estar ativas. Mantenha saldo disponível para cobrir o pagamento e as tarifas aplicáveis.
+
+## Conferir o recebedor e a quantia
+
+O pagador e o recebedor não podem ter o mesmo ISPB e número de conta. Confira a identificação e os dados bancários do recebedor antes de enviar.
+
+Um `payee.bank_code` que não corresponde a nenhum banco do diretório de participantes retorna `400` com a mensagem `Payee bank code is invalid`.
+
+Informe `payee.document_type` e `payee.bank_account_type`. Os tipos aceitos aparecem na referência da requisição gerada abaixo; tipos não especificados são rejeitados.
+
+Use strings decimais em BRL, como `"10.00"`. A quantia deve ser positiva e representável exatamente com duas casas decimais.
+
+O processamento ainda pode falhar após o envio. A aceitação pela API não comprova que os recursos foram debitados ou recebidos.
+
+## Interpretar o resultado
+
+Quando `code` é `200`, salve `data.txn_id` e `data.merchant_order_id`. A resposta do envio retorna `data.txn_status` como `5` (PROCESSING).
+
+Consulte o [status do pagamento](/pt-br/api-reference/payout/get-payment-status) ou os [detalhes do pagamento](/pt-br/api-reference/payout/get-payment-details) para confirmar o resultado.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `5` PROCESSING | Aceito para processamento | Não comprova conclusão | Consulte o status |
+| `2` COMPLETED | Pagamento concluído | Conclusão registrada | Concilie o pagamento |
+| `3` FAILED | Falha registrada | Falha registrada localmente | Concilie antes de substituir o pagamento |
+
+Para Pix, `FAILED` indica uma falha registrada pela Pagsmile; não comprova que o banco deixou de movimentar os recursos. Concilie os detalhes do pagamento com o lançamento correspondente no extrato antes de criar um pagamento substituto. Veja a regra de duas horas em [Consultar status do pagamento](/pt-br/api-reference/payout/get-payment-status).
+
+Este endpoint não retorna os dados dos participantes nem o ID de liquidação. Consulte os detalhes do pagamento para obtê-los quando disponíveis.
+
+## Repetições e duplicidades
+
+Gere `merchant_order_id` com a data UTC atual como prefixo em `YYMMDD`. Use um ID diferente para cada novo pagamento entre suas integrações.
+
+A data deve ter interseção com a janela de ±1 hora do horário atual. A validação considera a data, não um timestamp no restante do ID.
+
+Após timeout, erro de rede ou erro de sistema, confirme o resultado do pagamento original antes de criar outro pagamento.
+
+<AccordionGroup>
+  <Accordion title="O resultado é desconhecido" icon="clock-rotate-left">
+    Após timeout, erro de rede ou erro de sistema, consulte os [detalhes do pagamento](/pt-br/api-reference/payout/get-payment-details) com um `txn_id` ou `settlement_id` salvo. Você também pode enviar o `merchant_order_id` original, mas o ID do pedido não basta sozinho.
+
+    Se você não recebeu nenhum desses identificadores, localize o lançamento correspondente no [extrato da conta](/pt-br/api-reference/accounts/get-account-statement) para recuperar seu `txn_id`. Se não encontrar um lançamento correspondente, contate o suporte com o ID do pedido original e o cabeçalho de resposta `xxx-log-id`. Não crie outro pagamento enquanto o resultado original for desconhecido.
+  </Accordion>
+  <Accordion title="O ID do pedido já está reservado" icon="clone">
+    IDs de pedido reservados ficam protegidos por 48 horas. Reutilizar um deles retorna o código `4001013` com a mensagem `merchant_order_id already exists`, não a resposta de sucesso original. Consulte o pagamento original.
+  </Accordion>
+  <Accordion title="Falha na assinatura" icon="signature">
+    Assine cada tentativa com novos `X-Nonce` e `X-Timestamp`. Uma falha na verificação da assinatura também consome o nonce. Veja [erros de autenticação](/pt-br/api-reference/error-catalog#erros-de-autenticação).
+  </Accordion>
+</AccordionGroup>
+
+## Testar no Playground
+
+O exemplo usa dados fictícios do recebedor. Substitua-os pelos dados do seu recebedor no Sandbox e atualize a data UTC do ID do pedido antes de assinar.
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/transfers/pix/bank-account" body={{ payee: { name: "Demo Receiver", document_id: "12345678909", document_type: 1, bank_account: "00000001", bank_account_type: 1, bank_branch: "0001", bank_code: "12345678" }, amount: "10.00", currency: "BRL", merchant_order_id: "261110-pix-bank-001" }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar status do pagamento" icon="clock" href="/pt-br/api-reference/payout/get-payment-status">
+    Confira o resultado do processamento.
+  </Card>
+  <Card title="Consultar detalhes do pagamento" icon="receipt" href="/pt-br/api-reference/payout/get-payment-details">
+    Obtenha os dados dos participantes e da liquidação.
+  </Card>
+  <Card title="Callbacks de pagamento Pix" icon="bell" href="/pt-br/api-reference/payout/pix/callbacks">
+    Trate as notificações de status do pagamento.
+  </Card>
+  <Card title="Saldo da conta" icon="wallet" href="/pt-br/api-reference/accounts/get-account-balance">
+    Confira o saldo disponível da conta do pagador.
+  </Card>
+</CardGroup>

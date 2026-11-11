@@ -1,0 +1,93 @@
+---
+title: "Consultar andamento do encerramento da conta"
+sidebarTitle: "Andamento"
+description: "Consulte a operação original de encerramento, com status, motivos e próxima ação. A consulta somente leitura não executa o encerramento nem tenta novamente."
+openapi: "openapi/pt-br.json POST /v3/bank_account/close/query"
+keywords: ["/v3/bank_account/close/query", "encerramento de conta", "elegibilidade", "andamento"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Consulta o andamento atual da operação original de encerramento. Esta consulta somente leitura não avança o encerramento nem dispara uma nova tentativa.
+
+| Credenciais | Idempotência | Resultado |
+| --- | --- | --- |
+| ACCOUNT, USER | Somente leitura | Operação atual |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a credencial da conta-alvo. O campo `account_number` da requisição deve corresponder à conta autorizada pela sua credencial.
+
+    Os cabeçalhos da conta-alvo são opcionais. Se os enviar, envie os dois com o ISPB e o número da conta da credencial.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta pertencente ao seu USER. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use uma credencial ACCOUNT ou USER autorizada.</Warning>
+  </Tab>
+</Tabs>
+
+O corpo não seleciona outro ISPB. A credencial e os cabeçalhos da conta-alvo determinam o ISPB; `account_number` deve corresponder à conta selecionada.
+
+Use credenciais USER autorizadas após o encerramento, pois a limpeza desativa credenciais ACCOUNT. Consultas USER exigem titularidade e vínculos bancários válidos em toda a hierarquia.
+
+A conta-alvo e as contas superiores necessárias devem estar ACTIVE ou CLOSED. Contas INACTIVE e BLOCKED não passam na autorização para esta consulta histórica.
+
+Esta consulta pode retornar uma operação existente de uma conta master autorizada. Novas solicitações do comerciante continuam sem aceitar contas master (`MA_MOR`).
+
+## Consultar a operação original
+
+Use o número da conta e o ID da operação salvos em [Encerrar conta](/pt-br/api-reference/accounts/close-account/close-account). A operação deve pertencer àquela conta.
+
+A consulta retorna o andamento registrado sem executar o encerramento nem repetir a autorização de um novo encerramento. Repetir a consulta não agenda processamento.
+
+## Interpretar o resultado
+
+Avalie `data.operation.status` separadamente de `account_status`. Uma consulta bem-sucedida comprova a consulta da operação, não o encerramento da conta.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `1` CHECKING | Verificação de elegibilidade em andamento | Solicitação registrada | Leia motivos e próxima ação |
+| `2` WAITING | Obrigações ou verificação pendentes | Encerramento não confirmado | Siga `next_action` |
+| `3` DELETING_KEYS | Exclusão autorizada de chaves em andamento | Exclusão iniciada | Continue consultando esta operação |
+| `4` CLOSED | Conta encerrada, limpeza pendente | Conta bancária encerrada | Aguarde a conclusão da limpeza |
+| `5` COMPLETED | Encerramento e limpeza concluídos | Operação concluída | Guarde o registro final |
+| `6` REJECTED | Elegibilidade impede encerramento | Esta operação não encerrou a conta | Confira o status da conta |
+
+Siga `next_action`. CONTACT_OPERATIONS tem precedência quando há um motivo MANUAL; RESOLVE_AND_REAPPLY se aplica a REJECTED, e NONE se aplica a COMPLETED.
+
+REJECTED descreve esta operação, não o status atual da conta. Leia `account_status`; outra operação pode já ter encerrado a conta.
+
+Solicite novamente com outra chave de idempotência somente se a conta permanecer ACTIVE e elegível após você resolver os motivos.
+
+Durante o processamento, WAIT_SYSTEM orienta você a aguardar o servidor. `next_retry_at` informa o horário agendado, não uma nova tentativa executada por esta página.
+
+Lista `reasons` vazia, `count` zero ou timestamp zero não comprovam conclusão isoladamente. As verificações atuais não preenchem IDs de registros em `references`.
+
+## Resultados desconhecidos ou indisponíveis
+
+Um ID de operação desconhecido ou pertencente a outra conta retorna o código de negócio `4004010`. Acesso negado ao escopo retorna `4004003`; consulta indisponível pode retornar `501`.
+
+Esses resultados JSON usam HTTP 200. Guarde o ID original, confira a autorização e repita a consulta com uma nova assinatura quando necessário.
+
+Informe `xxx-log-id` nas solicitações ao suporte. Não crie outro encerramento para recuperar uma consulta de andamento com falha.
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/bank_account/close/query" body={{ account_number: "00012345", operation_id: "b5fe05e4-a055-4e68-a087-b263cdb0ea51" }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Fluxo de encerramento" icon="diagram-project" href="/pt-br/api-reference/accounts/close-account/overview">
+    Entenda o encerramento e a limpeza.
+  </Card>
+  <Card title="Verificar elegibilidade" icon="list-check" href="/pt-br/api-reference/accounts/close-account/check-eligibility">
+    Verifique novamente antes de outra solicitação.
+  </Card>
+</CardGroup>

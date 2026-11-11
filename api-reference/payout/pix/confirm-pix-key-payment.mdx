@@ -1,0 +1,114 @@
+---
+title: "Confirm Pix key payment"
+sidebarTitle: "Confirm by key"
+description: "Submit a Pix payment using the reference from key initialization and the same payer account. Returns an order ID, transaction ID and processing status."
+openapi: "openapi/en.json POST /v3/transfers/pix/key-confirm"
+keywords: ["/v3/transfers/pix/key-confirm", "Pix key payment", "merchant_order_id", "payment confirmation"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Submit the Pix key payment after you verify the payee during initialization. A successful confirmation accepts asynchronous processing; it does not prove payment completion.
+
+| Credentials | Idempotency | Result |
+| --- | --- | --- |
+| ACCOUNT, USER | `merchant_order_id` | Asynchronous |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the account bound to your AK. Omit both account headers, or send `X-ISPB` and `X-Account-Number` matching that account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. Include them in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use ACCOUNT or USER credentials for the payer account.</Warning>
+  </Tab>
+</Tabs>
+
+Use the same payer account as [Initialize Pix key payment](/api-reference/payout/pix/initialize-pix-key-payment). Payment permissions, available allowance and risk checks still apply.
+
+## Use the initialization reference
+
+Pass the returned `data.ref_id` unchanged as `ref_id` within one minute of initialization. Do not generate the reference yourself.
+
+An omitted or empty `ref_id` returns `4000`. An expired or unavailable reference returns `4003012`.
+
+Successful submission consumes the reference. Do not reuse it to create another payment.
+
+## Amounts
+
+Send `amount` as a positive decimal string in BRL, for example `"10.50"`. It must be exactly representable with two decimal places.
+
+Trailing fractional zeros are accepted, for example `"10.500"`. If initialization included an amount, use the same numeric amount here; a mismatch returns `400`.
+
+There is no currency field in this request. The payment uses BRL.
+
+## Order IDs and duplicates
+
+Start `merchant_order_id` with the current UTC date in `YYMMDD` format. The date must overlap the window from one hour before to one hour after the current UTC time.
+
+Use only ASCII letters, digits, hyphens and underscores. Choose a unique ID for each payment, including across payer accounts.
+
+Accepted order IDs are protected against duplicates for 48 hours. A duplicate returns `4001013`, rather than replaying the original success response.
+
+Keep the original order ID when investigating an uncertain result.
+
+## Read the result
+
+When `code` is `200`, save `data.txn_id` and `data.merchant_order_id`. The confirmation response has `data.txn_status` equal to `5` (TXN_STATUS_PROCESSING).
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `5` TXN_STATUS_PROCESSING | Processing | Submission accepted | Query the payment |
+| `2` TXN_STATUS_COMPLETED | Completed | Payment completed | Reconcile the payment |
+| `3` TXN_STATUS_FAILED | Recorded failure | Failure recorded locally | Reconcile before any replacement |
+
+The completed status comes from a later [status query](/api-reference/payout/get-payment-status), [details query](/api-reference/payout/get-payment-details) or [callback](/api-reference/payout/pix/callbacks).
+
+For Pix, `FAILED` records a Pagsmile failure; it does not prove that funds did not move at the bank. Reconcile payment details and the matching statement entry before creating any replacement payment. See [Get payment status](/api-reference/payout/get-payment-status) for the two-hour rule.
+
+This response returns `payee` and `payer` as `null`, and `settlement_id` as an empty string. Get participant details from the payment details endpoint.
+
+## Recover an unknown result
+
+If confirmation times out or returns a system error, query the original payment before submitting again.
+
+Use the saved `txn_id`, or an available `settlement_id`, to query [payment details](/api-reference/payout/get-payment-details).
+
+If the submission response was lost and you have neither identifier, find the matching [account statement entry](/api-reference/accounts/get-account-statement).
+
+If you cannot find the matching statement entry, contact support with the original order ID, account, amount, request time and `xxx-log-id`.
+
+Do not create another payment to resolve uncertainty or bypass a duplicate error. See the [common unknown-result guidance](/api-reference/payout/overview#handle-an-unknown-result).
+
+For business errors, read `code` in the HTTP 200 JSON response. Include the `xxx-log-id` response header in support requests.
+
+Sign each new request with new `X-Nonce` and `X-Timestamp` values. See [authentication errors](/api-reference/error-catalog#authentication-errors).
+
+## Try it in the Playground
+
+Replace the sample reference with your initialization result. Update the order ID to the current UTC date and choose a unique suffix.
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/transfers/pix/key-confirm" body={{ ref_id: "8e67c99a-7c55-4e91-9557-512b5e198561", merchant_order_id: "261110_pix_0001", amount: "10.50" }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Initialize Pix key payment" icon="magnifying-glass" href="/api-reference/payout/pix/initialize-pix-key-payment">
+    Look up the payee and get a reference.
+  </Card>
+  <Card title="Get payment status" icon="clock" href="/api-reference/payout/get-payment-status">
+    Check the processing result.
+  </Card>
+  <Card title="Get payment details" icon="receipt" href="/api-reference/payout/get-payment-details">
+    Retrieve the payment and participant details.
+  </Card>
+  <Card title="Pix callbacks" icon="bell" href="/api-reference/payout/pix/callbacks">
+    Receive updates about your payment.
+  </Card>
+</CardGroup>

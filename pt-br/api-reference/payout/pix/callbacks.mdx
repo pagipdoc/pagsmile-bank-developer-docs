@@ -1,0 +1,108 @@
+---
+title: "Callbacks de pagamentos Pix"
+sidebarTitle: "Callbacks"
+description: "Receba resultados de pagamentos Pix no webhook. Valide a assinatura do corpo bruto, elimine entregas duplicadas e confira o status para confirmar o resultado."
+openapi: "openapi/pt-br.json webhook pixPayoutResult"
+keywords: ["callback de pagamento Pix", "PIX_OUT", "webhook", "resultado do pagamento"]
+---
+
+import { WebhookVerifier } from "/snippets/webhook-verifier.jsx";
+
+Receba o resultado registrado de um pagamento Pix iniciado pela sua conta pagadora. Um callback cujo `txn_status` é `TXN_STATUS_FAILED` informa uma falha registrada pela Pagsmile.
+
+## Antes de receber callbacks
+
+Crie uma assinatura de eventos cujo `event_type` é `2` (PIX_OUT) em [assinaturas de eventos](/pt-br/api-reference/webhooks/create-event-subscription).
+
+Confira a assinatura de eventos, `txn_type` igual a `TXN_TYPE_PAYMENT` e `payment_method` igual a `PAYMENT_METHOD_PIX`. O callback não tem `event_type` no nível superior; não exija `flow_direction`.
+
+O corpo descreve o pagamento diretamente. Ele não usa o envelope de resposta da API com `code`, `message` e `data`.
+
+## Corpos de ACCOUNT e USER
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Callbacks ACCOUNT contêm o corpo do pagamento sem `delivery_id`. Use a assinatura de eventos de pagamentos enviados e `txn_id` como chave de deduplicação.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Callbacks USER acrescentam `delivery_id` ao corpo do pagamento. Use esse identificador para deduplicar as tentativas da mesma entrega.
+
+    Antes de cada tentativa, a Pagsmile verifica novamente o acesso à conta e a assinatura de eventos. A entrega pode parar se o acesso for revogado ou a assinatura de eventos mudar.
+  </Tab>
+</Tabs>
+
+Os enums do callback usam nomes, como `TXN_STATUS_COMPLETED`, em vez dos códigos numéricos da resposta da API. Timestamps inteiros usam strings decimais em milissegundos Unix.
+
+O timestamp `completed_at` registra o resultado final do processamento. Ele pode acompanhar uma falha e não comprova sucesso por si só.
+
+## Interpretar o resultado
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `TXN_STATUS_COMPLETED` | Pagamento concluído | Resultado de pagamento bem-sucedido | Concilie o lançamento correspondente |
+| `TXN_STATUS_FAILED` | Falha registrada | Falha registrada localmente | Concilie antes de substituir o pagamento |
+
+`TXN_STATUS_FAILED` não comprova que o banco deixou de movimentar os recursos. Concilie os detalhes do pagamento com o lançamento correspondente no extrato antes de criar um pagamento substituto. Veja a regra de duas horas em [Consultar status do pagamento](/pt-br/api-reference/payout/get-payment-status).
+
+Use `txn_id` para localizar os [detalhes do pagamento](/pt-br/api-reference/payout/get-payment-details) e o [lançamento no extrato](/pt-br/api-reference/accounts/get-account-statement). Guarde o `merchant_order_id` original para a conciliação.
+
+## Validar e confirmar o recebimento
+
+<Steps>
+  <Step title="Validar a requisição recebida">
+    Preserve os bytes brutos do corpo. Selecione a SK por `X-Client-ID`, confira `X-Timestamp` e recalcule `X-Content-Hash` antes de interpretar o JSON.
+
+    Valide `X-Signature` com HMAC-SHA256 e compare em tempo constante. Use o `Content-Type` recebido e os cabeçalhos assinados sem alterações.
+
+    Assinaturas de transações ACCOUNT usam o caminho do callback com os escapes de URL decodificados. Assinaturas USER preservam os escapes. Veja [Verificar callbacks](/pt-br/environments-and-credentials#verificar-callbacks).
+  </Step>
+  <Step title="Bloquear replays e duplicidades">
+    Após validar a assinatura, registre atomicamente o par AK e `X-Nonce` para bloquear replays. O nonce contém 32 caracteres hexadecimais minúsculos.
+
+    Elimine entregas duplicadas com a chave ACCOUNT ou USER descrita acima. A proteção contra replay da assinatura não substitui a deduplicação da entrega.
+  </Step>
+  <Step title="Armazenar e confirmar o recebimento">
+    Armazene o evento validado de forma durável e retorne HTTP 200. Processe a atualização de negócio de forma assíncrona após o recebimento.
+
+    HTTP 200 confirma o recebimento do callback. Ele não confirma o sucesso do seu processamento de negócio nem do pagamento.
+  </Step>
+</Steps>
+
+## Novas tentativas e conciliação
+
+A Pagsmile trata falhas de transporte e respostas diferentes de HTTP 200 como tentativas de entrega malsucedidas. Trate entregas repetidas sem repetir seus efeitos de negócio.
+
+<Warning>
+  As tentativas de entrega são limitadas. Erros HTTP de cliente, como `401` e `403`, interrompem novas tentativas mesmo após corrigir o receptor.
+
+  Consulte [Entrega de transações e novas tentativas](/pt-br/api-reference/webhooks/overview#entrega-de-transações-e-novas-tentativas) para ver a política completa.
+</Warning>
+
+Não use a ordem de chegada para definir o status mais recente do pagamento. Se houver divergência com seus registros, consulte o pagamento original e concilie o lançamento no extrato.
+
+Se a entrega parar, confira a URL do callback, a validação da assinatura, o acesso à conta e a assinatura de eventos ativa. Guarde o identificador da transação.
+
+Após uma falha definitiva de entrega, consulte o [pagamento original](/pt-br/api-reference/payout/get-payment-details) ou peça auxílio ao suporte para reenvio. Não aguarde novas tentativas automáticas.
+
+## Verificar um callback
+
+<Accordion title="Verificar um callback recebido" icon="shield-check">
+  <WebhookVerifier lang="pt" />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Fluxos de pagamento Pix" icon="paper-plane" href="/pt-br/api-reference/payout/pix/overview">
+    Confira o fluxo de envio.
+  </Card>
+  <Card title="Consultar status do pagamento" icon="clock" href="/pt-br/api-reference/payout/get-payment-status">
+    Confira o resultado do pagamento original.
+  </Card>
+  <Card title="Assinaturas de eventos" icon="bell" href="/pt-br/api-reference/webhooks/create-event-subscription">
+    Configure o destino do callback.
+  </Card>
+  <Card title="Conciliação" icon="scale-balanced" href="/pt-br/api-reference/reconciliation">
+    Relacione o pagamento ao lançamento no extrato.
+  </Card>
+</CardGroup>

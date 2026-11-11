@@ -1,0 +1,102 @@
+---
+title: "Initialize Pix key payment"
+sidebarTitle: "Initialize by key"
+description: "Look up a Pix key and review the payee before you pay. Returns payee details, a settlement ID and a reference valid for one minute for confirmation."
+openapi: "openapi/en.json POST /v3/transfers/pix/key-initiate"
+keywords: ["/v3/transfers/pix/key-initiate", "Pix key payment", "payee lookup", "ref_id"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Look up the payee of a Pix key before you submit a payment. Initialization returns a reference valid for one minute; it does not move funds.
+
+| Credentials | Idempotency | Result |
+| --- | --- | --- |
+| ACCOUNT, USER | No payment order ID | Payee and reference |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the account bound to your AK. Omit both account headers, or send `X-ISPB` and `X-Account-Number` matching that account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. Include them in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use ACCOUNT or USER credentials for the payer account.</Warning>
+  </Tab>
+</Tabs>
+
+The payer account must be active and enabled to send payments. Initialization can return `4004008` when either condition fails.
+
+## Key formats
+
+Send the registered key, not its type. The endpoint removes leading and trailing whitespace and uppercases CNPJ letters.
+
+| Key type | Accepted format |
+| --- | --- |
+| CPF | 11 digits |
+| CNPJ | 12 letters or digits, then 2 digits |
+| Phone | `+55` followed by 10 or 11 digits |
+| Email | Email address |
+| EVP | UUID, version 1–5 |
+
+Phone keys match `^\+55\d{10,11}$`. Email keys match `^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$`.
+
+EVP keys match `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[1-5][a-fA-F0-9]{3}-[89abAB][a-fA-F0-9]{3}-[a-fA-F0-9]{12}$`.
+
+An omitted or empty `pix_key` returns `4000`. A whitespace-only or unrecognized key returns `400`.
+
+## Amounts and prechecks
+
+You can send `amount` as a decimal string in BRL, such as `"10.50"`. A supplied amount must be positive and exactly representable with two decimal places.
+
+Trailing fractional zeros are accepted, for example `"10.500"`. Omitted, empty or whitespace-only amounts skip the initialization balance check.
+
+When you supply an amount, the endpoint checks the available balance. Confirmation must use the same numeric amount, or it returns `400`.
+
+Initialization also checks current Pix allowance when that information is available. Insufficient allowance returns `4001998`.
+
+The required allowance is BRL `"1.00"` without an amount, or the greater of BRL `"1.00"` and the supplied amount. The check uses the payee's CPF or CNPJ category.
+
+No funds or payment allowance are reserved at this step. Confirmation can still fail payment checks after successful initialization.
+
+## Read the result
+
+When `code` is `200`, review the payee's name, document and bank account before you confirm. The document number can be masked.
+
+Pass `data.ref_id` unchanged to [Confirm Pix key payment](/api-reference/payout/pix/confirm-pix-key-payment) within one minute, using the same payer account.
+
+`data.settlement_id` identifies the planned Pix settlement. It does not prove payment completion, and you do not send it in the confirmation body.
+
+## Retries and lookup restrictions
+
+If initialization times out, no payment has been submitted by this endpoint. A new lookup returns a new reference; review the payee again.
+
+If the reference expires before confirmation, initialize again. If you already submitted confirmation, investigate that payment before creating another reference or order.
+
+Lookup restrictions can return `4004029`; wait before trying again. Do not assume a fixed retry interval.
+
+Invalid or restricted keys can return `4001001`. When fraud-related restrictions apply, the message is `The operation could not be completed due to fraud-related restrictions associated with the user, account, or entry.` Inactive or deleted keys can return `4001096`; review the response message before trying again.
+
+Sign each attempt with new `X-Nonce` and `X-Timestamp` values. A nonce is consumed even when signature validation fails.
+
+For business errors, read `code` in the HTTP 200 JSON response. Include the `xxx-log-id` response header in support requests.
+
+## Try it in the Playground
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/transfers/pix/key-initiate" body={{ pix_key: "finance@example.com", amount: "10.50" }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Confirm Pix key payment" icon="paper-plane" href="/api-reference/payout/pix/confirm-pix-key-payment">
+    Submit the payment after reviewing the payee.
+  </Card>
+  <Card title="Pix payments" icon="arrows-left-right" href="/api-reference/payout/pix/overview">
+    Compare the available Pix payment paths.
+  </Card>
+</CardGroup>

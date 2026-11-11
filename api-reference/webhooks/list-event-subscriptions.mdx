@@ -1,0 +1,86 @@
+---
+title: "List event subscriptions"
+sidebarTitle: "List subscriptions"
+description: "List callback subscriptions in your credential scope, with an optional event filter. Returns subscription IDs, callback URLs and activation statuses."
+openapi: "openapi/en.json POST /v3/webhooks/list"
+keywords: ["/v3/webhooks/list", "webhook", "callback", "subscription"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+List webhook subscriptions in your credential scope. ACCOUNT lists contain only ACTIVE subscriptions; USER and PLATFORM lists can also contain INACTIVE subscriptions.
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the account bound to your credential. Events `1` through `5` are allowed; event `6` is rejected.
+
+    You may omit `X-ISPB` and `X-Account-Number`. If you send them, send both with the bound account values and include them in the signature.
+
+    If you provide `account_number` in the body, it must match the bound account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Use events `1` through `5`. For transaction events (`1` through `4`), provide `account_number` in the body, preserving leading zeros.
+
+    That number is required for validation but does not create an account-specific subscription. For event `5`, omit it or send an empty string.
+
+    Omit `X-ISPB` and `X-Account-Number`, including empty headers. For a list without an event filter, you may omit `account_number`.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    Use event `6` (MASTER_ACCOUNT_KYB). Omit `account_number` or send an empty string.
+
+    Omit `X-ISPB` and `X-Account-Number`, including empty headers. When listing, you may also omit the event filter or send `0`.
+  </Tab>
+</Tabs>
+
+Sign the exact body you send. See [Sign requests](/environments-and-credentials#sign-requests).
+
+## Choose the event filter
+
+Send an empty JSON object for no event filter. Omitting `event_type` or sending `0` has the same effect.
+
+For USER transaction filters, the body still requires `account_number`. It does not narrow the returned subscriptions to that account.
+
+ACCOUNT results contain ACTIVE subscriptions only. To check an INACTIVE ACCOUNT subscription, use [Get event subscription](/api-reference/webhooks/get-event-subscription).
+
+The response contains `webhooks` without pagination metadata or request pagination controls. `subscription_id` in this request does not filter the list.
+
+<Warning>
+  The list returns at most 20 matching subscriptions. This endpoint does not expose a next-page selector or total count, so it cannot prove a complete inventory.
+</Warning>
+
+## Use the returned IDs
+
+Request event filters are numeric; returned event names are strings. Use `webhook_id` when you query, update or deactivate a subscription.
+
+The returned `account_number`, `subscription_id` and `suspend_reason` are empty compatibility fields. They do not establish account scope or a suspension reason.
+
+## Read the result
+
+All JSON business results return HTTP 200. Read `code` before you use `data`; invalid JSON returns HTTP 400 with plain text.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `0` UNSPECIFIED | Status unavailable | No activation evidence | Query the subscription |
+| `1` ACTIVE | Subscription enabled | Configuration is active | Verify received callbacks |
+| `2` INACTIVE | Subscription disabled | Configuration is inactive | Update to reactivate |
+
+ACTIVE does not prove callback delivery or payment completion. See [Webhook handling](/api-reference/webhooks/overview).
+
+## Try it in the Playground
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner scope="owner" method="POST" path="/v3/webhooks/list" body={{}} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Get event subscription" icon="magnifying-glass" href="/api-reference/webhooks/get-event-subscription">
+    Check the stored configuration.
+  </Card>
+  <Card title="Create event subscription" icon="plus" href="/api-reference/webhooks/create-event-subscription">
+    Register a callback receiver.
+  </Card>
+</CardGroup>

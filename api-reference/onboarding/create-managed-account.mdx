@@ -1,0 +1,184 @@
+---
+title: "Create managed account"
+sidebarTitle: "Create account"
+description: "Create an MOR, VA or PA account with USER credentials. Returns the account reference, current status and a hosted verification URL when available."
+openapi: "openapi/en.json POST /v3/onboarding/managed_accounts/create"
+keywords: ["/v3/onboarding/managed_accounts/create", "managed account", "MOR", "VA", "PA"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Creates an MOR, VA or PA account under the owning USER. PA always requires a parent account in `linked_account`, regardless of the compliance mode.
+
+| Credentials | Idempotency | Result |
+| --- | --- | --- |
+| USER | Keep `reference_id` | Current account status |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    <Warning>ACCOUNT credentials cannot create managed accounts. Use the credential of the USER that owns the parent MA.</Warning>
+  </Tab>
+  <Tab title="USER" icon="user">
+    Use the owning USER's AK/SK without `X-ISPB` or `X-Account-Number`. Select a PA parent in the request body, not in headers.
+
+    The USER must have managed-account creation enabled and exactly one valid MA whose status is ACTIVE. The MA must have a matching ACTIVE bank account.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use the owning USER's credential.</Warning>
+  </Tab>
+</Tabs>
+
+Sign the exact JSON body you send. See [Sign requests](/environments-and-credentials#sign-requests) for required headers and IP allowlist rules.
+
+## Choose an account model
+
+<View title="MOR">
+
+### MOR rules
+
+MOR reuses the parent MA's approved compliance information. The owning USER determines that MA.
+
+The MA needs compliance whose status is APPROVED or FORCE_APPROVED, valid identity documents and reusable approval evidence.
+
+Omit `compliance_mode`, `compliance_payload`, `provider_session_info`, `return_url` and `linked_account`. MOR rejects nonzero compliance modes, compliance or session objects, nonblank return URLs and any linked-account object.
+
+The response has an empty `verification_url`. That does not mean activation is complete; read the account status.
+
+</View>
+
+<View title="VA">
+
+### VA rules
+
+VA submits its own applicant verification data. The owning USER determines the parent MA; do not send `linked_account`.
+
+Choose HOSTED_LINK, API_BODY or PROVIDER_SESSION. Production VA accepts CNPJ applicants. Sandbox also accepts CPF; this broader policy does not establish production eligibility.
+
+For a new VA, the account-opening fee is collected from the parent MA after the verification session is created. A fee failure stops account creation.
+
+</View>
+
+<View title="PA">
+
+### PA rules
+
+PA submits its own applicant verification data. Choose HOSTED_LINK, API_BODY or PROVIDER_SESSION.
+
+Send `linked_account` with both `ispb` and `account_number` in every mode. Neither field can be blank.
+
+Select the owning USER's ACTIVE MA or an ACTIVE VA directly under that MA. MOR and PA cannot be parent accounts.
+
+The selected parent and owning MA must have matching ACTIVE bank accounts. The selected parent's bank account must not be undergoing closure.
+
+For a new PA, the account-opening fee is collected from that direct parent after the verification session is created.
+
+</View>
+
+## Choose how to submit verification
+
+For VA and PA, basic applicant details belong in `compliance_payload` in all three modes. Do not send compliance data for MOR.
+
+| Mode | What you submit |
+| --- | --- |
+| HOSTED_LINK (`1`) | Applicant details and `return_url` |
+| API_BODY (`2`) | Applicant details and detailed verification data |
+| PROVIDER_SESSION (`3`) | Applicant details and existing verification IDs |
+
+With HOSTED_LINK, `return_url` is a top-level field and cannot be blank. Use the returned `verification_url` to complete the hosted submission.
+
+With API_BODY, CPF requires `user_data`; CNPJ requires `business_data`. Required personal fields must be nonblank, and company data requires a nonblank trade name.
+
+Follow the applicable verification template for additional answers, dates and file content. Passing initial field validation does not mean the verification is approved.
+
+With PROVIDER_SESSION, send a nonblank `provider_session_info.provider_session_id`. A profile or case ID alone is insufficient. These identifiers are ignored in the other modes.
+
+Only API_BODY accepts a nonempty `client_reference_data` array. Keep it inside `compliance_payload`, not at the top level.
+
+## Account-opening fees
+
+Opening MOR, VA or PA includes a configured fee in BRL. The parent MA pays for MOR and VA; the selected direct parent pays for PA.
+
+The payer needs sufficient available funds and an ACTIVE bank account with no closure in progress. A matching retry reuses an already confirmed fee payment.
+
+When `code` is `4001999`, fund the payer account and retry with the same `reference_id` and original body.
+
+`4004004` with message `Account creation fee configuration was not found. Please contact support.` means that the required account-creation fee configuration was not found. Contact support; retrying the same request does not resolve it.
+
+MOR can reserve the opening request before its fee is confirmed. Even an error with `data` equal to `null` does not prove that no request exists.
+
+## Read the result
+
+Every JSON business result uses HTTP `200`. When `code` is `200`, read `data.status`; acceptance alone does not prove activation.
+
+| `data.status` | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `0` UNSPECIFIED | No mapped status | No activation evidence | Query the account |
+| `1` PENDING | Opening is pending | Request recorded | Complete verification or wait |
+| `2` ACTIVE | Account active | Activation recorded | Query account details |
+| `3` FROZEN | Account frozen | Freeze recorded | Contact support |
+| `4` CLOSED | Account closed | Closure recorded | Do not use it |
+| `5` REJECTED | Opening rejected | Rejection recorded | Review the rejection |
+| `6` EXPIRED | Opening expired | Expiration recorded | Review before a new request |
+
+This endpoint does not return a separate account status for pending hosted submission. That state remains distinct from the account's PENDING status.
+
+Save `data.reference_id` and [query the account](/api-reference/onboarding/get-managed-account) to follow opening progress. A blank `verification_url` never proves activation.
+
+## Retries and duplicates
+
+For VA and PA, business code `504` means the compliance submission status is uncertain and no account-opening fee was charged. Retry with the same `reference_id` and unchanged request body.
+
+Business code `400` with this exact `message` identifies a rejected compliance submission: `Compliance submission was rejected. The account creation fee was not charged. Correct the request and retry with a new reference_id.` Correct the submission data and retry with a new `reference_id`; no account-opening fee was charged.
+
+The new-reference rule applies only to that compliance-submission rejection message, not to every code `400` validation error.
+
+<AccordionGroup>
+  <Accordion title="The result is unknown" icon="clock-rotate-left">
+    Query the account using your original `reference_id`. If you retry the creation request, keep the same USER, model, parent and original body.
+
+    Do not generate a new reference because a response was lost. Account creation includes fee handling, so a timeout is not evidence that nothing happened.
+  </Accordion>
+  <Accordion title="Required fields or permissions failed" icon="list-check">
+    For PA, code `4000` with `Field linked_account is required` means the parent object is missing or incomplete. Check both fields.
+
+    Code `4004003` means permission was denied. Check the credential type, managed-account feature and parent ownership before retrying.
+
+    Do not use creation retries to update an existing account. Use a new reference only for a genuinely new opening request.
+  </Accordion>
+  <Accordion title="Signing failed" icon="signature">
+    Sign each attempt with new `X-Nonce` and `X-Timestamp` headers. A nonce is consumed even when signature validation fails.
+
+    Keep the business `reference_id` unchanged. See [authentication errors](/api-reference/error-catalog#authentication-errors).
+  </Accordion>
+</AccordionGroup>
+
+For an unresolved error, give support the response `code`, `message` and `xxx-log-id` header. Do not include your SK.
+
+## Try it in the Playground
+
+The sample creates an MOR request in Sandbox. Use your Sandbox USER credential and your own reference, trade name and notification email.
+
+The signer calculates the hash and signature from the body it shows. Changing the body requires a new signature.
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner scope="user" method="POST" path="/v3/onboarding/managed_accounts/create" body={{ reference_id: "mor-example-001", model: 1, trading_name: "Empresa Exemplo", notification_email: "finance@example.test" }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Query managed account" icon="magnifying-glass" href="/api-reference/onboarding/get-managed-account">
+    Follow the status using the reference you saved.
+  </Card>
+  <Card title="List managed accounts" icon="list" href="/api-reference/onboarding/list-managed-accounts">
+    Find accounts owned by your USER.
+  </Card>
+  <Card title="Verification callbacks" icon="bell" href="/api-reference/onboarding/kyb-callbacks">
+    Receive verification status updates.
+  </Card>
+  <Card title="Account models" icon="sitemap" href="/account-models">
+    Compare MOR, VA and PA.
+  </Card>
+</CardGroup>

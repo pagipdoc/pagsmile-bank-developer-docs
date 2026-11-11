@@ -1,0 +1,92 @@
+---
+title: "Get managed account details"
+sidebarTitle: "Get details"
+description: "Look up a managed account by reference ID or bank account details. Returns account and compliance statuses, holder information and bank account details."
+openapi: "openapi/en.json POST /v3/onboarding/managed_accounts/detail"
+keywords: ["/v3/onboarding/managed_accounts/detail", "managed account", "account opening", "compliance status"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Returns details of a managed account owned by your USER. A successful query does not mean account opening or compliance approval is complete.
+
+| Credentials | Scope | Result |
+| --- | --- | --- |
+| USER | Owned managed account | Synchronous query |
+
+## Before you call
+
+<Tabs>
+  <Tab title="USER" icon="user">
+    Use your USER credential without `X-ISPB` or `X-Account-Number`, even as empty headers. Select the managed account in the request body.
+
+    Follow [Sign requests](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="ACCOUNT" icon="building-columns">
+    <Warning>ACCOUNT credentials cannot call this endpoint. Use the owning USER's credential.</Warning>
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use the owning USER's credential.</Warning>
+  </Tab>
+</Tabs>
+
+Your USER must have exactly one ACTIVE master account with matching ACTIVE bank account details. Otherwise, the query returns `4004003` (Permission denied).
+
+MOR and VA accounts must belong directly to that master account. A PA must have that master account or an ACTIVE VA beneath it as its direct parent. The parent's bank account must also be ACTIVE and match its account details.
+
+## Choose a lookup selector
+
+Send either a non-empty `reference_id` from account creation or an `account` object containing both bank account identifiers. Do not send both selectors.
+
+The API trims leading and trailing whitespace from the reference ID and both account identifiers. A reference ID does not need UUID format. Whitespace-only identifiers are empty and fail validation.
+
+An invalid selector returns `400`. A missing managed account or mismatched bank account lookup returns `4004004` (Not found).
+
+## Read the result
+
+Read `code` before `data`. All JSON business results use HTTP 200, including errors.
+
+Check the account's `status` separately from `compliance_status`.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `0` UNSPECIFIED | Status not mapped | No recognized account status | Check compliance status |
+| `1` PENDING | Opening in progress | Account not yet ACTIVE | Query again later |
+| `2` ACTIVE | Account activated | Account activation | Confirm bank account details |
+| `3` FROZEN | Account frozen | Account restriction | Review before new operations |
+| `4` CLOSED | Account closed | Account closure | Stop new operations |
+| `5` REJECTED | Opening rejected | Account not activated | Review the opening request |
+| `6` EXPIRED | Opening expired | Account not activated | Review the opening request |
+
+The contract defines account status `7` (PENDING_SUBMISSION), but this endpoint does not emit it. Awaiting information submission appears as `compliance_status` equal to `2` (PENDING_SUBMISSION).
+
+Record both statuses and `updated_at`. There is no separate compliance-status update timestamp. `activated_at` represents compliance approval, not proof that a payment completed.
+
+`updated_at` is not normalized: some records return Unix seconds and others milliseconds. Handle `0` as unavailable first. Treat any other value below `1000000000000` as seconds.
+
+The `account` object is `null` when complete bank account identifiers are unavailable. For a PA, `linked_account` identifies its direct parent, which can be a master account or VA. For MOR and VA, `linked_account` is `null`.
+
+## Try it in the Playground
+
+Sign the final request body with your USER credential. Use a new `X-Nonce` and `X-Timestamp` for each attempt.
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner scope="user" method="POST" path="/v3/onboarding/managed_accounts/detail" body={{ reference_id: "managed-account-001" }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="List managed accounts" icon="list" href="/api-reference/onboarding/list-managed-accounts">
+    Find accounts visible to your USER.
+  </Card>
+  <Card title="Create managed account" icon="building-columns" href="/api-reference/onboarding/create-managed-account">
+    Create a MOR, VA or PA account.
+  </Card>
+  <Card title="KYB callbacks" icon="bell" href="/api-reference/onboarding/kyb-callbacks">
+    Follow compliance notifications.
+  </Card>
+  <Card title="Account models" icon="sitemap" href="/account-models">
+    Compare MOR, VA and PA.
+  </Card>
+</CardGroup>

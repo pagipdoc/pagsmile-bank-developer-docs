@@ -1,0 +1,91 @@
+---
+title: "Check account closure eligibility"
+sidebarTitle: "Check eligibility"
+description: "Check current account closure eligibility without creating an operation. Returns blockers, waiting reasons and whether active Pix keys need deletion."
+openapi: "openapi/en.json POST /v3/bank_account/close/precheck"
+keywords: ["/v3/bank_account/close/precheck", "account closure", "eligibility", "closure progress"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Checks whether the target account can close now, without changing the account or deleting Pix keys. Passing this check does not confirm later closure.
+
+| Credentials | Idempotency | Result |
+| --- | --- | --- |
+| ACCOUNT, USER | Read-only | Current eligibility |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the credential of the target account. The request's `account_number` must match the account authorized by your credential.
+
+    Account-target headers are optional. If you send them, send both and match the credential's ISPB and account number.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send `X-ISPB` and `X-Account-Number` for an account owned by your USER. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use an authorized ACCOUNT or USER credential.</Warning>
+  </Tab>
+</Tabs>
+
+The body selects no separate ISPB. Your credential and account-target headers determine it; `account_number` must match that account.
+
+New merchant closures support managed MOR, VA and PA accounts whose bank account status is `1` (ACTIVE), not master accounts (`MA_MOR`).
+
+## What prevents closure
+
+Resolve the returned reasons before you submit a closure request. Eligibility checks cover these conditions:
+
+| Condition | Reason codes |
+| --- | --- |
+| Remaining or frozen funds | `NON_ZERO_BALANCE`, `FROZEN_BALANCE` |
+| Active Pix keys without consent | `ACTIVE_PIX_KEYS` |
+| Open child accounts | `OPEN_CHILD_ACCOUNTS` |
+| Open MED or infraction tasks | `OPEN_MED_CASE`, `OPEN_INFRACTION` |
+| Unpaid fee bills | `UNPAID_BILL` |
+| Payment processing | `PENDING_PAYMENT` |
+| Refund processing | `PENDING_REFUND` |
+| Dispute processing | `PENDING_DISPUTE` |
+| MED refund processing | `PENDING_MED_REFUND` |
+| Account opening processing | `PENDING_CHILD_CREATION` |
+| Fee collection processing | `PENDING_BILLING` |
+| Unconfirmed fee payment | `BILLING_RESULT_UNKNOWN` |
+
+Total balance, available funds and frozen funds must all be zero. A failed or unconfirmed check does not establish a zero balance.
+
+An unsupported account, invalid account status or running closure returns a blocking reason before the remaining checks run. Authentication can reject access first.
+
+## Active Pix keys
+
+With `auto_delete_active_pix_keys` set to `false`, active keys block eligibility. Set it to `true` to evaluate eligibility assuming authorized deletion during closure.
+
+The precheck neither deletes keys nor saves that authorization. Send the option again in [Close account](/api-reference/accounts/close-account/close-account).
+
+## Read the result
+
+When `code` is `200`, read `data.eligibility.eligible`. A result of `false` is an eligibility result, not a failed HTTP request.
+
+Use each reason's `kind` to distinguish BLOCKING, WAITING, RETRYABLE and MANUAL conditions. An unavailable check requires another check or operations review.
+
+A reason's `count` can be an indicator rather than a record total. Zero does not mean approval; the response leaves `references` as `null`.
+
+An invalid or mismatched `account_number` returns business code `4004003`. All JSON business results use HTTP 200; malformed JSON returns HTTP 400 as text.
+
+## Try it in the Playground
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/bank_account/close/precheck" body={{ account_number: "00012345", auto_delete_active_pix_keys: false }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Close account" icon="lock" href="/api-reference/accounts/close-account/close-account">
+    Submit the closure request.
+  </Card>
+  <Card title="Closure workflow" icon="diagram-project" href="/api-reference/accounts/close-account/overview">
+    Understand eligibility and completion.
+  </Card>
+</CardGroup>

@@ -1,0 +1,95 @@
+---
+title: "Listar contas gerenciadas"
+sidebarTitle: "Listar contas"
+description: "Encontre contas gerenciadas visíveis para seu USER com filtros por modelo, status e CPF/CNPJ. Retorna dados das contas e totais anteriores ao filtro de visibilidade."
+openapi: "openapi/pt-br.json POST /v3/onboarding/managed_accounts/list"
+keywords: ["/v3/onboarding/managed_accounts/list", "contas gerenciadas", "paginação", "filtro por CPF/CNPJ"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Lista as contas gerenciadas visíveis para seu USER. Uma página vazia não comprova que não há contas correspondentes nas próximas páginas.
+
+| Credenciais | Escopo | Resultado |
+| --- | --- | --- |
+| USER | Contas gerenciadas visíveis | Consulta paginada |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="USER" icon="user">
+    Use sua credencial USER. Não envie `X-ISPB` nem `X-Account-Number`, nem mesmo vazios.
+
+    Siga as orientações de [Assinar requisições](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="ACCOUNT" icon="building-columns">
+    <Warning>Credenciais ACCOUNT não podem chamar este endpoint. Use a credencial do USER proprietário.</Warning>
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use a credencial do USER proprietário.</Warning>
+  </Tab>
+</Tabs>
+
+Seu USER deve ter exatamente uma conta master ACTIVE com dados bancários correspondentes a uma conta bancária ACTIVE. Caso contrário, a consulta retorna `4004003` (Permission denied).
+
+As contas MOR e VA devem pertencer diretamente a essa conta master. A conta superior direta de uma PA deve ser essa master ou uma VA ACTIVE vinculada a ela. A conta bancária da conta superior também deve estar ACTIVE e corresponder aos seus dados bancários.
+
+## Escolher filtros
+
+Todos os campos da requisição são opcionais. Omita `model` ou `status` para não aplicar o respectivo filtro.
+
+O filtro de modelo aceita `1` (MOR), `2` (VA) ou `3` (PA). O filtro de status aceita valores de `1` (PENDING) a `6` (EXPIRED).
+
+O modelo `0`, quando informado, é inválido. Os status `0` e `7` são filtros inválidos, embora estejam definidos no contrato da resposta. Filtros inválidos retornam `4001`.
+
+A API remove os espaços nas extremidades de `tax_id` e converte as letras em maiúsculas. Um valor vazio ou composto apenas por espaços não aplica filtro por CPF/CNPJ.
+A comparação com o documento de conformidade é exata, sem diferenciar maiúsculas de minúsculas e ignorando espaços nas extremidades. A pontuação não é removida.
+
+## Paginar sem perder contas
+
+As páginas começam em `1`. Números de página omitidos ou inferiores a `1` usam a página `1`.
+
+O tamanho padrão da página é `10`. Tamanhos omitidos ou inferiores a `1` usam `10`; tamanhos acima de `100` são reduzidos para `100`.
+
+As contas aparecem em ordem inversa de inserção, com os registros recém-criados primeiro. A paginação usa deslocamento, sem snapshot estável. Cada requisição lê os dados atuais.
+
+Os filtros por modelo e status são aplicados antes da paginação. Os filtros por visibilidade e CPF/CNPJ são aplicados depois, na página selecionada.
+
+Por isso, uma página pode conter menos contas que `page_size`, ou nenhuma. Não interrompa a consulta porque `managed_accounts` está vazio. Continue conforme `data.page.total_pages`.
+
+Os totais representam os registros anteriores aos filtros por visibilidade e CPF/CNPJ. Quando você omite `model`, a contagem pode incluir sua conta master, que não aparece em `managed_accounts`.
+
+Mantenha os mesmos filtros ao solicitar a próxima página. Esses totais não representam a quantidade de contas gerenciadas retornadas em todas as páginas.
+
+Novas contas ou alterações que afetem os filtros entre requisições podem mover registros entre páginas. Você pode receber contas repetidas ou deixar de receber algumas, mesmo com os mesmos filtros.
+
+Elimine duplicatas das contas coletadas e repita a conciliação quando os dados mudarem.
+
+## Interpretar o resultado
+
+Leia `code` antes de `data`. Todos os resultados de negócio em JSON usam HTTP 200, inclusive os erros.
+
+Cada conta retornada tem status de conta e de conformidade separados. O status de conta `7` (PENDING_SUBMISSION) está definido, mas não é retornado. Verifique `compliance_status` igual a `2` para identificar a espera pelo envio de dados.
+
+A ausência de dados de conformidade pode deixar os campos do titular vazios. Para MOR e VA, `linked_account` é `null`; para PA, identifica a conta superior direta, master ou VA.
+
+Use [Consultar detalhes da conta gerenciada](/pt-br/api-reference/onboarding/get-managed-account#interpretar-o-resultado) para interpretar o status da conta antes de iniciar novas operações.
+
+## Testar no Playground
+
+Assine o corpo final da requisição com sua credencial USER. Use novos `X-Nonce` e `X-Timestamp` em cada tentativa.
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner scope="user" lang="pt" method="POST" path="/v3/onboarding/managed_accounts/list" body={{ page: { page: 1, page_size: 20 } }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar detalhes da conta gerenciada" icon="magnifying-glass" href="/pt-br/api-reference/onboarding/get-managed-account">
+    Consulte uma conta por referência ou dados bancários.
+  </Card>
+  <Card title="Criar conta gerenciada" icon="building-columns" href="/pt-br/api-reference/onboarding/create-managed-account">
+    Crie uma conta MOR, VA ou PA.
+  </Card>
+</CardGroup>

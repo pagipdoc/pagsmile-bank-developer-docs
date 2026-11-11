@@ -1,0 +1,107 @@
+---
+title: "Incoming Pix payment callbacks"
+sidebarTitle: "Callbacks"
+description: "Receive incoming Pix payment notifications for your account. Verify each signed callback, deduplicate deliveries and match the receipt to a transaction."
+openapi: "openapi/en.json webhook payinTransactionEvent"
+keywords: ["incoming Pix", "pay-in webhook", "PIX_PAYMENT_IN", "delivery_id"]
+---
+
+import { WebhookVerifier } from "/snippets/webhook-verifier.jsx";
+
+Use incoming Pix callbacks to confirm a payment received by your account. Verify the signature and match the payee, amount and transaction identifiers before updating an order.
+
+## Delivery scope
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    ACCOUNT callbacks describe the transaction without `delivery_id`. Deduplicate within the receiving account by subscribed event type and `txn_id`.
+  </Tab>
+  <Tab title="USER" icon="user">
+    USER callbacks add `delivery_id`. It stays unchanged across retries of the same delivery; use it to deduplicate received deliveries.
+
+    Before sending, Pagsmile checks account access and the subscription again. Revoked access or changes to the subscription or signing credential can cancel delivery.
+  </Tab>
+</Tabs>
+
+## Identify an incoming payment
+
+For an incoming Pix payment, the event is `PIX_PAYMENT_IN`. The transaction payload uses `txn_type` equal to `TXN_TYPE_PAYMENT` and `payment_method` equal to `PAYMENT_METHOD_PIX`. `flow_type` can be `FLOW_TYPE_IN` or `FLOW_TYPE_TRANSFER`. In the Sandbox, Pix payments between two accounts with the same ISPB arrived with `FLOW_TYPE_TRANSFER`.
+
+Use your subscription configuration to identify the event. The payload has no top-level `event_type`; do not require `flow_direction` to identify this callback.
+
+A callback whose `txn_status` is `TXN_STATUS_COMPLETED` reports a completed payment. Confirm that `payee` is your receiving account before marking the order paid.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `TXN_STATUS_COMPLETED` | Payment completed | Receipt for matching payee | Match the transaction |
+| `TXN_STATUS_PENDING` | Pending | No confirmed receipt | Query transaction details |
+| `TXN_STATUS_PROCESSING` | Payment being processed | No confirmed receipt | Query transaction details |
+| `TXN_STATUS_FAILED` | Payment failed | Failure, not receipt | Query transaction details |
+| `TXN_STATUS_CANCELLED` | Payment cancelled | Cancellation, not receipt | Query transaction details |
+
+For any other status, do not mark the order paid. Do not expect a callback at every intermediate stage based on this enum.
+
+The callback reports the transaction, not the account's current available balance. Use the [account statement](/api-reference/accounts/get-account-statement) to reconcile the receipt.
+
+## Read the payload
+
+Callbacks contain transaction fields directly, without the REST `code`, `message`, `data` and `time` envelope.
+
+Enum values use their names as strings. Timestamps also use strings containing Unix milliseconds. Amounts use decimal strings in BRL.
+
+Unset fields and default values are omitted. An absent field means no data was provided for that event; do not turn it into payment failure.
+
+Document numbers can be masked. Fee fields are omitted from the callback; query [transaction details](/api-reference/payin/get-transaction-details) for the credit-side fee.
+
+For incoming payment callbacks, `merchant_order_id` is replaced with the associated QR-code order reference in `request_merchant_order_id`. Both can be omitted when that reference is unavailable. Neither field identifies an individual payment; use `txn_id`.
+
+To query the payment, pass callback `txn_id` as request `txn_id`, or callback `settlement_txn_id` as request `settlement_id`.
+
+## Verify and acknowledge
+
+Preserve the raw request body. Check the six signature headers, timestamp, SHA-256 body hash and HMAC-SHA256 signature before processing the transaction.
+
+Use the SK associated with `X-Client-ID` and compare signatures in constant time. After a valid signature, atomically record AK plus nonce to reject replays.
+
+ACCOUNT signatures use the URL-decoded callback path. USER signatures preserve URL escaping. See [Verify callbacks](/environments-and-credentials#verify-callbacks) for the complete protocol.
+
+<Accordion title="Verify a callback you received" icon="shield-check">
+  <WebhookVerifier />
+</Accordion>
+
+Persist the verified callback or enqueue it durably, then return HTTP `200`. Process the order asynchronously after acknowledgement.
+
+The sender requires HTTP `200`; another successful HTTP status does not acknowledge receipt. Return HTTP `200` for an already-recorded valid duplicate as well.
+
+A timeout or response-reading error can trigger another delivery, even after HTTP `200`. Non-200 responses follow bounded retry rules; some stop retries immediately.
+
+See [transaction delivery and retries](/api-reference/webhooks/overview#transaction-delivery-and-retries) for the stopping responses and retry limits.
+
+## Duplicates and missing callbacks
+
+Keep delivery deduplication separate from payment processing. If ACCOUNT and USER subscriptions report the same receipt, your order update must still run only once.
+
+Match the receiving account and `txn_id` before applying the receipt. Do not use the nonce as the payment identifier.
+
+Do not assume callbacks arrive in order. If local state conflicts with a callback, query the transaction instead of overwriting a newer result.
+
+If a callback is missing, check the subscription and your endpoint's responses, then query [transaction details](/api-reference/payin/get-transaction-details) and the matching statement entry. Do not depend on a manual redelivery to confirm receipt.
+
+Contact support to investigate whether a manual resend is available for the affected delivery. A manual resend does not replace transaction or statement queries.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Transaction details" icon="magnifying-glass" href="/api-reference/payin/get-transaction-details">
+    Confirm the receipt using its identifiers.
+  </Card>
+  <Card title="Event subscriptions" icon="bell" href="/api-reference/webhooks/create-event-subscription">
+    Configure your callback destination.
+  </Card>
+  <Card title="Transaction callbacks" icon="arrows-rotate" href="/api-reference/webhooks/transaction-callbacks">
+    Compare ACCOUNT and USER transaction delivery.
+  </Card>
+  <Card title="Reconciliation" icon="scale-balanced" href="/api-reference/reconciliation">
+    Match callbacks to account entries.
+  </Card>
+</CardGroup>

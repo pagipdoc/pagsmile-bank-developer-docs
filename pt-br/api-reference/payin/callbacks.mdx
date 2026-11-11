@@ -1,0 +1,107 @@
+---
+title: "Callbacks de recebimentos Pix"
+sidebarTitle: "Callbacks"
+description: "Receba notificações de pagamentos Pix na sua conta. Verifique a assinatura de cada callback, elimine duplicidades e confira a transação recebida."
+openapi: "openapi/pt-br.json webhook payinTransactionEvent"
+keywords: ["recebimento Pix", "webhook de recebimento", "PIX_PAYMENT_IN", "delivery_id"]
+---
+
+import { WebhookVerifier } from "/snippets/webhook-verifier.jsx";
+
+Use callbacks de recebimento Pix para confirmar um pagamento recebido na sua conta. Verifique a assinatura, o recebedor, o montante e os identificadores antes de atualizar um pedido.
+
+## Escopo de entrega
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Callbacks ACCOUNT descrevem a transação sem `delivery_id`. Na conta recebedora, elimine duplicidades pelo tipo de evento da assinatura de eventos e pelo `txn_id`.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Callbacks USER incluem `delivery_id`. Ele não muda nas novas tentativas da mesma entrega; use-o para eliminar entregas duplicadas.
+
+    Antes de enviar, a Pagsmile verifica novamente o acesso à conta e a assinatura de eventos. A revogação do acesso pode cancelar a entrega. Alterações na assinatura de eventos ou na credencial de assinatura também podem cancelá-la.
+  </Tab>
+</Tabs>
+
+## Identificar um recebimento
+
+Para um recebimento Pix, o evento é `PIX_PAYMENT_IN`. O corpo da transação usa `txn_type` igual a `TXN_TYPE_PAYMENT` e `payment_method` igual a `PAYMENT_METHOD_PIX`. `flow_type` pode ser `FLOW_TYPE_IN` ou `FLOW_TYPE_TRANSFER`. No Sandbox, os Pix entre duas contas com o mesmo ISPB chegaram com `FLOW_TYPE_TRANSFER`.
+
+Use a configuração da assinatura de eventos para identificar o evento. O corpo não tem `event_type` no nível superior; não exija `flow_direction` para identificar este callback.
+
+Um callback cujo `txn_status` é `TXN_STATUS_COMPLETED` informa um pagamento concluído. Confira se `payee` é sua conta recebedora antes de marcar o pedido como pago.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `TXN_STATUS_COMPLETED` | Pagamento concluído | Recebimento pelo recebedor correspondente | Confira a transação |
+| `TXN_STATUS_PENDING` | Pendente | Não comprova recebimento | Consulte os detalhes |
+| `TXN_STATUS_PROCESSING` | Pagamento em processamento | Não comprova recebimento | Consulte os detalhes |
+| `TXN_STATUS_FAILED` | Pagamento falhou | Falha, não recebimento | Consulte os detalhes |
+| `TXN_STATUS_CANCELLED` | Pagamento cancelado | Cancelamento, não recebimento | Consulte os detalhes |
+
+Nos demais status, não marque o pedido como pago. Não espere um callback em cada etapa intermediária com base nessa lista de status.
+
+O callback informa a transação, não o saldo disponível atual da conta. Use o [extrato da conta](/pt-br/api-reference/accounts/get-account-statement) para conciliar o recebimento.
+
+## Interpretar o corpo do callback
+
+Callbacks contêm os campos da transação diretamente, sem o envelope REST com `code`, `message`, `data` e `time`.
+
+Os enums usam seus nomes como strings. Os timestamps também são strings com milissegundos Unix. Os montantes são strings decimais em BRL.
+
+Campos não preenchidos e valores padrão são omitidos. Um campo ausente indica que não há informação para aquele evento; não o interprete como falha no pagamento.
+
+Os documentos podem estar mascarados. Os campos de tarifa são omitidos do callback; consulte os [detalhes da transação](/pt-br/api-reference/payin/get-transaction-details) para obter a tarifa do recebedor.
+
+Nos callbacks de recebimento, `merchant_order_id` é substituído pela referência do pedido do QR code associado em `request_merchant_order_id`. Ambos podem ser omitidos quando essa referência não está disponível. Nenhum dos campos identifica um pagamento individual; use `txn_id`.
+
+Para consultar o pagamento, envie o `txn_id` do callback como `txn_id` da requisição, ou o `settlement_txn_id` do callback como `settlement_id` da requisição.
+
+## Verificar e confirmar o recebimento
+
+Preserve o corpo bruto da requisição. Verifique os seis cabeçalhos de assinatura, o timestamp, o hash SHA-256 do corpo e a assinatura HMAC-SHA256 antes de processar a transação.
+
+Use a SK associada a `X-Client-ID` e compare as assinaturas em tempo constante. Após validar a assinatura, registre AK e nonce de forma atômica para rejeitar replays.
+
+Assinaturas ACCOUNT usam o caminho do callback com os escapes de URL decodificados. Assinaturas USER preservam esses escapes. Veja o protocolo completo em [Verificar callbacks](/pt-br/environments-and-credentials#verificar-callbacks).
+
+<Accordion title="Verificar um callback recebido" icon="shield-check">
+  <WebhookVerifier lang="pt" />
+</Accordion>
+
+Grave o callback verificado ou coloque-o em uma fila durável e retorne HTTP `200`. Processe o pedido de forma assíncrona após essa confirmação.
+
+O envio exige HTTP `200`; outro status HTTP de sucesso não confirma o recebimento. Retorne HTTP `200` também para uma duplicidade válida já registrada.
+
+Um timeout ou erro de leitura da resposta pode gerar outra entrega, mesmo após HTTP `200`. Respostas diferentes de `200` seguem regras de tentativas limitadas; algumas interrompem as tentativas imediatamente.
+
+Veja as [regras de entrega e novas tentativas](/pt-br/api-reference/webhooks/overview#entrega-de-transações-e-novas-tentativas) para os status HTTP que interrompem as tentativas e seus limites.
+
+## Duplicidades e callbacks ausentes
+
+Separe a deduplicação de entregas do processamento do pagamento. Se assinaturas de eventos ACCOUNT e USER informarem o mesmo recebimento, atualize o pedido apenas uma vez.
+
+Confira a conta recebedora e o `txn_id` antes de aplicar o recebimento. Não use o nonce como identificador do pagamento.
+
+Não presuma que os callbacks chegam em ordem. Se o estado local divergir do callback, consulte a transação em vez de sobrescrever um resultado mais recente.
+
+Se faltar um callback, confira a assinatura de eventos e as respostas do seu endpoint. Depois, consulte os [detalhes da transação](/pt-br/api-reference/payin/get-transaction-details) e o lançamento correspondente no extrato. Não dependa de reenvio manual para confirmar o recebimento.
+
+Peça ao suporte que verifique se há reenvio manual disponível para a entrega afetada. O reenvio manual não substitui a consulta à transação ou ao extrato.
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Detalhes da transação" icon="magnifying-glass" href="/pt-br/api-reference/payin/get-transaction-details">
+    Confirme o recebimento pelos identificadores.
+  </Card>
+  <Card title="Assinaturas de eventos" icon="bell" href="/pt-br/api-reference/webhooks/create-event-subscription">
+    Configure o destino do callback.
+  </Card>
+  <Card title="Callbacks de transações" icon="arrows-rotate" href="/pt-br/api-reference/webhooks/transaction-callbacks">
+    Compare a entrega de transações ACCOUNT e USER.
+  </Card>
+  <Card title="Conciliação" icon="scale-balanced" href="/pt-br/api-reference/reconciliation">
+    Relacione callbacks aos lançamentos da conta.
+  </Card>
+</CardGroup>

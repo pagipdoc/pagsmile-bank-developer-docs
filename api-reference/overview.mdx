@@ -1,0 +1,202 @@
+---
+title: "API reference overview"
+sidebarTitle: "Overview"
+description: "Find the Pagsmile Open API endpoints for accounts, Pix, TED, refunds, MED and webhooks. Read the response contract and choose the right credentials."
+keywords: ["API reference", "response envelope", "credentials", "pagination", "Pix"]
+---
+
+Use the Pagsmile Open API to manage accounts, receive Pix and send payments. Read `code` before `data`: HTTP `200` alone does not prove a payment or refund completed.
+
+## Request and response contract
+
+Call every v3 endpoint with `POST` and a JSON body. Send `Content-Type: application/json`, including when the endpoint requires an empty object, such as `{}` for `/v3/bank_account`.
+
+Send a descriptive `User-Agent`, such as `your-app/1.0`. The network edge can reject a missing or default library value with HTTP 403 before the API reads the request.
+
+Choose your base URL and sign the request as described in [Environments and credentials](/environments-and-credentials#sign-requests).
+
+| Environment | Base URL |
+| --- | --- |
+| Sandbox | `https://ebanking-openapi-sandbox.pagsmile.com.br` |
+| Production | `https://ebanking-openapi.pagsmile.com.br` |
+
+JSON results use the envelope `{code, message, data, time}`.
+
+| Field | How to read it |
+| --- | --- |
+| `code` | Integer business result. `200` means the call succeeded; other codes describe errors. |
+| `message` | Result message. Use `code` to select your error-handling branch. |
+| `data` | Endpoint-specific result. Read the endpoint's schema and status rules before acting. |
+| `time` | Server timestamp as an integer in Unix milliseconds. |
+
+All JSON results return HTTP `200`, including validation, authentication, business and system errors. A business `code` of `400` or `500` is not the HTTP status.
+
+Unreadable bodies and invalid JSON return HTTP `400` with a `text/plain` body. Handle these transport errors separately from the JSON envelope.
+
+An unexpected server failure can return HTTP `500` with a `text/plain` body such as `system error`. Do not parse it as the JSON envelope. For a money-moving operation, query the original result before resubmitting.
+
+Save the response header `xxx-log-id` and include it when you contact support.
+
+## Before you call
+
+Choose credentials for the endpoint family. Account-target headers select an account only where the endpoint accepts them.
+
+| Endpoint family | Credentials | Account selection |
+| --- | --- | --- |
+| Managed-account onboarding | USER | Omit account-target headers. |
+| Accounts, Pix keys, pay-ins, payouts, refunds and MED | ACCOUNT or USER | Bound account or USER-owned target. |
+| Webhook subscriptions | ACCOUNT, USER or PLATFORM | Rules depend on the subscription scope. |
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    For account-scoped endpoints, use the account bound to your credential. You can omit `X-ISPB` and `X-Account-Number`. If you send them, send both and match the bound account.
+
+    Webhook subscriptions use the account scope. ACCOUNT credentials cannot call managed-account onboarding endpoints.
+  </Tab>
+  <Tab title="USER" icon="user">
+    For account-scoped endpoints, send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+
+    Omit account-target headers for managed-account onboarding and USER-scoped webhook subscriptions. A subscription may require `account_number` in the request body; follow its endpoint rules.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    PLATFORM credentials support platform-scoped webhook subscriptions. Omit account-target headers and check the allowed events in the [subscription reference](/api-reference/webhooks/create-event-subscription).
+
+    <Warning>PLATFORM credentials cannot call the account-scoped or managed-account onboarding endpoints listed here. Use ACCOUNT or USER as required by the endpoint.</Warning>
+  </Tab>
+</Tabs>
+
+The credential scope does not replace the endpoint's account, ownership or status checks. Read those prerequisites before submitting a request.
+
+## Amounts and timestamps
+
+Send monetary amounts as decimal strings in BRL, for example `"10.50"`, rather than JSON numbers. Follow each endpoint's rules for positive amounts, optional amounts and decimal precision.
+
+Numeric timestamps, such as `time`, `created_at` and `snapshot_timestamp`, use Unix milliseconds. Preserve them as integers and convert them to your display time zone when needed.
+
+Read duration and date fields separately. Do not treat an expiration duration as a Unix timestamp.
+
+## Pagination
+
+Pagination is endpoint-specific. Do not assume that every list endpoint accepts a page number or returns a total.
+
+| List | Pagination contract |
+| --- | --- |
+| [Managed accounts](/api-reference/onboarding/list-managed-accounts) | Send a `page` object with `page` and `page_size`. The response includes `data.page` pagination metadata. |
+| [Account statement](/api-reference/accounts/get-account-statement) | Send `page_size`. Continue with the returned `data.cursor` and preserve `data.snapshot_timestamp` in the next request. |
+
+Statement results use descending time order. Match the entry to your transaction; do not assume the first entry is the payment you want.
+
+For [MED cases](/api-reference/med/list-med-cases) and [infraction reports](/api-reference/med/list-infraction-reports), use the pagination fields documented on each endpoint page.
+
+## Endpoint map
+
+Each link below leads to the request schema, response schema and integration rules for that operation.
+
+### Onboarding
+
+| Endpoint | What it does |
+| --- | --- |
+| [Create managed account](/api-reference/onboarding/create-managed-account) | Create a MOR, VA or PA managed account. |
+| [Get managed account](/api-reference/onboarding/get-managed-account) | Retrieve a managed account. |
+| [List managed accounts](/api-reference/onboarding/list-managed-accounts) | List managed accounts in the USER scope. |
+
+Read the [onboarding overview](/api-reference/onboarding/overview) and [KYB callbacks](/api-reference/onboarding/kyb-callbacks) for the account-opening workflow.
+
+### Pix keys
+
+| Endpoint | What it does |
+| --- | --- |
+| [Create Pix key](/api-reference/pix-keys/create-pix-key) | Register a Pix key on an account. |
+| [Delete Pix key](/api-reference/pix-keys/delete-pix-key) | Remove a Pix key from an account. |
+
+See the [Pix keys overview](/api-reference/pix-keys/overview) for key formats and lifecycle rules.
+
+### Accounts and funds
+
+| Endpoint | What it does |
+| --- | --- |
+| [Get account balance](/api-reference/accounts/get-account-balance) | Retrieve the selected account and its balances. |
+| [Get account statement](/api-reference/accounts/get-account-statement) | Retrieve transaction entries for the selected account. |
+| [Check closure eligibility](/api-reference/accounts/close-account/check-eligibility) | Check whether the account can be closed. |
+| [Close account](/api-reference/accounts/close-account/close-account) | Submit an account-closure request. |
+| [Get closure progress](/api-reference/accounts/close-account/get-closure-progress) | Retrieve progress for an account-closure operation. |
+
+Use the same balance endpoint for the selected subaccount; it does not enumerate all subaccounts. See [Accounts overview](/api-reference/accounts/overview) and [Account closure](/api-reference/accounts/close-account/overview).
+
+### Pix pay-ins
+
+| Endpoint | What it does |
+| --- | --- |
+| [Generate dynamic QR code](/api-reference/payin/generate-dynamic-qr-code) | Generate a dynamic Pix QR code. |
+| [Generate static QR code](/api-reference/payin/generate-static-qr-code) | Generate a static Pix QR code. |
+| [Get QR code details](/api-reference/payin/get-qr-code-details) | Retrieve a QR code's details. |
+| [Get transaction details](/api-reference/payin/get-transaction-details) | Retrieve details of a Pix pay-in. |
+
+Follow the [pay-in workflow](/api-reference/payin/overview) and process [pay-in callbacks](/api-reference/payin/callbacks).
+
+### Payouts
+
+| Endpoint | What it does |
+| --- | --- |
+| [Initialize Pix key payment](/api-reference/payout/pix/initialize-pix-key-payment) | Prepare a payment to a Pix key. |
+| [Confirm Pix key payment](/api-reference/payout/pix/confirm-pix-key-payment) | Submit the prepared Pix key payment. |
+| [Initialize QR code payment](/api-reference/payout/pix/initialize-qr-code-payment) | Prepare a payment from a Pix QR code. |
+| [Confirm QR code payment](/api-reference/payout/pix/confirm-qr-code-payment) | Submit the prepared QR code payment. |
+| [Pay with bank account details](/api-reference/payout/pix/pay-with-bank-account-details) | Submit Pix using the payee's bank details. |
+| [Initiate TED payment](/api-reference/payout/ted/initiate-ted-payment) | Submit a TED payment. |
+| [Initiate internal transfer](/api-reference/payout/book-transfer/initiate-internal-transfer) | Submit an internal transfer. |
+| [Get payment status](/api-reference/payout/get-payment-status) | Check a submitted payment's status. |
+| [Get payment details](/api-reference/payout/get-payment-details) | Retrieve details of a submitted payment. |
+
+Compare payment methods in the [payout overview](/api-reference/payout/overview). See [Pix](/api-reference/payout/pix/overview), [TED](/api-reference/payout/ted/overview) and [internal transfers](/api-reference/payout/book-transfer/overview) for method-specific rules.
+
+A successful submission is not proof of completion. Check the result in the response or [Pix callback](/api-reference/payout/pix/callbacks) against the endpoint's final-status rules.
+
+### Pix refunds
+
+| Endpoint | What it does |
+| --- | --- |
+| [Initiate Pix refund](/api-reference/refunds/initiate-pix-refund) | Submit a refund for a Pix pay-in. |
+| [Get refund details](/api-reference/refunds/get-refund-details) | Retrieve details of a refund. |
+| [Get refund status](/api-reference/refunds/get-refund-status) | Check a refund's status. |
+
+Read the [refund rules](/api-reference/refunds/overview) and [refund callbacks](/api-reference/refunds/callbacks). Confirm the final outcome before treating a refund as completed.
+
+### Webhook subscriptions
+
+| Endpoint | What it does |
+| --- | --- |
+| [Create event subscription](/api-reference/webhooks/create-event-subscription) | Subscribe a callback URL to an event. |
+| [List event subscriptions](/api-reference/webhooks/list-event-subscriptions) | List subscriptions in the credential scope. |
+| [Get event subscription](/api-reference/webhooks/get-event-subscription) | Retrieve a subscription. |
+| [Update event subscription](/api-reference/webhooks/update-event-subscription) | Update a subscription. |
+| [Deactivate event subscription](/api-reference/webhooks/deactivate-event-subscription) | Request subscription deactivation. |
+
+See [Webhooks overview](/api-reference/webhooks/overview) and [transaction callbacks](/api-reference/webhooks/transaction-callbacks). [Verify callback signatures](/environments-and-credentials#verify-callbacks) before using their payloads.
+
+### MED and infraction reports
+
+| Endpoint | What it does |
+| --- | --- |
+| [Create MED case](/api-reference/med/create-med-case) | Submit a MED case. |
+| [Cancel MED case](/api-reference/med/cancel-med-case) | Request cancellation of a MED case. |
+| [List MED cases](/api-reference/med/list-med-cases) | List MED cases for the selected account. |
+| [Get MED case details](/api-reference/med/get-med-case-details) | Retrieve a MED case's details. |
+| [List infraction reports](/api-reference/med/list-infraction-reports) | List infraction reports for the selected account. |
+| [Get infraction report details](/api-reference/med/get-infraction-report-details) | Retrieve an infraction report's details. |
+
+Read the [MED overview](/api-reference/med/overview) before submitting or cancelling a case.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Environments and credentials" icon="signature" href="/environments-and-credentials">
+    Choose your environment, sign requests and verify callbacks.
+  </Card>
+  <Card title="Error catalog" icon="circle-exclamation" href="/api-reference/error-catalog">
+    Interpret business codes and authentication failures.
+  </Card>
+  <Card title="Reconciliation" icon="scale-balanced" href="/api-reference/reconciliation">
+    Match statements, transaction details and callbacks.
+  </Card>
+</CardGroup>

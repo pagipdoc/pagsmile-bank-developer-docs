@@ -1,0 +1,86 @@
+---
+title: "Listar assinaturas de eventos"
+sidebarTitle: "Listar assinaturas"
+description: "Liste assinaturas de callback no escopo da sua credencial, com filtro opcional por evento. Retorna os IDs, as URLs de callback e os status de ativação."
+openapi: "openapi/pt-br.json POST /v3/webhooks/list"
+keywords: ["/v3/webhooks/list", "webhook", "callback", "subscription"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Liste as assinaturas de webhook no escopo da sua credencial. As listas ACCOUNT contêm apenas assinaturas ACTIVE; as listas USER e PLATFORM também podem incluir INACTIVE.
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a conta vinculada à sua credencial. Os eventos de `1` a `5` são permitidos; o evento `6` é rejeitado.
+
+    Você pode omitir `X-ISPB` e `X-Account-Number`. Se enviar esses cabeçalhos, informe ambos com os dados da conta vinculada e inclua-os na assinatura.
+
+    Se informar `account_number` no corpo da requisição, use o número da conta vinculada.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Use os eventos de `1` a `5`. Para eventos de transações (`1` a `4`), informe `account_number` no corpo da requisição e preserve os zeros à esquerda.
+
+    Esse número é obrigatório na validação, mas não cria uma assinatura específica da conta. Para o evento `5`, omita-o ou envie uma string vazia.
+
+    Omita `X-ISPB` e `X-Account-Number`, inclusive cabeçalhos vazios. Na listagem sem filtro de evento, você pode omitir `account_number`.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    Use o evento `6` (MASTER_ACCOUNT_KYB). Omita `account_number` ou envie uma string vazia.
+
+    Omita `X-ISPB` e `X-Account-Number`, inclusive cabeçalhos vazios. Na listagem, você também pode omitir o filtro de evento ou enviar `0`.
+  </Tab>
+</Tabs>
+
+Assine o corpo exato que você envia. Veja [Assinar requisições](/pt-br/environments-and-credentials#assinar-requisições).
+
+## Escolher o filtro de evento
+
+Envie um objeto JSON vazio para não filtrar por evento. Omitir `event_type` ou enviar `0` tem o mesmo efeito.
+
+Nos filtros USER de transações, o corpo ainda exige `account_number`. Esse campo não restringe as assinaturas retornadas à conta informada.
+
+Os resultados ACCOUNT contêm apenas assinaturas ACTIVE. Para conferir uma assinatura ACCOUNT INACTIVE, use [Consultar assinatura de eventos](/pt-br/api-reference/webhooks/get-event-subscription).
+
+A resposta contém `webhooks`, sem metadados de paginação nem parâmetros de paginação na requisição. O campo `subscription_id` da requisição não filtra a lista.
+
+<Warning>
+  A lista retorna no máximo 20 assinaturas correspondentes. Este endpoint não oferece seletor de próxima página nem contagem total, então não comprova um inventário completo.
+</Warning>
+
+## Usar os IDs retornados
+
+Os filtros de evento da requisição são numéricos; os nomes de evento retornados são strings. Use `webhook_id` para consultar, atualizar ou desativar uma assinatura.
+
+Os campos retornados `account_number`, `subscription_id` e `suspend_reason` são campos de compatibilidade vazios. Eles não comprovam o escopo da conta nem um motivo de suspensão.
+
+## Interpretar o resultado
+
+Os resultados de negócio em JSON retornam HTTP 200. Leia `code` antes de usar `data`; JSON inválido retorna HTTP 400 com texto simples.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `0` UNSPECIFIED | Status indisponível | Nenhuma evidência de ativação | Consulte a assinatura |
+| `1` ACTIVE | Assinatura habilitada | Configuração ativa | Verifique os callbacks recebidos |
+| `2` INACTIVE | Assinatura desabilitada | Configuração inativa | Atualize para reativar |
+
+ACTIVE não comprova a entrega de callbacks nem a conclusão de pagamentos. Veja [Tratamento de webhooks](/pt-br/api-reference/webhooks/overview).
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner scope="owner" lang="pt" method="POST" path="/v3/webhooks/list" body={{}} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar assinatura de eventos" icon="magnifying-glass" href="/pt-br/api-reference/webhooks/get-event-subscription">
+    Confira a configuração armazenada.
+  </Card>
+  <Card title="Criar assinatura de eventos" icon="plus" href="/pt-br/api-reference/webhooks/create-event-subscription">
+    Cadastre um receptor de callbacks.
+  </Card>
+</CardGroup>

@@ -1,0 +1,89 @@
+---
+title: "Get QR code details"
+sidebarTitle: "QR code details"
+description: "Look up a generated Pix QR code by its ID. Returns its order reference, payload, payment indicator and latest associated transaction when available."
+openapi: "openapi/en.json POST /v3/qr_code/details"
+keywords: ["/v3/qr_code/details", "Pix QR details", "QR payment status", "merchant order"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Look up a Pix QR code you generated and check its order reference. A successful lookup does not replace verification of each incoming payment.
+
+| Credentials | Idempotency | Result |
+| --- | --- | --- |
+| ACCOUNT, USER | Read-only lookup | QR details, optional transaction |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the account bound to your AK. Omit `X-ISPB` and `X-Account-Number`, or send both with nonempty values matching that account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use the ACCOUNT or USER credential for the receiving account.</Warning>
+  </Tab>
+</Tabs>
+
+Use `data.qr_code_id` from [static](/api-reference/payin/generate-static-qr-code) or [dynamic QR code generation](/api-reference/payin/generate-dynamic-qr-code). Copy the ID unchanged, without surrounding whitespace.
+
+The QR code must belong to the selected account. An unknown ID or an account mismatch returns `4004004` with `QR code not found`.
+
+## Read the payment indicator
+
+When `code` is `200`, the lookup succeeded. Read `data.is_paid` together with `data.last_txn`; the QR code type does not indicate payment completion.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `is_paid` is `true` | Matching transaction is available | Recorded QR payment completion | Verify that individual payment |
+| `is_paid` is `false` | Completion conditions are unmet | No payment confirmation here | Check individual payment records |
+
+The indicator is true only when the recorded QR payment status is COMPLETED and a matching transaction is available. False does not prove that nobody paid.
+
+For a reusable static QR code, `last_txn` represents one associated payment. It does not list all payments or total their amounts.
+
+## Confirm an individual payment
+
+Use `data.last_txn.txn_id`, when present, to query [incoming payment details](/api-reference/payin/get-transaction-details). Check that the payment matches your expected account and amount.
+
+A transaction whose `txn_status` is `2` (COMPLETED) provides completion evidence for that transaction. Do not apply that result to other payments through the same QR code.
+
+The QR-level `merchant_order_id` refers to creation. The transaction-level field is an empty string here, so do not use it to match an individual receipt.
+
+## Missing details and retries
+
+`last_txn` can be `null` when the completion conditions are unmet or no matching transaction is available for the selected account. This is not a payment-failure status.
+
+A success response with no QR details can contain empty identifiers, `false`, `0` and `null`. Treat those defaults as missing information, not proof of payment.
+
+You can repeat this lookup with the same QR code ID. Sign each request with a new `X-Nonce` and `X-Timestamp`.
+
+For lookup errors, retain the QR code ID and `xxx-log-id`. Check the [error catalog](/api-reference/error-catalog) before deciding whether to retry or request support.
+
+## Try it in the Playground
+
+Replace the example with an ID returned by your own QR code generation request.
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/qr_code/details" body={{ qr_code_id: "26111016faf735091eb74c929" }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Generate static QR code" icon="qrcode" href="/api-reference/payin/generate-static-qr-code">
+    Create a reusable QR code without an amount.
+  </Card>
+  <Card title="Generate dynamic QR code" icon="qrcode" href="/api-reference/payin/generate-dynamic-qr-code">
+    Create a QR code with an amount.
+  </Card>
+  <Card title="Get incoming payment details" icon="receipt" href="/api-reference/payin/get-transaction-details">
+    Verify the individual transaction.
+  </Card>
+  <Card title="Pay-in callbacks" icon="bell" href="/api-reference/payin/callbacks">
+    Handle incoming payment notifications.
+  </Card>
+</CardGroup>

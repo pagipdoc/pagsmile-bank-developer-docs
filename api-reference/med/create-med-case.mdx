@@ -1,0 +1,90 @@
+---
+title: "Create MED case"
+sidebarTitle: "Create case"
+description: "Open a MED case for an original Pix payment. Returns the case ID, processing status and recovery amounts so you can track the dispute separately."
+openapi: "openapi/en.json POST /v3/med/create"
+keywords: ["/v3/med/create", "MED", "Pix dispute", "funds recovery"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Creates a MED case linked to an original Pix payment. Creating a case does not prove that funds are blocked or returned.
+
+| Credentials | Idempotency | Result |
+| --- | --- | --- |
+| ACCOUNT, USER | No request key | Case status |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the credential bound to the payer account. Omit account headers, or send both `X-ISPB` and `X-Account-Number` with matching account values.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. Include both in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use ACCOUNT or USER credentials for the payer account.</Warning>
+  </Tab>
+</Tabs>
+
+Confirm that the original payment belongs to the selected payer account. Account-target headers do not themselves verify ownership of the original payment.
+
+The original payment must be Pix and retrievable with its amount and transaction ID. The original payer account must not be closing or closed.
+
+## Identify the original payment
+
+The original Pix end-to-end identifier is the original payment's settlement ID.
+
+Call [Get payment details](/api-reference/payout/get-payment-details) with the saved `txn_id` for the payment being disputed. Use the returned `data.details.settlement_id` as `end_to_end_id`.
+
+Do not substitute `txn_id` for `end_to_end_id`. Use the payment being disputed, not an unrelated payment with a larger amount.
+
+Save `data.med_case.case_id` when the request succeeds. You use it to [query the case](/api-reference/med/get-med-case-details) or [request cancellation](/api-reference/med/cancel-med-case).
+
+## Choose the processing option
+
+Select the fraud situation that describes the complaint. The request schema lists the recommended situations.
+
+When you omit `automatic_refund`, it defaults to `false` and selects manual processing, whose `flow_type` is `2` (MANUAL).
+
+Sending `automatic_refund` as `true` selects automated processing, whose `flow_type` is `1` (AUTOMATED). Recovery can be partial with either option.
+
+## Read the result
+
+All JSON business results use HTTP 200. Read `code` before `data`; when `code` is `200`, inspect the returned case status.
+
+Case status and money outcomes are separate. Compare `requested_amount`, `blocked_amount_total` and `returned_amount_total` before treating a recovery as complete.
+
+Creation initializes the analysis deadline to seven days after creation and the manual return deadline to 72 hours after creation. Processing can update either deadline when the replacement timestamp is greater than `0`.
+
+Use the actual response timestamps. A manual return deadline can exist even when `automatic_refund` is `true`; it does not prove manual action is available.
+
+See the [MED lifecycle](/api-reference/med/overview#case-lifecycle) for status meanings and the next step.
+
+## Retries and duplicates
+
+This request has no idempotency key. A repeated submission can create another case.
+
+After a timeout or unknown result, [list MED cases](/api-reference/med/list-med-cases) and match the original payment before you submit again.
+
+Sign each attempt with a new `X-Nonce` and `X-Timestamp`. A failed signature still consumes the nonce.
+
+## Try it in the Playground
+
+Replace the example end-to-end ID with the original Pix payment ID before signing. Use Sandbox credentials for Sandbox requests.
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/med/create" body={{ end_to_end_id: "E12345678202611101200ABCDEF1234567", original_fraud_situation: 1 }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Get MED case details" icon="magnifying-glass" href="/api-reference/med/get-med-case-details">
+    Track the case and recovery amounts.
+  </Card>
+  <Card title="Cancel MED case" icon="ban" href="/api-reference/med/cancel-med-case">
+    Check eligibility before cancellation.
+  </Card>
+</CardGroup>

@@ -1,0 +1,108 @@
+---
+title: "Pix payout callbacks"
+sidebarTitle: "Callbacks"
+description: "Receive outgoing Pix payment results at your webhook. Verify the raw-body signature, deduplicate delivery, and use transaction status to confirm the outcome."
+openapi: "openapi/en.json webhook pixPayoutResult"
+keywords: ["Pix payout callback", "PIX_OUT", "webhook", "payment result"]
+---
+
+import { WebhookVerifier } from "/snippets/webhook-verifier.jsx";
+
+Receive the recorded result of a Pix payment initiated by your payer account. A callback whose `txn_status` is `TXN_STATUS_FAILED` reports a failure recorded by Pagsmile.
+
+## Before you receive callbacks
+
+Subscribe to `event_type` equal to `2` (PIX_OUT) through [event subscriptions](/api-reference/webhooks/create-event-subscription).
+
+Match the subscription, `txn_type` equal to `TXN_TYPE_PAYMENT`, and `payment_method` equal to `PAYMENT_METHOD_PIX`. The callback has no top-level `event_type`; do not require `flow_direction`.
+
+The body describes a payment directly. It does not use the API response envelope with `code`, `message` and `data`.
+
+## ACCOUNT and USER payloads
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    ACCOUNT callbacks contain the payment payload without `delivery_id`. Use your outgoing-event subscription and `txn_id` as the deduplication key.
+  </Tab>
+  <Tab title="USER" icon="user">
+    USER callbacks add `delivery_id` to the payment payload. Use that identifier to deduplicate attempts for the same delivery.
+
+    Before each attempt, Pagsmile checks account access and the subscription again. Delivery can stop if access is revoked or the subscription changes.
+  </Tab>
+</Tabs>
+
+Callback enums use names, such as `TXN_STATUS_COMPLETED`, rather than numeric API response values. Integer timestamps use decimal strings in Unix milliseconds.
+
+The `completed_at` timestamp records the final processing result. It can accompany a failure, so it does not establish success by itself.
+
+## Read the result
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `TXN_STATUS_COMPLETED` | Payment completed | Successful payment result | Reconcile the matching statement |
+| `TXN_STATUS_FAILED` | Recorded failure | Failure recorded locally | Reconcile before any replacement |
+
+`TXN_STATUS_FAILED` does not prove that funds did not move at the bank. Reconcile payment details and the matching statement entry before creating any replacement payment. See [Get payment status](/api-reference/payout/get-payment-status) for the two-hour rule.
+
+Use `txn_id` to match the [payment details](/api-reference/payout/get-payment-details) and the [statement entry](/api-reference/accounts/get-account-statement). Retain the original `merchant_order_id` for reconciliation.
+
+## Verify and acknowledge
+
+<Steps>
+  <Step title="Verify the received request">
+    Preserve the raw body bytes. Select the SK using `X-Client-ID`, check `X-Timestamp`, and recompute `X-Content-Hash` before parsing JSON.
+
+    Verify `X-Signature` with HMAC-SHA256 and compare in constant time. Use the received `Content-Type` and signed headers unchanged.
+
+    ACCOUNT transaction signatures use the URL-decoded callback path. USER transaction signatures preserve URL escaping. See [Verify callbacks](/environments-and-credentials#verify-callbacks).
+  </Step>
+  <Step title="Block replays and duplicates">
+    After a valid signature, atomically record the AK and `X-Nonce` pair to block replays. The nonce contains 32 lowercase hexadecimal characters.
+
+    Deduplicate the business delivery using the ACCOUNT or USER key above. Signature replay protection does not replace delivery deduplication.
+  </Step>
+  <Step title="Store and acknowledge receipt">
+    Store the verified event durably, then return HTTP 200. Process the business update asynchronously after receipt.
+
+    HTTP 200 acknowledges callback receipt. It does not confirm that your business processing or the payment succeeded.
+  </Step>
+</Steps>
+
+## Retries and reconciliation
+
+Pagsmile treats transport failures and responses other than HTTP 200 as unsuccessful delivery attempts. Handle a repeated delivery without repeating its business effects.
+
+<Warning>
+  Delivery attempts are bounded. HTTP client errors such as `401` and `403` stop retries, even if you later repair your receiver.
+
+  See [Transaction delivery and retries](/api-reference/webhooks/overview#transaction-delivery-and-retries) for the complete policy.
+</Warning>
+
+Do not use arrival order to determine the payment state. If events conflict with your records, query the original payment and reconcile its statement entry.
+
+If delivery stops, check the callback URL, signature verification, account access and active subscription. Retain the transaction identifier.
+
+After terminal delivery failure, query the [original payment](/api-reference/payout/get-payment-details) or contact support for resend assistance. Do not wait for automatic retries.
+
+## Verify a callback
+
+<Accordion title="Verify a callback you received" icon="shield-check">
+  <WebhookVerifier />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Pix payment paths" icon="paper-plane" href="/api-reference/payout/pix/overview">
+    Review the submission flow.
+  </Card>
+  <Card title="Get payment status" icon="clock" href="/api-reference/payout/get-payment-status">
+    Check the original payment result.
+  </Card>
+  <Card title="Event subscriptions" icon="bell" href="/api-reference/webhooks/create-event-subscription">
+    Configure the callback destination.
+  </Card>
+  <Card title="Reconciliation" icon="scale-balanced" href="/api-reference/reconciliation">
+    Match the payment to the statement.
+  </Card>
+</CardGroup>

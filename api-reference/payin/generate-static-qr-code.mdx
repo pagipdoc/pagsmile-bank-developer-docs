@@ -1,0 +1,96 @@
+---
+title: "Generate static QR code"
+sidebarTitle: "Static QR code"
+description: "Create a reusable Pix QR code without a fixed amount for your receiving account. Returns the payment payload and IDs, not confirmation of a payment."
+openapi: "openapi/en.json POST /v3/qr_code/generate/static"
+keywords: ["/v3/qr_code/generate/static", "static Pix QR", "reusable QR code", "Pix pay-in"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Generate a reusable Pix QR code for your receiving account. The request has no amount field, so verify each incoming payment separately.
+
+| Credentials | Idempotency | Result |
+| --- | --- | --- |
+| ACCOUNT, USER | Duplicate check, no replay | QR payload and IDs |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the account bound to your AK. Omit `X-ISPB` and `X-Account-Number`, or send both with nonempty values matching that account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use the ACCOUNT or USER credential for the receiving account.</Warning>
+  </Tab>
+</Tabs>
+
+The account must be ACTIVE, enabled to receive payments, and free of an [account closure](/api-reference/accounts/close-account/overview) in progress. Its account type and holder document must be valid.
+
+Use an ACTIVE EVP key registered to that account and its holder. Other Pix key types cannot generate a static QR code.
+
+A `pix_key_type` other than EVP returns `400` with message `Static QR code pix_key_type must be EVP`. With `pix_key_type` set to EVP, a key value that contains `@` returns `400` with message `Static QR code pix_key must not contain @`. An EVP key that is not found returns `4004004` with message `PIX key not found`.
+
+The account holder's name must contain printable ASCII characters or whitespace. Other non-ASCII characters in that name are rejected.
+
+## Reuse and payment confirmation
+
+You can use the same static QR code for multiple payments. Its creation order identifies the QR code, not each payment made through it.
+
+When `code` is `200`, save `data.qr_code_id` and `data.merchant_order_id`. Generation does not confirm that funds reached the account.
+
+Base64-decode `data.payload_base64` and use the resulting payment payload to render your QR image. The endpoint returns an empty `data.payload_image_base64`.
+
+Use [QR code details](/api-reference/payin/get-qr-code-details) to check the creation reference. Confirm individual receipts with [incoming payment details](/api-reference/payin/get-transaction-details), rather than treating the QR code as one transaction.
+
+## Retries and duplicates
+
+Start `merchant_order_id` with the current UTC date in `YYMMDD` format. The accepted date must overlap the current time plus or minus one hour.
+
+An order ID outside that window returns `400` with message `merchant_order_id date does not match current time (UTC ±1h)`.
+
+Use an order ID unique across your accounts and operations that use merchant order IDs. The shared duplicate check retains an ID for 48 hours.
+
+A reserved ID returns `4001013`, rather than replaying the original success response. The reservation can remain after a failed generation attempt.
+
+<AccordionGroup>
+  <Accordion title="The generation result is unknown" icon="clock-rotate-left">
+    If you saved the QR code ID, query its details before generating another code. If you have no ID, retain the order ID and request support with `xxx-log-id`.
+
+    Do not switch to a new order ID without resolving the original attempt. A duplicate error alone does not prove that a usable QR code exists.
+  </Accordion>
+  <Accordion title="A required field is missing" icon="list-check">
+    A missing `merchant_order_id` returns `4000` with `Field order_id is required`. The message names `order_id`, but the request field remains `merchant_order_id`.
+  </Accordion>
+  <Accordion title="Signing failed" icon="signature">
+    Sign each attempt with a new `X-Nonce` and `X-Timestamp`. A failed signature check consumes the nonce. See [authentication errors](/api-reference/error-catalog#authentication-errors).
+  </Accordion>
+</AccordionGroup>
+
+## Try it in the Playground
+
+Replace the example EVP key with your registered key. Update the order ID's UTC date prefix before calling, and use a new unique suffix.
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/qr_code/generate/static" body={{ merchant_order_id: "261110_static_001", pix_key: "8e67c99a-7c55-4e91-9557-512b5e198561", pix_key_type: 5, city: "SAO PAULO", memo: "Counter payment" }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Create Pix key" icon="key" href="/api-reference/pix-keys/create-pix-key">
+    Register an EVP key for the account.
+  </Card>
+  <Card title="Get QR code details" icon="qrcode" href="/api-reference/payin/get-qr-code-details">
+    Check the generated QR code's reference.
+  </Card>
+  <Card title="Get incoming payment details" icon="receipt" href="/api-reference/payin/get-transaction-details">
+    Verify an individual payment.
+  </Card>
+  <Card title="Generate dynamic QR code" icon="qrcode" href="/api-reference/payin/generate-dynamic-qr-code">
+    Create a QR code with an amount.
+  </Card>
+</CardGroup>

@@ -1,0 +1,106 @@
+---
+title: "Get account balance"
+sidebarTitle: "Get balance"
+description: "Query one account's balances, blocked amounts, active Pix keys and available configuration. Send an empty JSON body and select the account with credentials."
+openapi: "openapi/en.json POST /v3/bank_account"
+keywords: ["/v3/bank_account", "account balance", "available balance", "blocked funds", "subaccount"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Returns account details and a balance snapshot for one target account. Send an empty JSON object (`{}`); your credential and account-target headers select the account.
+
+| Credentials | Idempotency | Result |
+| --- | --- | --- |
+| ACCOUNT, USER | None (query) | Synchronous |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Query the account bound to your AK. Omit `X-ISPB` and `X-Account-Number`, or send both with values that match the bound account.
+
+    Include any account-target headers you send in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+
+    Each request queries one account. This endpoint does not list subaccounts or return aggregate balances.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use an ACCOUNT credential or a USER credential with both account-target headers.</Warning>
+  </Tab>
+</Tabs>
+
+The request body has no business fields. Do not put `account_number`, filters or pagination fields in it.
+
+## Read balances
+
+When `code` is `200`, check that `data.account_number` and `data.ispb` identify the account you requested. This query has no processing-status field.
+
+Amounts are decimal strings in BRL, such as `"10.50"`. The total balance includes blocked funds; the available balance subtracts those funds.
+
+The MED amount is part of the total blocked amount. Its reported amount cannot exceed the total block; the remaining blocked amount has a minimum of `"0"`.
+
+A balance snapshot does not establish whether a particular payment completed. Use the matching [statement entries](/api-reference/accounts/get-account-statement) and transaction details for that check.
+
+## Missing or partial data
+
+<Warning>
+  Balance retrieval can fail while `code` remains `200`. The balance amounts then fall back to `"0"`, with no indicator in the response. Query again and cross-check the account's statement entries before treating a single zero response as an empty account.
+</Warning>
+
+MED information can be unavailable even when the other balances are available. In that case, the MED amount falls back to `"0"`.
+
+The remaining blocked amount can then include MED blocks. Do not treat it as a confirmed non-MED breakdown.
+
+<AccordionGroup>
+  <Accordion title="Pix keys" icon="key">
+    The response includes only keys whose `status` is `1` (ACTIVE), from the first page of up to 99 retrieved keys. An empty list can also mean key retrieval failed. This request has no pagination controls for keys.
+  </Accordion>
+  <Accordion title="Limits and fees" icon="sliders">
+    Limit configuration and its sections can be `null`; unavailable amounts are empty strings. Neither means a zero limit or an unlimited allowance.
+
+    The withdrawal-limit view reuses CNPJ transfer limits. CPF withdrawal amounts are empty strings, so do not use them to determine a withdrawal limit.
+
+    Fee configuration can be `null` when unavailable. An empty list alone does not establish that no fees apply.
+  </Accordion>
+  <Accordion title="Event subscriptions" icon="bell">
+    ACCOUNT credentials return active subscriptions for their account and application. USER credentials return subscriptions for the user and application, without filtering by the account-target headers.
+
+    The list can be empty if retrieval fails. Use `webhook_id` to identify a returned subscription; the compatibility identification fields are empty.
+  </Accordion>
+</AccordionGroup>
+
+## Retries and support
+
+You can repeat this query after a timeout or network failure. Sign each attempt with a new `X-Nonce` and `X-Timestamp`.
+
+All JSON business results use HTTP `200`; read `code` before using `data`. Unreadable bodies and invalid JSON return HTTP `400` with plain text.
+
+For account-target failures, check the credential type, ownership and both account headers. See the [error catalog](/api-reference/error-catalog) for business and authentication errors.
+
+If balances still disagree, contact integration support with the query time, masked response and the `xxx-log-id` response header. Do not include your SK.
+
+## Try it in the Playground
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/bank_account" body={{}} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Get account statement" icon="list" href="/api-reference/accounts/get-account-statement">
+    Review account movements for a time range.
+  </Card>
+  <Card title="Create Pix key" icon="key" href="/api-reference/pix-keys/create-pix-key">
+    Register a key so the account can receive Pix.
+  </Card>
+  <Card title="Event subscriptions" icon="bell" href="/api-reference/webhooks/list-event-subscriptions">
+    Query subscriptions through their dedicated endpoint.
+  </Card>
+  <Card title="Accounts and funds" icon="building-columns" href="/api-reference/accounts/overview">
+    Choose an account query for your task.
+  </Card>
+</CardGroup>

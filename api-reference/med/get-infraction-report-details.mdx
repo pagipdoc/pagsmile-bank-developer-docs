@@ -1,0 +1,84 @@
+---
+title: "Get infraction report details"
+sidebarTitle: "Report details"
+description: "Inspect an infraction task for a received Pix transaction using its task ID. Returns report identifiers, funds freeze amounts and original transaction data."
+openapi: "openapi/en.json POST /v3/infractions/detail"
+keywords: ["/v3/infractions/detail", "MED case", "infraction report", "account scope"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Returns an infraction task for the selected receiving account. Its blocked amount is not proof that funds have been returned.
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    The query uses the account bound to your AK. Omit both account-target headers, or send both matching that account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send `X-ISPB` and `X-Account-Number` for an account you own. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use an ACCOUNT or USER credential.</Warning>
+  </Tab>
+</Tabs>
+
+## Choose the task
+
+Use `data.items[].infraction_id` from [List infraction reports](/api-reference/med/list-infraction-reports).
+
+The lookup accepts the task ID. `infraction_report_id` and `dict_infraction_report_id` identify reports and cannot replace it.
+
+The task must concern a transaction received by the selected account. An unknown or out-of-scope task returns business code `4004004`.
+
+## Task statuses
+
+The numeric `status` describes the recorded task stage. Read it separately from `freeze_status` and the amounts, even when the task is closed.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `0` (UNSPECIFIED) | No defined stage | No usable task state | Repeat lookup; contact support |
+| `1` (RECEIVED) | Task received | Receipt recorded | Check freeze fields |
+| `2` (BLOCKING_PENDING) | Blocking stage pending | Pending task stage recorded | Check effective freeze separately |
+| `3` (BLOCKED) | Task classified as blocked | Blocked task stage recorded | Check freeze amount and shortfall |
+| `4` (ANALYSIS_PENDING) | Analysis or closure pending | Waiting stage recorded | Query for closure; check freeze |
+| `5` (CLOSED_AGREED) | Closure classified as agreed | Task closure recorded | Check freeze and statement |
+| `6` (CLOSED_DISAGREED) | Closure classified as disagreed | Task closure recorded | Check freeze and statement |
+| `7` (CANCELLED) | Task cancelled | Cancellation recorded | Check freeze and statement |
+| `8` (FAILED) | Task failed | Task failure recorded | Query; contact support if unresolved |
+
+`CLOSED_AGREED` and `CLOSED_DISAGREED` are recorded closure categories, not independent proof of an explicit analysis result or a completed return.
+
+`BLOCKING_PENDING` can coexist with an effective freeze. Neither `BLOCKED` nor a closure category establishes the current frozen amount or release; check the freeze fields below.
+
+## Read the funds freeze
+
+Keep the requested `amount`, recorded `blocked_amount` and effective `freeze_effective_amount` separate. A blocked amount does not prove a completed return.
+
+Compare `freeze_target_amount` with `freeze_effective_amount` and `freeze_shortfall_amount`. Interpret `freeze_status` separately from the numeric infraction task `status`.
+
+Use the original transaction identifiers to match your records. Confirm funds movements in the [account statement](/api-reference/accounts/get-account-statement).
+
+## Query retries
+
+If a query fails or times out, repeat the same lookup rather than creating a new case. Sign each attempt with new `X-Nonce` and `X-Timestamp` values.
+
+Read the business `code` even when HTTP status is `200`. Include the response header `xxx-log-id` when contacting support.
+
+## Try it in the Playground
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/infractions/detail" body={{"infraction_id": "infraction_example_001"}} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="List infraction reports" icon="list" href="/api-reference/med/list-infraction-reports">
+    Find the infraction task ID.
+  </Card>
+  <Card title="Get MED case details" icon="shield-halved" href="/api-reference/med/get-med-case-details">
+    Read an authorized payer case.
+  </Card>
+</CardGroup>

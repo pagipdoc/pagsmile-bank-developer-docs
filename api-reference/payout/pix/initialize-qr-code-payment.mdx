@@ -1,0 +1,90 @@
+---
+title: "Initialize QR code payment"
+sidebarTitle: "Initialize QR payment"
+description: "Resolve a Pix QR code and return its payee, amount and a five-minute confirmation reference. Review the payment details before you confirm."
+openapi: "openapi/en.json POST /v3/transfers/pix/qr-code-initiate"
+keywords: ["/v3/transfers/pix/qr-code-initiate", "Pix QR payment", "payment reference", "due-date QR code"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Resolves a Pix QR code and returns the payee, amount and a confirmation reference. Initialization does not submit a payment; review the details before you confirm.
+
+| Credentials | Idempotency | Result |
+| --- | --- | --- |
+| ACCOUNT, USER | New reference per call | Synchronous |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the account bound to your AK. Account-target headers are optional; if you send them, both must match the bound account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use an ACCOUNT or USER credential for the payer account.</Warning>
+  </Tab>
+</Tabs>
+
+The associated user must be active and have payout access enabled.
+
+A due-date QR code also requires a municipality code in the payer account details, not in this request body.
+
+## Prepare the QR payload
+
+Send the complete Pix payment text in standard Base64, with the required padding. An image or a QR code identifier cannot replace the payment text.
+
+This endpoint accepts static, dynamic instant-payment and dynamic due-date QR codes. Composite QR codes are not supported.
+
+## Review the payment details
+
+Show the payee and amount to the payer before confirmation. The payee document number may be masked according to your configuration.
+
+For a static QR code without an amount, choose a positive BRL amount when you confirm. Initialization may return an empty amount or zero.
+
+For a fixed positive dynamic instant-payment amount, confirm the initialized amount. The comparison is numeric, so `10.5` and `10.50` match.
+
+For a due-date QR code, use the calculated `data.amount`, rather than the original amount in `data.dynamic_due_properties.face_amount`.
+
+The due-date details also contain adjustments and the payee address when supplied. They are `null` for other QR code types.
+
+Do not infer amount editability from `data.amount_editable`: this endpoint leaves it `false`. Confirmation applies the amount checks separately.
+
+## Reference lifetime
+
+Pass `data.ref_id` unchanged to [Confirm QR code payment](/api-reference/payout/pix/confirm-qr-code-payment), using the same payer account within five minutes.
+
+The reference lifetime is separate from the QR code's validity. Do not calculate a remaining-validity countdown from `data.expires`.
+
+When the reference expires, initialize again and review the refreshed payment details. A reference is not your merchant order ID or transaction ID.
+
+## Retries and unknown results
+
+Initialization returns a new reference per successful call. It does not confirm or settle a payment.
+
+If you have already submitted confirmation and its result is unknown, check the original payment before starting another payment attempt.
+
+Sign each attempt with a new `X-Nonce` and `X-Timestamp`. Include the response header `xxx-log-id` when you contact support.
+
+Repeated lookups of invalid keys can reach the Pix directory limit, which returns `4004029`. The limit can also affect other accounts at the same institution. Wait before trying again; do not assume a fixed retry interval.
+
+## Try it in the Playground
+
+Replace the fictitious sample with the complete Base64 payment text from your own Sandbox QR code before you send the request.
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/transfers/pix/qr-code-initiate" body={{ qr_code_payload: "MDAwMjAxMjY0NDAwMTRCUi5HT1YuQkNCLlBJWDAxMjJmaW5hbmNlQGV4YW1wbGUuY29tLmJyNTIwNDAwMDA1MzAzOTg2NTQwNTEwLjUwNTgwMkJSNTkxMkxPSkEgRVhFTVBMTzYwMDlTQU8gUEFVTE82MjA3MDUwMyoqKjYzMDRCM0Mz" }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Confirm QR code payment" icon="paper-plane" href="/api-reference/payout/pix/confirm-qr-code-payment">
+    Submit the payment with the initialization reference.
+  </Card>
+  <Card title="Get payment details" icon="receipt" href="/api-reference/payout/get-payment-details">
+    Check the original payment after confirmation.
+  </Card>
+</CardGroup>

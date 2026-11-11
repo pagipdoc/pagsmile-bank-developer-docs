@@ -1,0 +1,103 @@
+---
+title: "Encerrar conta"
+sidebarTitle: "Encerrar conta"
+description: "Solicite o encerramento de uma conta gerenciada com uma chave de idempotência. Retorna o ID e o andamento da operação; encerramento e limpeza são assíncronos."
+openapi: "openapi/pt-br.json POST /v3/bank_account/close"
+keywords: ["/v3/bank_account/close", "encerramento de conta", "elegibilidade", "andamento"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Envia uma solicitação de encerramento de conta gerenciada e retorna um ID persistente da operação. Guarde esse ID; `code` igual a `200` não comprova o encerramento.
+
+| Credenciais | Idempotência | Resultado |
+| --- | --- | --- |
+| ACCOUNT, USER | `idempotency_key` | Operação assíncrona |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a credencial da conta-alvo. O campo `account_number` da requisição deve corresponder à conta autorizada pela sua credencial.
+
+    Os cabeçalhos da conta-alvo são opcionais. Se os enviar, envie os dois com o ISPB e o número da conta da credencial.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta pertencente ao seu USER. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use uma credencial ACCOUNT ou USER autorizada.</Warning>
+  </Tab>
+</Tabs>
+
+O corpo não seleciona outro ISPB. A credencial e os cabeçalhos da conta-alvo determinam o ISPB; `account_number` deve corresponder à conta selecionada.
+
+A conta bancária deve estar ACTIVE. Novas solicitações de encerramento do comerciante aceitam contas gerenciadas MOR, VA e PA, não contas master (`MA_MOR`).
+
+Com credenciais USER, a identidade da conta-alvo e a conta master devem estar ACTIVE, com vínculos bancários correspondentes. A VA superior de uma PA também precisa atender a essas condições.
+
+## Preparar a conta
+
+Execute [Verificar elegibilidade](/pt-br/api-reference/accounts/close-account/check-eligibility). Resolva saldo, fundos bloqueados, contas filhas abertas, MED, notificações de infração e cobranças de tarifas pendentes antes de solicitar.
+
+Pagamentos, devoluções, disputas, aberturas de conta e cobranças de tarifas existentes podem manter a operação em espera. Leia os motivos; verificações não confirmadas nunca indicam aprovação.
+
+Durante o encerramento, a conta não pode enviar nem receber novos pagamentos, mesmo que seu status bancário continue ACTIVE.
+
+<Warning>O encerramento é irreversível quando a conta está CLOSED. Com `auto_delete_active_pix_keys` igual a `true`, a exclusão das chaves pode começar antes da confirmação do encerramento.</Warning>
+
+Exclua as chaves Pix ativas ou autorize a exclusão automática nesta requisição. O servidor verifica a elegibilidade novamente após excluir as chaves.
+
+Se a elegibilidade mudar após o início da exclusão, a operação exige verificação. Guarde o ID original e siga `next_action`; não envie outro encerramento.
+
+## Idempotência e novas tentativas
+
+A chave tem o escopo do USER titular autenticado, entre suas contas e credenciais. Mantenha ISPB, conta, motivo e opção de exclusão ao repetir a requisição.
+
+Reutilizar a mesma chave e intenção retorna a operação original com o andamento atual. Alterar a intenção com essa chave retorna `4001013` com a mensagem `An account closure request already exists`. Uma nova chave recebe o mesmo código enquanto outro encerramento da conta estiver em andamento. Depois que o encerramento é concluído, novas requisições para essa conta retornam `4004003`.
+
+Se o resultado for desconhecido, consulte a operação quando tiver o ID. Caso contrário, reenvie a requisição original com a mesma chave de idempotência.
+
+A chave de uma operação REJECTED retorna essa mesma operação. Confira o status atual da conta antes de solicitar novamente.
+
+Após resolver os motivos, use uma nova chave somente se a conta continuar ACTIVE e elegível.
+
+Assine cada envio com novos cabeçalhos `X-Nonce` e `X-Timestamp`. O nonce é consumido mesmo quando a validação da assinatura falha.
+
+## Interpretar o resultado
+
+Leia `data.operation.status`, `reasons` e `next_action`. WAITING pode indicar atividade pendente, verificação indisponível ou necessidade de análise da equipe de operações.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `1` CHECKING | Verificação de elegibilidade em andamento | Solicitação registrada | Leia motivos e próxima ação |
+| `2` WAITING | Obrigações ou verificação pendentes | Encerramento não confirmado | Siga `next_action` |
+| `3` DELETING_KEYS | Exclusão autorizada de chaves em andamento | Exclusão iniciada | Continue consultando esta operação |
+| `4` CLOSED | Conta encerrada, limpeza pendente | Conta bancária encerrada | Aguarde a conclusão da limpeza |
+| `5` COMPLETED | Encerramento e limpeza concluídos | Operação concluída | Guarde o registro final |
+| `6` REJECTED | Elegibilidade impede encerramento | Esta operação não encerrou a conta | Confira o status atual da conta |
+
+REJECTED remove a restrição temporária desta operação sem alterar o status da conta bancária. Após o início da exclusão de chaves, novos impedimentos exigem verificação, não rejeição.
+
+CLOSED confirma o encerramento da conta; COMPLETED também confirma a limpeza. A limpeza encerra a identidade gerenciada, atualiza a conta padrão, retira chaves Pix e zera os limites ativos da conta.
+
+Ela também remove configurações de tarifas e desativa assinaturas de webhooks e credenciais da conta. Falhas na limpeza não reabrem a conta.
+
+Erros de negócio retornam HTTP 200 com `data` igual a `null`. Informe o cabeçalho de resposta `xxx-log-id` ao entrar em contato com o suporte.
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/bank_account/close" body={{ account_number: "00012345", reason: 1, idempotency_key: "close-00012345-20261023-001", auto_delete_active_pix_keys: false }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Verificar elegibilidade" icon="list-check" href="/pt-br/api-reference/accounts/close-account/check-eligibility">
+    Resolva os motivos antes de enviar.
+  </Card>
+  <Card title="Consultar andamento" icon="clock" href="/pt-br/api-reference/accounts/close-account/get-closure-progress">
+    Acompanhe a operação original.
+  </Card>
+</CardGroup>

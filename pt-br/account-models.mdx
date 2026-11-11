@@ -1,0 +1,119 @@
+---
+title: "Modelos de conta e funcionalidades"
+sidebarTitle: "Modelos de conta"
+description: "Escolha MOR, VA ou PA para contas gerenciadas. Compare contas superiores, requisitos de análise e credenciais antes de enviar uma solicitação de abertura."
+keywords: ["modelos de conta", "conta gerenciada", "MOR", "VA", "PA"]
+---
+
+Escolha o modelo de conta gerenciada antes de solicitar a abertura pela Pagsmile Open API. O modelo define a conta superior e se você precisa enviar dados próprios para análise de conformidade.
+
+## Comparar modelos
+
+MA é a conta master. MOR, VA e PA são os modelos disponíveis ao [criar uma conta gerenciada](/pt-br/api-reference/onboarding/create-managed-account).
+
+| Modelo | Conta superior imediata | Dados para análise de conformidade |
+| --- | --- | --- |
+| MOR, conta operacional | MA do titular | Sem envio separado |
+| VA, conta gerenciada | MA do titular | Dados próprios do titular da conta |
+| PA, conta de pagamento | MA do titular ou uma VA dela | Dados próprios do titular da conta |
+
+Selecione MOR, VA ou PA abaixo para consultar as regras do modelo.
+
+## Hierarquia de contas
+
+Sua credencial USER define o escopo do titular. Nesse escopo, a MA é a conta raiz; MOR e VA ficam vinculadas diretamente a ela.
+
+<Tree>
+  <Tree.Folder name="MA: conta master" defaultOpen={true}>
+    <Tree.File name="MOR: conta operacional" />
+    <Tree.Folder name="VA: conta gerenciada" defaultOpen={true}>
+      <Tree.File name="PA: conta de pagamento" />
+    </Tree.Folder>
+    <Tree.File name="PA: conta de pagamento" />
+  </Tree.Folder>
+</Tree>
+
+Uma PA tem uma única conta superior imediata: a MA do titular ou uma VA diretamente vinculada a essa MA. MOR e PA não podem ser contas superiores de uma PA.
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    <Warning>Credenciais ACCOUNT não podem criar contas gerenciadas. Use a credencial USER do titular para solicitar a abertura.</Warning>
+  </Tab>
+  <Tab title="USER" icon="user">
+    Use a credencial USER do titular da MA. A funcionalidade de contas gerenciadas precisa estar habilitada para esse USER.
+
+    O USER precisa ter exatamente uma MA ativa. Essa MA também precisa ter uma conta bancária ativa.
+
+    A abertura de conta usa o escopo do USER. Omita `X-ISPB` e `X-Account-Number`; o fluxo de criação identifica a MA do titular.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem criar contas gerenciadas. Use a credencial USER do titular.</Warning>
+  </Tab>
+</Tabs>
+
+A criação pode falhar se a tarifa de abertura aplicável não puder ser cobrada. Confirme a disponibilidade de saldo antes de enviar a solicitação.
+
+<View title="MOR" icon="building-columns">
+
+## Abrir uma MOR
+
+Use MOR para uma conta operacional sob a MA do titular. Você não envia uma análise de conformidade separada para esse modelo.
+
+Envie `reference_id` e selecione MOR em `model`. Você também pode informar nome fantasia e e-mail para notificações.
+
+Não envie dados de análise de conformidade, URL de retorno nem `linked_account`. O fluxo de criação seleciona a MA do titular como conta superior imediata.
+
+Consulte a variante MOR em [Criar conta gerenciada](/pt-br/api-reference/onboarding/create-managed-account).
+
+</View>
+
+<View title="VA" icon="building">
+
+## Abrir uma VA
+
+Use VA para uma conta gerenciada com dados próprios do titular da conta. O fluxo de criação vincula a conta diretamente à MA do titular.
+
+Envie `reference_id`, selecione VA em `model` e escolha um `compliance_mode`. Informe o tipo e o número do documento, além do nome ou da razão social do titular da conta.
+
+O método de análise escolhido define os dados adicionais que você precisa enviar. Não envie `linked_account` para VA.
+
+Consulte a variante VA e os métodos de análise em [Criar conta gerenciada](/pt-br/api-reference/onboarding/create-managed-account).
+
+</View>
+
+<View title="PA" icon="wallet">
+
+## Abrir uma PA
+
+Use PA para uma conta de pagamento com dados próprios do titular da conta. O corpo da análise aceita CPF de pessoa física ou CNPJ de pessoa jurídica.
+
+Envie `reference_id`, selecione PA em `model` e escolha um `compliance_mode`. Informe o tipo de documento, o CPF ou CNPJ e o nome do titular da conta.
+
+Você também precisa enviar `linked_account` com `ispb` e `account_number`. Esses campos identificam a conta superior imediata da PA, não a nova PA.
+
+A conta superior precisa pertencer ao mesmo USER e ser a MA do titular ou uma VA diretamente vinculada a ela. O cadastro e a conta bancária precisam estar ativos.
+
+Para operar uma PA, use credenciais USER e informe a conta bancária da própria PA em `X-ISPB` e `X-Account-Number`. Inclua ambos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+
+Consulte a variante PA em [Criar conta gerenciada](/pt-br/api-reference/onboarding/create-managed-account).
+
+</View>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Criar conta gerenciada" icon="plus" href="/pt-br/api-reference/onboarding/create-managed-account">
+    Envie a solicitação para o modelo escolhido.
+  </Card>
+  <Card title="Consultar conta gerenciada" icon="magnifying-glass" href="/pt-br/api-reference/onboarding/get-managed-account">
+    Consulte o status de abertura e os dados da conta.
+  </Card>
+  <Card title="Visão geral do onboarding" icon="list-check" href="/pt-br/api-reference/onboarding/overview">
+    Acompanhe o ciclo de abertura de conta.
+  </Card>
+  <Card title="Ambientes e credenciais" icon="key" href="/pt-br/environments-and-credentials">
+    Escolha as credenciais e assine suas requisições.
+  </Card>
+</CardGroup>

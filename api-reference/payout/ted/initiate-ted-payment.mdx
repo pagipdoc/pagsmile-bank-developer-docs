@@ -1,0 +1,111 @@
+---
+title: "Initiate TED payment"
+sidebarTitle: "Initiate payment"
+description: "Submit a TED payment to another bank using the payee's account details. Returns a transaction ID and PROCESSING status for you to query the final outcome."
+openapi: "openapi/en.json POST /v3/transfers/ted/bank-account"
+keywords: ["/v3/transfers/ted/bank-account", "TED payment", "bank account", "merchant_order_id"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Submit a TED payment to a bank whose ISPB differs from the payer's ISPB. A successful submission accepts the payment for asynchronous processing, not completion.
+
+| Credentials | Duplicate key | Result |
+| --- | --- | --- |
+| ACCOUNT, USER | `merchant_order_id` | Asynchronous |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the credential bound to the payer account. Omit both `X-ISPB` and `X-Account-Number`, or send both with values matching that account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. These headers select the payer, not the payee.
+
+    Include both headers in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use an ACCOUNT or USER credential for the payer account.</Warning>
+  </Tab>
+</Tabs>
+
+The payer account must be enabled to send payments. Verify the payee's account and document details before submitting.
+
+## Prepare the payment
+
+Send the amount as a decimal string in BRL, such as `"10.00"`. It must be positive and exactly representable with two decimal places.
+
+The payee's bank must differ from the payer's bank. For eligible accounts at the same institution, use [Initiate internal transfer](/api-reference/payout/book-transfer/initiate-internal-transfer).
+
+Your configured payment limits also apply to TED. A limit rejection returns business code `4001998`; this page does not specify a universal numeric limit.
+
+## Processing windows
+
+TED bank submission follows the Brazilian banking calendar in `America/Sao_Paulo`. Bank submission stops 65 minutes before an active banking window closes.
+
+If the processing window is closed and a future active window is available, an accepted payment is scheduled for that window. Keep tracking the original payment instead of submitting it again.
+
+## Read the result
+
+All JSON business results return HTTP `200`. Read `code` before using `data`; only unreadable bodies or invalid JSON return HTTP `400` with plain text.
+
+When `code` is `200`, save `data.txn_id` and the original `merchant_order_id`. Use the saved transaction ID to [query the payment](/api-reference/payout/get-payment-status).
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `5` PROCESSING | Accepted for processing | Submission only | Query the original payment |
+| `1` PENDING | Pending | Not a final status | Keep tracking the original payment |
+| `2` COMPLETED | Payment completed | Confirmed completion | Reconcile the payment |
+| `3` FAILED | Payment failed | Recorded failure | Review payment details |
+| `4` CANCELLED | Payment cancelled | Recorded cancellation | Review payment details |
+
+Submission returns `5` (PROCESSING). Check the status or details with the same payer account context before treating the payment as complete.
+
+In the Sandbox, a TED submitted outside a processing window returned `1` (PENDING) on later status checks. A payee ISPB equal to the payer's returns `4001` with message `Invalid payee.bank_code value`. A `payee.bank_code` that matches no bank in the participant directory returns `400` with message `Payee bank code is invalid`.
+
+The submission response returns `null` for `payee`, `payer` and `error`. Retrieve participant information through [Get payment details](/api-reference/payout/get-payment-details).
+
+## Retries and duplicates
+
+Use an order ID unique across accounts and operations in the same environment. Accepted IDs remain reserved for up to 48 hours.
+
+<AccordionGroup>
+  <Accordion title="The submission result is unknown" icon="clock-rotate-left">
+    After a timeout, network failure or system error, investigate the original payment before resubmitting. An early query may not find the transaction yet.
+
+    Query again rather than creating a new payment. If you did not receive `txn_id`, retain the order ID and response header `xxx-log-id` for support.
+  </Accordion>
+  <Accordion title="The order ID is already reserved" icon="clone">
+    A repeated request with a retained `merchant_order_id` returns `4001013` (Already processed). It does not replay the original success response.
+
+    Changing the order ID can create another payment. See [Payout overview](/api-reference/payout/overview) for handling an unknown result.
+  </Accordion>
+  <Accordion title="Signing failed" icon="signature">
+    Sign each attempt with a new `X-Nonce` and `X-Timestamp`. The nonce is consumed even if the signature fails.
+
+    See [authentication errors](/api-reference/error-catalog#authentication-errors).
+  </Accordion>
+</AccordionGroup>
+
+## Try it in the Playground
+
+Replace the synthetic payee details with a valid Sandbox payee. Update the order ID's `YYMMDD` prefix to the current UTC date before signing.
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/transfers/ted/bank-account" body={{ payee: { name: "Demo Receiver", document_id: "12345678909", document_type: 1, bank_account: "00000002", bank_account_type: 1, bank_branch: "0001", bank_code: "12345678" }, amount: "10.00", currency: "BRL", merchant_order_id: "261110-ted-001" }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="TED payments" icon="route" href="/api-reference/payout/ted/overview">
+    Follow the submission and confirmation flow.
+  </Card>
+  <Card title="Get payment status" icon="magnifying-glass" href="/api-reference/payout/get-payment-status">
+    Confirm the original payment's outcome.
+  </Card>
+  <Card title="Get payment details" icon="file-lines" href="/api-reference/payout/get-payment-details">
+    Review the payment and participant information.
+  </Card>
+</CardGroup>

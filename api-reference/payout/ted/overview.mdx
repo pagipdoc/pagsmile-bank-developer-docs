@@ -1,0 +1,92 @@
+---
+title: "TED payments"
+sidebarTitle: "Overview"
+description: "Send a TED payment to another bank using the payee's account details. Save the transaction ID and check its final status before treating it as complete."
+keywords: ["TED", "bank transfer", "payment status", "merchant_order_id"]
+---
+
+Send a TED payment using the payee's bank account details. The payee's bank must differ from the payer's bank.
+
+## Payment flow
+
+<Steps>
+  <Step title="Prepare the payment">
+    Confirm the payee's bank account and document details. Create and save your `merchant_order_id` before you submit the payment.
+  </Step>
+  <Step title="Submit the TED payment">
+    Call [Initiate TED payment](/api-reference/payout/ted/initiate-ted-payment). When `code` is `200`, save `data.txn_id`; the payment is accepted for asynchronous processing.
+  </Step>
+  <Step title="Confirm the outcome">
+    Use the saved ID as `txn_id` in [Get payment status](/api-reference/payout/get-payment-status) or [Get payment details](/api-reference/payout/get-payment-details).
+
+    Keep the payer account context for these queries. A response whose `txn_status` is `2` (COMPLETED) confirms completion.
+  </Step>
+</Steps>
+
+## Endpoints
+
+| Endpoint | What it does |
+| --- | --- |
+| [Initiate TED payment](/api-reference/payout/ted/initiate-ted-payment) | Submit a payment to another bank. |
+| [Get payment status](/api-reference/payout/get-payment-status) | Check the transaction's current status. |
+| [Get payment details](/api-reference/payout/get-payment-details) | Retrieve the payment and participant details. |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the credential bound to the payer account. Omit both `X-ISPB` and `X-Account-Number`, or send both with values matching that account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. These headers select the payer, not the payee.
+
+    Include both headers in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot submit these payments. Use an ACCOUNT or USER credential for the payer account.</Warning>
+  </Tab>
+</Tabs>
+
+The payer account must be enabled to send payments. TED payments use the payer's configured payment limits, taking the payee's document type into account.
+
+## Processing windows
+
+TED bank submission follows the Brazilian banking calendar in `America/Sao_Paulo`. Bank submission stops 65 minutes before an active banking window closes.
+
+If the processing window is closed and a future active window is available, an accepted payment is scheduled for that window. Keep tracking the original payment instead of submitting it again.
+
+## Statuses
+
+When `code` is `200` on submission, `data.txn_status` is `5` (PROCESSING). Acceptance does not prove that the payee received funds.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `5` PROCESSING | Accepted for processing | Submission only | Query the original payment |
+| `2` COMPLETED | Payment completed | Confirmed completion | Reconcile the payment |
+| `3` FAILED | Payment failed | Recorded failure | Review payment details |
+| `4` CANCELLED | Payment cancelled | Recorded cancellation | Review payment details |
+
+These are outcomes to check, not a promise that every payment passes through each status.
+
+## Retries and duplicates
+
+Use an order ID unique across accounts and operations in the same environment. Accepted IDs remain reserved for up to 48 hours.
+
+A retained `merchant_order_id` triggers `4001013` on another submission. The API rejects the duplicate instead of returning the original success response.
+
+After a timeout, network failure or system error, investigate the original payment before resubmitting. An early query may not find the transaction yet.
+
+Query again rather than creating a new payment. If you did not receive `txn_id`, retain the original order ID and response header `xxx-log-id` for support.
+
+See [Payout overview](/api-reference/payout/overview) for handling an unknown submission result.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Initiate TED payment" icon="paper-plane" href="/api-reference/payout/ted/initiate-ted-payment">
+    Prepare and sign a TED request.
+  </Card>
+  <Card title="Internal transfers" icon="arrow-right-arrow-left" href="/api-reference/payout/book-transfer/overview">
+    Transfer between eligible accounts at the same institution.
+  </Card>
+</CardGroup>

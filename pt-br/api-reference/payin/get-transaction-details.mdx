@@ -1,0 +1,91 @@
+---
+title: "Consultar detalhes da transação"
+sidebarTitle: "Detalhes da transação"
+description: "Consulte um recebimento Pix concluído pelo ID da transação ou da liquidação. Retorna o montante, o status e os dados do pagador e do recebedor."
+openapi: "openapi/pt-br.json POST /v3/charges/details"
+keywords: ["/v3/charges/details", "recebimento Pix", "detalhes da transação", "ID de liquidação"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Retorna os detalhes de um pagamento Pix concluído. A ausência de resultado não comprova falha no pagamento: este endpoint também oculta transações ainda não concluídas.
+
+| Credenciais | Idempotência | Resultado |
+| --- | --- | --- |
+| ACCOUNT, USER | Consulta sem alteração | Síncrono |
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a credencial vinculada à conta que você quer consultar. Omita `X-ISPB` e `X-Account-Number`, ou envie ambos com os dados dessa conta.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta que pertença ao USER. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use uma credencial ACCOUNT ou USER da conta que você quer consultar.</Warning>
+  </Tab>
+</Tabs>
+
+A conta consultada precisa participar da transação como pagador ou recebedor. Para confirmar um recebimento, confira se o recebedor retornado corresponde à sua conta recebedora.
+
+## Escolher o identificador de consulta
+
+Envie `txn_id` ou `settlement_id`. Se você enviar ambos, `txn_id` tem prioridade, sem conferir os identificadores nem consultar `settlement_id` como alternativa.
+
+Use o `txn_id` de um [callback de recebimento](/pt-br/api-reference/payin/callbacks) ou do [lançamento correspondente no extrato](/pt-br/api-reference/accounts/get-account-statement). O `settlement_txn_id` do callback corresponde ao `settlement_id` desta requisição.
+
+Se os dois identificadores estiverem vazios, a resposta retorna `4000` com a mensagem `Field txn_id or settlement_id is required`.
+
+## Interpretar o resultado
+
+Leia `code` antes de `data`. Quando `code` é `200`, a consulta retornou detalhes de uma transação concluída.
+
+O `txn_status` exibido pode indicar uma devolução ou contestação posterior, mesmo que o pagamento original tenha sido concluído.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `2` COMPLETED | Pagamento concluído | Recebimento pelo recebedor correspondente | Confira o lançamento |
+| `6` REFUNDED | Pagamento devolvido integralmente | Recebimento original, depois devolução | Concilie a devolução |
+| `7` PARTIALLY_REFUNDED | Pagamento devolvido parcialmente | Recebimento original, devolução parcial | Concilie o montante restante |
+| `8` DISPUTED | Pagamento em contestação | Recebimento com contestação | Confira os registros da contestação |
+
+Para confirmar o recebimento, confira o recebedor, o montante e os identificadores do pagamento esperado. Uma consulta bem-sucedida não comprova o saldo disponível atual.
+
+O `merchant_order_id` vem do QR code associado. Pode estar vazio em pagamentos sem essa referência de pedido.
+
+<Note>A resposta de detalhes mantém os timestamps em `0` e os campos `pix_details` e `ted_details` em `null`. Esses padrões não indicam pagamento incompleto.</Note>
+
+## Detalhes ausentes e novas tentativas
+
+Quando `code` é `4003003`, a transação não foi encontrada ou ainda não foi concluída. Não marque o pedido como falho apenas com essa resposta.
+
+Mantenha o pedido sem confirmação até um callback verificado ou um lançamento correspondente no extrato confirmar o recebimento. Após um timeout, repita a consulta com o mesmo identificador.
+
+Assine cada tentativa com novos `X-Nonce` e `X-Timestamp`. Inclua o cabeçalho de resposta `xxx-log-id` ao solicitar suporte para um erro de consulta.
+
+## Testar no Playground
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/charges/details" body={{ txn_id: "PIX-IN-001" }} />
+</Accordion>
+
+O assinador usa sua AK em `X-Client-ID` e sua SK para gerar a assinatura HMAC-SHA256 localmente. Assine o corpo e os cabeçalhos de conta que você envia.
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Callbacks de recebimento" icon="bell" href="/pt-br/api-reference/payin/callbacks">
+    Verifique uma notificação de pagamento recebido.
+  </Card>
+  <Card title="Extrato da conta" icon="list" href="/pt-br/api-reference/accounts/get-account-statement">
+    Localize o lançamento do pagamento na conta.
+  </Card>
+  <Card title="Detalhes do QR code" icon="qrcode" href="/pt-br/api-reference/payin/get-qr-code-details">
+    Consulte o QR code associado a um pedido.
+  </Card>
+  <Card title="Conciliação" icon="scale-balanced" href="/pt-br/api-reference/reconciliation">
+    Compare recebimentos, callbacks e lançamentos do extrato.
+  </Card>
+</CardGroup>

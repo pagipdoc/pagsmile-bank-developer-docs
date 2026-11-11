@@ -1,0 +1,494 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "almond",
+  "name": "Pagsmile Open API",
+  "description": "Integrate Pagsmile accounts, Pix pay-ins and payouts, TED, refunds, MED cases and webhooks with the Pagsmile Open API v3.",
+  "colors": {
+    "primary": "#0E2A4B",
+    "light": "#2BC196",
+    "dark": "#0E2A4B"
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg",
+    "href": "/"
+  },
+  "favicon": "/favicon.svg",
+  "fonts": {
+    "heading": {
+      "family": "Space Grotesk",
+      "weight": 600
+    },
+    "body": {
+      "family": "Geist"
+    }
+  },
+  "background": {
+    "color": {
+      "light": "#FFFFFF",
+      "dark": "#07111F"
+    }
+  },
+  "styling": {
+    "eyebrows": "breadcrumbs",
+    "codeblocks": {
+      "theme": {
+        "light": "github-light",
+        "dark": "github-dark-dimmed"
+      }
+    }
+  },
+  "icons": {
+    "library": "fontawesome"
+  },
+  "api": {
+    "openapi": [
+      "openapi/en.json",
+      "openapi/pt-br.json"
+    ],
+    "playground": {
+      "display": "interactive",
+      "proxy": false
+    },
+    "examples": {
+      "languages": [
+        "bash",
+        "python",
+        "javascript",
+        "go",
+        "java",
+        "php"
+      ],
+      "defaults": "all",
+      "prefill": true,
+      "autogenerate": false
+    },
+    "params": {
+      "expanded": "closed"
+    }
+  },
+  "navbar": {
+    "links": [],
+    "primary": {
+      "type": "button",
+      "label": "Banking platform",
+      "href": "https://banking.pagsmile.com.br/login"
+    }
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "cursor",
+      "vscode"
+    ],
+    "display": "header"
+  },
+  "seo": {
+    "metatags": {
+      "og:site_name": "Pagsmile Open API"
+    }
+  },
+  "navigation": {
+    "languages": [
+      {
+        "language": "en",
+        "tabs": [
+          {
+            "tab": "Guides",
+            "groups": [
+              {
+                "group": "Get started",
+                "pages": [
+                  "index",
+                  "account-models",
+                  "quickstart",
+                  "api-access-setup",
+                  "environments-and-credentials"
+                ],
+                "icon": "rocket"
+              },
+              {
+                "group": "History",
+                "icon": "clock-rotate-left",
+                "pages": [
+                  "changelog",
+                  "source-corrections"
+                ]
+              }
+            ],
+            "icon": "book"
+          },
+          {
+            "tab": "API reference",
+            "groups": [
+              {
+                "group": "Overview",
+                "pages": [
+                  "api-reference/overview",
+                  "api-reference/workflows"
+                ],
+                "icon": "book-open"
+              },
+              {
+                "group": "Onboarding",
+                "pages": [
+                  "api-reference/onboarding/overview",
+                  "api-reference/onboarding/create-managed-account",
+                  "api-reference/onboarding/get-managed-account",
+                  "api-reference/onboarding/list-managed-accounts",
+                  "api-reference/onboarding/kyb-callbacks"
+                ],
+                "icon": "user-plus"
+              },
+              {
+                "group": "Pix keys",
+                "pages": [
+                  "api-reference/pix-keys/overview",
+                  "api-reference/pix-keys/create-pix-key",
+                  "api-reference/pix-keys/delete-pix-key"
+                ],
+                "icon": "key"
+              },
+              {
+                "group": "Accounts and funds",
+                "pages": [
+                  "api-reference/accounts/overview",
+                  "api-reference/accounts/get-account-balance",
+                  "api-reference/accounts/get-account-statement",
+                  {
+                    "group": "Close account",
+                    "pages": [
+                      "api-reference/accounts/close-account/overview",
+                      "api-reference/accounts/close-account/check-eligibility",
+                      "api-reference/accounts/close-account/close-account",
+                      "api-reference/accounts/close-account/get-closure-progress"
+                    ]
+                  }
+                ],
+                "icon": "building-columns"
+              },
+              {
+                "group": "Pay-ins",
+                "pages": [
+                  "api-reference/payin/overview",
+                  "api-reference/payin/generate-dynamic-qr-code",
+                  "api-reference/payin/generate-static-qr-code",
+                  "api-reference/payin/get-qr-code-details",
+                  "api-reference/payin/get-transaction-details",
+                  "api-reference/payin/callbacks"
+                ],
+                "icon": "qrcode"
+              },
+              {
+                "group": "Payouts",
+                "pages": [
+                  "api-reference/payout/overview",
+                  {
+                    "group": "Pix",
+                    "pages": [
+                      "api-reference/payout/pix/overview",
+                      "api-reference/payout/pix/initialize-pix-key-payment",
+                      "api-reference/payout/pix/confirm-pix-key-payment",
+                      "api-reference/payout/pix/initialize-qr-code-payment",
+                      "api-reference/payout/pix/confirm-qr-code-payment",
+                      "api-reference/payout/pix/pay-with-bank-account-details",
+                      "api-reference/payout/pix/callbacks"
+                    ]
+                  },
+                  {
+                    "group": "TED",
+                    "pages": [
+                      "api-reference/payout/ted/overview",
+                      "api-reference/payout/ted/initiate-ted-payment"
+                    ]
+                  },
+                  {
+                    "group": "Internal transfer",
+                    "pages": [
+                      "api-reference/payout/book-transfer/overview",
+                      "api-reference/payout/book-transfer/initiate-internal-transfer"
+                    ]
+                  },
+                  "api-reference/payout/get-payment-status",
+                  "api-reference/payout/get-payment-details"
+                ],
+                "icon": "paper-plane"
+              },
+              {
+                "group": "Refunds",
+                "pages": [
+                  "api-reference/refunds/overview",
+                  "api-reference/refunds/initiate-pix-refund",
+                  "api-reference/refunds/get-refund-details",
+                  "api-reference/refunds/get-refund-status",
+                  "api-reference/refunds/callbacks"
+                ],
+                "icon": "rotate-left"
+              },
+              {
+                "group": "Webhooks",
+                "pages": [
+                  "api-reference/webhooks/overview",
+                  "api-reference/webhooks/create-event-subscription",
+                  "api-reference/webhooks/list-event-subscriptions",
+                  "api-reference/webhooks/get-event-subscription",
+                  "api-reference/webhooks/update-event-subscription",
+                  "api-reference/webhooks/deactivate-event-subscription",
+                  "api-reference/webhooks/transaction-callbacks"
+                ],
+                "icon": "bell"
+              },
+              {
+                "group": "MED and infractions",
+                "pages": [
+                  "api-reference/med/overview",
+                  "api-reference/med/create-med-case",
+                  "api-reference/med/list-med-cases",
+                  "api-reference/med/get-med-case-details",
+                  "api-reference/med/cancel-med-case",
+                  "api-reference/med/list-infraction-reports",
+                  "api-reference/med/get-infraction-report-details"
+                ],
+                "icon": "shield-halved"
+              },
+              {
+                "group": "Reconciliation",
+                "pages": [
+                  "api-reference/reconciliation"
+                ],
+                "icon": "scale-balanced"
+              },
+              {
+                "group": "Error catalog",
+                "pages": [
+                  "api-reference/error-catalog"
+                ],
+                "icon": "triangle-exclamation"
+              }
+            ],
+            "icon": "code"
+          }
+        ]
+      },
+      {
+        "language": "pt-BR",
+        "tabs": [
+          {
+            "tab": "Guias",
+            "groups": [
+              {
+                "group": "Primeiros passos",
+                "pages": [
+                  "pt-br/index",
+                  "pt-br/account-models",
+                  "pt-br/quickstart",
+                  "pt-br/api-access-setup",
+                  "pt-br/environments-and-credentials"
+                ],
+                "icon": "rocket"
+              },
+              {
+                "group": "Histórico",
+                "icon": "clock-rotate-left",
+                "pages": [
+                  "pt-br/changelog",
+                  "pt-br/source-corrections"
+                ]
+              }
+            ],
+            "icon": "book"
+          },
+          {
+            "tab": "Referência da API",
+            "groups": [
+              {
+                "group": "Visão geral",
+                "pages": [
+                  "pt-br/api-reference/overview",
+                  "pt-br/api-reference/workflows"
+                ],
+                "icon": "book-open"
+              },
+              {
+                "group": "Onboarding",
+                "pages": [
+                  "pt-br/api-reference/onboarding/overview",
+                  "pt-br/api-reference/onboarding/create-managed-account",
+                  "pt-br/api-reference/onboarding/get-managed-account",
+                  "pt-br/api-reference/onboarding/list-managed-accounts",
+                  "pt-br/api-reference/onboarding/kyb-callbacks"
+                ],
+                "icon": "user-plus"
+              },
+              {
+                "group": "Chaves Pix",
+                "pages": [
+                  "pt-br/api-reference/pix-keys/overview",
+                  "pt-br/api-reference/pix-keys/create-pix-key",
+                  "pt-br/api-reference/pix-keys/delete-pix-key"
+                ],
+                "icon": "key"
+              },
+              {
+                "group": "Contas e saldos",
+                "pages": [
+                  "pt-br/api-reference/accounts/overview",
+                  "pt-br/api-reference/accounts/get-account-balance",
+                  "pt-br/api-reference/accounts/get-account-statement",
+                  {
+                    "group": "Encerrar conta",
+                    "pages": [
+                      "pt-br/api-reference/accounts/close-account/overview",
+                      "pt-br/api-reference/accounts/close-account/check-eligibility",
+                      "pt-br/api-reference/accounts/close-account/close-account",
+                      "pt-br/api-reference/accounts/close-account/get-closure-progress"
+                    ]
+                  }
+                ],
+                "icon": "building-columns"
+              },
+              {
+                "group": "Recebimentos",
+                "pages": [
+                  "pt-br/api-reference/payin/overview",
+                  "pt-br/api-reference/payin/generate-dynamic-qr-code",
+                  "pt-br/api-reference/payin/generate-static-qr-code",
+                  "pt-br/api-reference/payin/get-qr-code-details",
+                  "pt-br/api-reference/payin/get-transaction-details",
+                  "pt-br/api-reference/payin/callbacks"
+                ],
+                "icon": "qrcode"
+              },
+              {
+                "group": "Pagamentos",
+                "pages": [
+                  "pt-br/api-reference/payout/overview",
+                  {
+                    "group": "Pix",
+                    "pages": [
+                      "pt-br/api-reference/payout/pix/overview",
+                      "pt-br/api-reference/payout/pix/initialize-pix-key-payment",
+                      "pt-br/api-reference/payout/pix/confirm-pix-key-payment",
+                      "pt-br/api-reference/payout/pix/initialize-qr-code-payment",
+                      "pt-br/api-reference/payout/pix/confirm-qr-code-payment",
+                      "pt-br/api-reference/payout/pix/pay-with-bank-account-details",
+                      "pt-br/api-reference/payout/pix/callbacks"
+                    ]
+                  },
+                  {
+                    "group": "TED",
+                    "pages": [
+                      "pt-br/api-reference/payout/ted/overview",
+                      "pt-br/api-reference/payout/ted/initiate-ted-payment"
+                    ]
+                  },
+                  {
+                    "group": "Transferência interna",
+                    "pages": [
+                      "pt-br/api-reference/payout/book-transfer/overview",
+                      "pt-br/api-reference/payout/book-transfer/initiate-internal-transfer"
+                    ]
+                  },
+                  "pt-br/api-reference/payout/get-payment-status",
+                  "pt-br/api-reference/payout/get-payment-details"
+                ],
+                "icon": "paper-plane"
+              },
+              {
+                "group": "Devoluções",
+                "pages": [
+                  "pt-br/api-reference/refunds/overview",
+                  "pt-br/api-reference/refunds/initiate-pix-refund",
+                  "pt-br/api-reference/refunds/get-refund-details",
+                  "pt-br/api-reference/refunds/get-refund-status",
+                  "pt-br/api-reference/refunds/callbacks"
+                ],
+                "icon": "rotate-left"
+              },
+              {
+                "group": "Webhooks",
+                "pages": [
+                  "pt-br/api-reference/webhooks/overview",
+                  "pt-br/api-reference/webhooks/create-event-subscription",
+                  "pt-br/api-reference/webhooks/list-event-subscriptions",
+                  "pt-br/api-reference/webhooks/get-event-subscription",
+                  "pt-br/api-reference/webhooks/update-event-subscription",
+                  "pt-br/api-reference/webhooks/deactivate-event-subscription",
+                  "pt-br/api-reference/webhooks/transaction-callbacks"
+                ],
+                "icon": "bell"
+              },
+              {
+                "group": "MED e notificações de infração",
+                "pages": [
+                  "pt-br/api-reference/med/overview",
+                  "pt-br/api-reference/med/create-med-case",
+                  "pt-br/api-reference/med/list-med-cases",
+                  "pt-br/api-reference/med/get-med-case-details",
+                  "pt-br/api-reference/med/cancel-med-case",
+                  "pt-br/api-reference/med/list-infraction-reports",
+                  "pt-br/api-reference/med/get-infraction-report-details"
+                ],
+                "icon": "shield-halved"
+              },
+              {
+                "group": "Conciliação",
+                "pages": [
+                  "pt-br/api-reference/reconciliation"
+                ],
+                "icon": "scale-balanced"
+              },
+              {
+                "group": "Catálogo de erros",
+                "pages": [
+                  "pt-br/api-reference/error-catalog"
+                ],
+                "icon": "triangle-exclamation"
+              }
+            ],
+            "icon": "code"
+          }
+        ]
+      }
+    ]
+  },
+  "redirects": [
+    {
+      "source": "/api-reference/onboarding/create-mor-account",
+      "destination": "/api-reference/onboarding/create-managed-account"
+    },
+    {
+      "source": "/pt-br/api-reference/onboarding/create-mor-account",
+      "destination": "/pt-br/api-reference/onboarding/create-managed-account"
+    },
+    {
+      "source": "/api-reference/onboarding/create-va-account",
+      "destination": "/api-reference/onboarding/create-managed-account"
+    },
+    {
+      "source": "/pt-br/api-reference/onboarding/create-va-account",
+      "destination": "/pt-br/api-reference/onboarding/create-managed-account"
+    },
+    {
+      "source": "/api-reference/onboarding/create-pa-account",
+      "destination": "/api-reference/onboarding/create-managed-account"
+    },
+    {
+      "source": "/pt-br/api-reference/onboarding/create-pa-account",
+      "destination": "/pt-br/api-reference/onboarding/create-managed-account"
+    },
+    {
+      "source": "/api-reference/accounts/get-subaccounts-and-balances",
+      "destination": "/api-reference/accounts/get-account-balance"
+    },
+    {
+      "source": "/pt-br/api-reference/accounts/get-subaccounts-and-balances",
+      "destination": "/pt-br/api-reference/accounts/get-account-balance"
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+---
+title: "Documentation changelog"
+sidebarTitle: "Changelog"
+description: "Changes to the Pagsmile Open API documentation: contract corrections checked against the source code, new reference tools, and moved pages, newest first."
+rss: true
+---
+
+This page lists documentation changes, newest first. Each entry says who is affected and whether you need to change your integration. Corrections to the original document package are listed field by field in [Source document corrections](/source-corrections).
+
+<Update label="2026-11-11" tags={["Improvements"]}>
+  ## API playground sends requests from your browser
+  The API playground now sends requests directly from your browser to the API. Before this change, it sent them through the Mintlify proxy. Mintlify doesn't publish outbound IP addresses for that proxy. In our tests, consecutive requests left from different addresses. You couldn't allowlist them reliably. This affects anyone who tests requests in the API playground.
+  - Action: allow this computer's public IP for the credential you test with. [Set up API access](/api-access-setup) detects it. Requests with `X-ISPB` or `X-Account-Number` fail in the browser because of the API's CORS policy. For those, run the cURL command on your server.
+</Update>
+<Update label="2026-11-11" tags={["New features"]}>
+  ## Set up API access
+  A new guide, [Set up API access](/api-access-setup), walks through the Pagsmile Banking dashboard for both credential types: Bank Account Level Credentials and User Level Credentials (OpenVA & Onboarding). Action: none; use it when you onboard a new server or rotate keys.
+  - IP Allow List: The guide shows commands that return your server's public egress IP from the API host. When the page opens, a helper shows this browser's public IP as the Pagsmile API hosts see it and suggests it as an entry. It merges new and existing entries and offers the list for copying only when every entry is valid. It flags invalid entries, private addresses, and IPv6 addresses the dashboard field can't store.
+  - Credentials: Enter each key pair once. The keys stay only in that browser tab's memory and are never stored. The guide generates `PAGSMILE_BASE_URL`, `PAGSMILE_AK`, and `PAGSMILE_SK` for bash and PowerShell, and in the Sandbox it tests the connection with one signed read request.
+  - Signature tools: On every API page, the tool fills in the saved credential that fits the operation, outputs a ready-to-run cURL command and, in the Sandbox, can send the request from the browser.
+</Update>
+<Update label="2026-11-11" tags={["Fixes"]}>
+  ## Sandbox-verified corrections
+  These corrections come from signed Sandbox calls made with account-level and user-level credentials. Review the items that match endpoints you call.
+  - User-Agent: Send a descriptive `User-Agent`, such as `your-app/1.0`. The network edge can return HTTP 403 with `error code: 1010` for a missing value or for some library defaults, such as `Python-urllib/3.12`. Every code sample now sets the header. Action: set it in your HTTP client. See [Authentication errors](/environments-and-credentials#authentication-errors).
+  - Code samples: Write samples now generate the `merchant_order_id` date prefix at runtime, which avoids failures caused by stale hard-coded dates. Action: none.
+  - Authentication messages: `4004102` and `4004103` return their message templates unrendered. Action: branch on `code` and ignore the `message` text. See [Error catalog](/api-reference/error-catalog#authentication-errors).
+  - Incoming Pix callbacks: `flow_type` in a `PIX_PAYMENT_IN` callback can be `FLOW_TYPE_TRANSFER`. In the Sandbox, payments between two accounts with the same ISPB arrived with that value. Action: accept both `FLOW_TYPE_IN` and `FLOW_TYPE_TRANSFER`. See [Incoming Pix payment callbacks](/api-reference/payin/callbacks).
+  - Timestamps: `updated_at` on managed accounts and event subscriptions can be Unix seconds. Action: treat `0` as unavailable and any other value below `1000000000000` as seconds.
+  - Account closure: `reasons` can be `null`. A conflicting or concurrent closure returns `4001013`. See [Close account](/api-reference/accounts/close-account/close-account).
+  - Error codes: Endpoint pages list the business codes returned in the Sandbox, including `4004004` for a missing account-creation fee configuration, `4004029` for rate limits, `4001` for a TED whose payee ISPB equals the payer's and `400` for a payee bank code that matches no participant.
+  - TED status: Transaction status `1` (PENDING) is not a final status; it is separate from the response `code`. Action: keep querying the original payment.
+</Update>
+<Update label="2026-11-11" tags={["Fixes"]}>
+  ## Contract corrections
+
+  These corrections bring the documented contract in line with the current source code. Review the items that match endpoints you already call.
+
+  - Pix payout by bank details and TED payments: `payee.document_type` and `payee.bank_account_type` are required. A request that leaves either field unset is rejected. Action: send both fields. See [Pay with Pix using bank account details](/api-reference/payout/pix/pay-with-bank-account-details) and [Initiate TED payment](/api-reference/payout/ted/initiate-ted-payment).
+  - PA account opening: `linked_account`, `linked_account.ispb` and `linked_account.account_number` are required for the PA model. Action: always send the parent account reference. See [Create managed account](/api-reference/onboarding/create-managed-account).
+  - Account balance: `POST /v3/bank_account` has no business fields. The account comes from your credentials and account-selection headers. Action: send `{}`. See [Get account balance](/api-reference/accounts/get-account-balance).
+  - Payment details: Look up a payment with the `data.txn_id` returned when you submitted it, or with a statement entry you matched to your order. Don't take the first statement entry: statements are ordered newest first and may belong to another payment. See [Get payment details](/api-reference/payout/get-payment-details).
+  - QR code payment initialization: For due-date QR codes, `data.dynamic_due_properties` also returns `payee_street`, `payee_city`, `payee_state` and `payee_postal_code`. Action: none, unless you validate the response strictly. See [Initialize QR code payment](/api-reference/payout/pix/initialize-qr-code-payment).
+  - Pix key formats: Phone and email patterns now show plain quantifiers, for example `{10,11}`, instead of escaped braces. Action: if you copied a pattern from an earlier version, compare it again. See [Create Pix key](/api-reference/pix-keys/create-pix-key).
+  - Dynamic QR code amount: `amount` is a decimal string greater than zero with at most two decimal places. See [Generate dynamic QR code](/api-reference/payin/generate-dynamic-qr-code).
+  - HTTP status codes: Every JSON result, including validation, authentication and business errors, returns HTTP 200. Read `code` in the body. HTTP 400 with a plain-text body means the request body or parameters could not be read or parsed. See [Error catalog](/api-reference/error-catalog#read-the-response).
+</Update>
+
+<Update label="2026-11-11" tags={["New features"]}>
+  ## Interactive reference and signing tools
+
+  - API Playground: Each endpoint page has a request form with a JSON view and named response examples. At the time, requests went out through the Mintlify proxy, and the API rejected them with business code `4004103` when that outbound IP was not on your IP allowlist. The playground now sends requests from your browser. See the newer entry above.
+  - Signed code samples: Every endpoint has samples in cURL, Python, Node.js, Go, Java and PHP that build the string to sign, compute `X-Signature` and send the request. Each sample was run against a test server that recomputes the signature with the same algorithm as the fixed signature test vectors.
+  - Signature tool and callback verifier: These tools run in your browser and don't send anything over the network. The signature tool computes headers for documented v3 requests with an ASCII endpoint path and no query. The callback verifier checks a callback you received. See [Use the signature tool](/environments-and-credentials#use-the-signature-tool) and [Check a received callback](/environments-and-credentials#check-a-received-callback).
+  - Brazilian Portuguese quickstart: The Portuguese [Início rápido](/pt-br/quickstart) is now complete and matches the English page.
+</Update>
+
+<Update label="2026-11-11" tags={["Improvements"]}>
+  ## Pages merged and moved
+
+  - One account-opening page: The separate MOR, VA and PA creation pages are now one [Create managed account](/api-reference/onboarding/create-managed-account) page, with a view for each model. Old links redirect.
+  - One balance page: "Get subaccounts and balances" described the same `POST /v3/bank_account` call as [Get account balance](/api-reference/accounts/get-account-balance), so it now redirects there.
+  - Corrections moved off the pages: Inline "Added" and "Corrected" badges and the per-page corrections panels are gone. The full record is on [Source document corrections](/source-corrections).
+</Update>
+
+<Update label="2026-11-10" tags={["New releases"]}>
+  ## Pagsmile Open API documentation
+
+  First publication of the integration guide and API reference in English and Brazilian Portuguese. We converted them from the original document package and checked them against the source code. Every place where the package differed from the code is listed in [Source document corrections](/source-corrections).
+</Update>

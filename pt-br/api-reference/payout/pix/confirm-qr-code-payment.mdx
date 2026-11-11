@@ -1,0 +1,114 @@
+---
+title: "Confirmar pagamento via QR Code"
+sidebarTitle: "Confirmar pagamento QR"
+description: "Envie um pagamento Pix por QR Code com a referência de inicialização e o valor em BRL. Retorna o ID da transação e o status para acompanhar o resultado."
+openapi: "openapi/pt-br.json POST /v3/transfers/pix/qr-code-confirm"
+keywords: ["/v3/transfers/pix/qr-code-confirm", "pagamento Pix por QR Code", "confirmação de pagamento", "ID do pedido"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Envia um pagamento Pix por QR Code com a referência de inicialização e retorna o ID da transação e o status. Uma requisição bem-sucedida, por si só, não comprova a liquidação.
+
+## Antes de chamar
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use a conta vinculada à sua AK. Os cabeçalhos de seleção da conta são opcionais; se enviados, os dois devem corresponder à conta vinculada.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Envie `X-ISPB` e `X-Account-Number` de uma conta que pertença ao USER. Inclua os dois cabeçalhos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use uma credencial ACCOUNT ou USER para a conta do pagador.</Warning>
+  </Tab>
+</Tabs>
+
+O usuário associado precisa estar ativo e ter acesso a pagamentos habilitado. Uma conta bloqueada do pagador não pode enviar este pagamento.
+
+Use a mesma conta do pagador da [inicialização](/pt-br/api-reference/payout/pix/initialize-qr-code-payment) e confirme em até cinco minutos.
+
+Uma referência preenchida que esteja indisponível retorna `4003012`. Ela pode ter expirado ou ter sido consumida após o envio bem-sucedido.
+
+## Escolher o valor
+
+Envie uma string decimal positiva em BRL, como `"10.50"`. O valor precisa ser representável exatamente com duas casas decimais.
+
+Valores equivalentes, como `"10.5"` e `"10.50"`, correspondem numericamente. Zeros adicionais à direita são aceitos; zero, valores negativos e `"10.555"` são rejeitados.
+
+Para um QR Code estático sem valor definido, informe o valor acordado com o recebedor. Para um QR Code dinâmico de pagamento imediato com valor fixo e positivo, use o mesmo valor numérico retornado na inicialização.
+
+Para um QR Code com vencimento, use o valor calculado de `data.amount` da inicialização, em vez do valor original antes dos ajustes.
+
+Não use `data.amount_editable` da inicialização para decidir se o valor pode ser alterado. O campo permanece `false`, independentemente das verificações aplicáveis ao valor.
+
+Você pode omitir `currency` ou enviar `BRL`. O endpoint ignora a moeda informada e envia o pagamento em BRL, sem conversão.
+
+## Identificar seu pedido
+
+O ID do pedido aceita apenas letras ASCII, dígitos, hífens e sublinhados.
+
+Use um ID de pedido cujos primeiros seis caracteres formem uma data UTC válida no formato `YYMMDD`. O dia deve coincidir com a janela de uma hora antes ou depois do horário atual.
+
+Um ID de pedido fora dessa janela retorna `400` com a mensagem `Invalid parameter`.
+
+Gere o ID a partir da data UTC atual. A data do exemplo é ilustrativa; atualize-a antes de enviar uma requisição pelo Playground.
+
+Guarde o ID do pedido junto com o ID da transação retornado. Consulte um resultado desconhecido antes de reenviar ou criar outro ID de pedido.
+
+## Interpretar o resultado
+
+Todos os resultados de negócio em JSON retornam HTTP 200. Leia `code` antes de `data` e confira o status da transação.
+
+Uma confirmação bem-sucedida retorna `data.txn_status` igual a `5` (PROCESSING). O pagamento continua de forma assíncrona; a aceitação não comprova a liquidação concluída.
+
+Salve `data.txn_id` e consulte o [status do pagamento](/pt-br/api-reference/payout/get-payment-status) ou os [detalhes do pagamento](/pt-br/api-reference/payout/get-payment-details) para confirmar o resultado.
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `5` PROCESSING | Em processamento | Liquidação ainda não confirmada | Consulte o pagamento original |
+| `2` COMPLETED | Concluído | Pagamento concluído | Concilie o pagamento |
+| `3` FAILED | Falha registrada | Falha registrada localmente | Concilie antes de substituir o pagamento |
+| `4` CANCELLED | Cancelado | Pagamento cancelado | Confira os detalhes |
+
+Para Pix, `FAILED` indica uma falha registrada pela Pagsmile; não comprova que o banco deixou de movimentar os recursos. Concilie os detalhes do pagamento com o lançamento correspondente no extrato antes de criar um pagamento substituto. Veja a regra de duas horas em [Consultar status do pagamento](/pt-br/api-reference/payout/get-payment-status).
+
+A resposta de confirmação deixa os dados dos participantes como `null` e `data.settlement_id` vazio. Consulte os detalhes do pagamento para obter esses dados.
+
+## Repetições e resultados desconhecidos
+
+Um envio bem-sucedido consome a referência de inicialização. Uma nova referência não autoriza você a pagar o mesmo pedido novamente.
+
+Os IDs de pedido reservados são mantidos por 48 horas para detectar duplicidades. A detecção usa apenas o ID do pedido; evite reutilizá-lo entre contas.
+
+Uma duplicidade retorna `4001013` com a mensagem `merchant_order_id already exists`, sem repetir a resposta de sucesso original.
+
+Se a confirmação tiver timeout ou retornar um erro do sistema, consulte o pagamento original antes de outro envio.
+
+A consulta de detalhes exige um `txn_id` ou `settlement_id` salvo; apenas o ID do pedido não é suficiente. Se você não recebeu o ID da transação, envie o `settlement_id` salvo na inicialização junto com o `merchant_order_id` original.
+
+Sem nenhum desses identificadores, localize o pagamento original no [extrato da conta](/pt-br/api-reference/accounts/get-account-statement) ou contate o suporte com o ID do pedido original e `xxx-log-id`. Não envie um pagamento substituto enquanto o resultado permanecer desconhecido.
+
+Assine cada tentativa com novos `X-Nonce` e `X-Timestamp`. Informe o cabeçalho de resposta `xxx-log-id` ao entrar em contato com o suporte.
+
+## Testar no Playground
+
+Substitua a referência do exemplo por uma retornada na inicialização. Atualize a data do pedido e o valor, depois assine o corpo final da requisição.
+
+<Accordion title="Assinar uma requisição do Playground" icon="pen-nib">
+  <PlaygroundSigner lang="pt" method="POST" path="/v3/transfers/pix/qr-code-confirm" body={{ ref_id: "8e67c99a-7c55-4e91-9557-512b5e198561", amount: "10.50", merchant_order_id: "261110-qr-payment-001" }} />
+</Accordion>
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Inicializar pagamento via QR Code" icon="qrcode" href="/pt-br/api-reference/payout/pix/initialize-qr-code-payment">
+    Obtenha a referência e confira os dados do pagamento.
+  </Card>
+  <Card title="Consultar status do pagamento" icon="clock" href="/pt-br/api-reference/payout/get-payment-status">
+    Consulte o resultado da transação original.
+  </Card>
+  <Card title="Consultar detalhes do pagamento" icon="receipt" href="/pt-br/api-reference/payout/get-payment-details">
+    Consulte pelo identificador da transação ou da liquidação.
+  </Card>
+</CardGroup>

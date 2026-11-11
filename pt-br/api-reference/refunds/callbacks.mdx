@@ -1,0 +1,107 @@
+---
+title: "Callbacks de devoluções"
+sidebarTitle: "Callbacks"
+description: "Receba resultados assinados de devoluções Pix e TED em eventos REFUND_IN e REFUND_OUT. Verifique a assinatura, confirme o recebimento e evite duplicidades."
+openapi: "openapi/pt-br.json webhook refundTransactionEvent"
+keywords: ["devolução Pix", "devolução TED", "conciliação", "status da devolução"]
+---
+
+import { WebhookVerifier } from "/snippets/webhook-verifier.jsx";
+
+Recebe resultados de devoluções Pix e TED nas contas com assinatura de eventos ativa. Uma devolução com falha é notificada apenas à conta que envia.
+
+## Eventos e direção
+
+| Evento da assinatura | Quem recebe |
+| --- | --- |
+| `3` REFUND_IN | Pagador original, que recebe a devolução |
+| `4` REFUND_OUT | Recebedor original, que envia a devolução |
+
+Configure o evento correspondente à conta. Contas de outros bancos não recebem esses callbacks da Pagsmile.
+
+O corpo é o mesmo nos dois eventos, com diferenças de visibilidade. Não há `event_type` nem `flow_direction`; use o evento da assinatura e a conta destinatária.
+
+No corpo, `payer` é quem envia a devolução, o recebedor original. `payee` é quem recebe a devolução, o pagador original.
+
+`flow_type` é o fluxo registrado da devolução. Não o use sozinho para identificar a direção desta entrega.
+
+## Resultado da devolução
+
+| Status | Significado | O que comprova | Próximo passo |
+| --- | --- | --- | --- |
+| `TXN_STATUS_COMPLETED` | Devolução concluída | Conclusão registrada | Confira o valor e extrato |
+| `TXN_STATUS_FAILED` | Falha na devolução | Falha registrada | Investigue pela conta que envia |
+
+Uma devolução com falha só gera REFUND_OUT. Não espere REFUND_IN para descobrir a falha na conta que recebe.
+
+Os enums são strings com seus nomes completos. `created_at` e `completed_at` também são strings, em milissegundos Unix; datas não definidas podem ser omitidas.
+
+Os valores são strings decimais em BRL. O callback não usa o envelope REST de resposta.
+
+## Identificadores e pagamento original
+
+Para uma devolução iniciada, `txn_id` corresponde a `data.refund_id` retornado na criação. Seu `settlement_txn_id` corresponde a `data.settlement_refund_id`.
+
+Devoluções decorrentes de disputas também usam esses callbacks REFUND. Seus `txn_id` e `settlement_txn_id` podem identificar a transação e a liquidação da disputa, sem uma resposta de criação de devolução.
+
+`original_txn` vincula o pagamento original. Seu valor é o do pagamento original, não o valor da devolução no nível superior.
+
+Em REFUND_IN, o pedido dentro de `original_txn` é o do pagamento original. Em REFUND_OUT, é o pedido do QR Code original, quando disponível.
+
+O `merchant_order_id` no nível superior só aparece em REFUND_OUT, quando disponível. As tarifas no nível superior são omitidas; tarifas do pagamento original podem aparecer em `original_txn`.
+
+## Entrega e duplicidades
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    O callback não inclui `delivery_id`. Para evitar duplicidades, use a conta destinatária, o evento da assinatura e `txn_id`.
+  </Tab>
+  <Tab title="USER" icon="user">
+    O callback inclui `delivery_id`, que permanece igual nas novas tentativas da mesma entrega. Use esse ID para evitar duplicidades.
+
+    A entrega depende do acesso à conta, da assinatura de eventos ativa e da credencial de assinatura válida. A revogação ou alteração dessas condições pode cancelar entregas pendentes.
+  </Tab>
+</Tabs>
+
+Não dependa da ordem de chegada. Vincule cada callback à transação de devolução, sem sobrescrever o pagamento original.
+
+Para uma devolução iniciada, se o resultado local e o callback divergirem, consulte a [devolução existente](/pt-br/api-reference/refunds/get-refund-status) pela conta que envia.
+
+Para uma devolução decorrente de disputa, correlacione o callback por `original_txn` e pelo lançamento correspondente no extrato. Consultas de devolução abrangem registros de devoluções, não disputas.
+
+Um resultado não encontrado para um identificador de disputa não invalida o callback nem comprova falha financeira. Evite executar a mesma ação financeira duas vezes.
+
+## Verificar e confirmar o recebimento
+
+Preserve os bytes brutos do corpo. Verifique os seis cabeçalhos: `Content-Type`, `X-Client-ID`, `X-Timestamp`, `X-Nonce`, `X-Content-Hash` e `X-Signature`.
+
+Confira o timestamp conforme sua janela de validade e recalcule o SHA-256 do corpo bruto. Verifique o HMAC-SHA256 com a SK da AK recebida, usando comparação em tempo constante.
+
+Após validar a assinatura, registre atomicamente a AK e o nonce para impedir replay. O nonce usa 32 caracteres hexadecimais minúsculos.
+
+Callbacks ACCOUNT assinam o caminho com os escapes de URL decodificados; callbacks USER preservam esses escapes. Siga o protocolo completo em [Verificar callbacks](/pt-br/environments-and-credentials#verificar-callbacks).
+
+Registre o callback de forma durável e retorne HTTP `200`. Processe os dados de negócio de forma assíncrona após confirmar o recebimento.
+
+Erros de transporte e respostas diferentes de HTTP `200` podem gerar novas tentativas. A confirmação não comprova que seu processamento de negócio terminou.
+
+<Accordion title="Verificar um callback recebido" icon="shield-check">
+  <WebhookVerifier lang="pt" />
+</Accordion>
+
+## Notificação ausente
+
+Confira a URL e o evento da assinatura, o acesso à conta e a credencial de assinatura. Para uma devolução iniciada, consulte o status se o callback não chegar.
+
+Guarde o ID da transação de devolução e, quando presente, `delivery_id` ao solicitar investigação. Não inicie uma nova devolução por falta de callback.
+
+## Relacionados
+
+<CardGroup cols={2}>
+  <Card title="Consultar status" icon="arrows-rotate" href="/pt-br/api-reference/refunds/get-refund-status">
+    Recupere o resultado sem criar outra devolução.
+  </Card>
+  <Card title="Criar assinatura de eventos" icon="bell" href="/pt-br/api-reference/webhooks/create-event-subscription">
+    Configure os eventos de devolução.
+  </Card>
+</CardGroup>

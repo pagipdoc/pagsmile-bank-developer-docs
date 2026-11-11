@@ -1,0 +1,96 @@
+---
+title: "Get payment details"
+sidebarTitle: "Payment details"
+description: "Find a submitted payment by transaction or settlement ID. Returns participants, amount and display status, with limited details for a pending order."
+openapi: "openapi/en.json POST /v3/transfers/details"
+keywords: ["/v3/transfers/details", "payment details", "txn_id", "settlement_id", "reconciliation"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Look up an existing payment and check its identifiers, participants, amount and display status. Provide `txn_id` or `settlement_id`; an order ID alone is not sufficient.
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the credential bound to the target account. Omit `X-ISPB` and `X-Account-Number`, or send both with values matching that account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+    You can also query a closed account's history if it still passes the ownership and account-association checks.
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use an ACCOUNT or USER credential for an account participating in the payment.</Warning>
+  </Tab>
+</Tabs>
+
+The target account must be the payer or payee of the transaction. A pending-order fallback is available only to the matching payer account.
+
+## Choose the payment identifier
+
+Use `data.txn_id` from the payment submission response. In a two-step Pix flow, take it from the [key confirmation](/api-reference/payout/pix/confirm-pix-key-payment) or [QR confirmation](/api-reference/payout/pix/confirm-qr-code-payment) response.
+
+If you use an [account statement](/api-reference/accounts/get-account-statement), locate the entry matching your payment before copying its `txn_id`. Statements default to newest first; the first entry is not necessarily your payment.
+
+You can query by `settlement_id` instead. If both identifiers are nonempty, `txn_id` takes precedence. The endpoint neither cross-checks `settlement_id` nor retries that identifier if the transaction lookup fails.
+
+## Pending orders and incomplete details
+
+When the identifier lookup finds no transaction, an optional `merchant_order_id` can identify a matching pending order. The endpoint returns limited details whose status is `5` (PROCESSING) and source is `2` (API).
+
+That response includes the transaction and order IDs but no participant data or amount. Query again with the same identifiers; missing details do not mean completion.
+
+The endpoint does not populate completion timestamps or rail-specific detail objects. A zero timestamp or `null` object does not tell you whether the payment succeeded.
+
+## Read the display status
+
+When `code` is `200`, the lookup succeeded. Use `data.details.txn_status` and reconcile the matching statement entry before confirming the funds outcome.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `0` UNSPECIFIED | Unmapped status | No completion evidence | Check status and reconcile |
+| `1` PENDING | Awaiting processing | Payment exists | Check status later |
+| `2` COMPLETED | Final payment success | Payment completed | Reconcile the matching entry |
+| `3` FAILED | Recorded failure | Failure recorded locally | Reconcile before any replacement |
+| `4` CANCELLED | Final payment cancellation | Payment is cancelled | Reconcile before any replacement |
+| `5` PROCESSING | Work in progress | No completion evidence | Check status later |
+| `6` REFUNDED | Refund display status | Full refund is displayed | Reconcile refund records |
+| `7` PARTIALLY_REFUNDED | Partial refund display status | Partial refund is displayed | Reconcile each refund |
+| `8` DISPUTED | Dispute display status | Dispute is displayed | Investigate related records |
+
+For Pix, `FAILED` records a Pagsmile failure; it does not prove that funds did not move at the bank. Reconcile payment details and the matching statement entry before creating any replacement payment. See [Get payment status](/api-reference/payout/get-payment-status) for the two-hour rule.
+
+Payment processing ends at `COMPLETED`, `FAILED` or `CANCELLED`. Later refund and dispute display statuses describe changes related to that payment.
+
+The [status-check endpoint](/api-reference/payout/get-payment-status) returns the recorded payment status and can advance processing. It does not return the refund or dispute display statuses shown here.
+
+## Retries and unknown results
+
+After a timeout or temporary query error, retry the lookup with the same payment identifiers. Do not submit another payment because this query failed.
+
+For `PENDING` or `PROCESSING`, use the status check with increasing delays. If a pending order has no complete transaction details yet, allow time before checking again.
+
+Business code `4003014` can indicate a details retrieval failure, even though its message says "Payment processing failed". It does not prove a final payment failure.
+
+If you cannot resolve the outcome, contact support with the payment identifiers and response header `xxx-log-id`. Sign each attempt with a new nonce and timestamp; see [authentication errors](/api-reference/error-catalog#authentication-errors).
+
+## Try it in the Playground
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/transfers/details" body={{ txn_id: "f94eeb41-39e6-4f65-bad7-11fa322739a8" }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Get payment status" icon="clock" href="/api-reference/payout/get-payment-status">
+    Check the recorded status and advance processing.
+  </Card>
+  <Card title="Get account statement" icon="receipt" href="/api-reference/accounts/get-account-statement">
+    Select the statement entry matching your payment.
+  </Card>
+  <Card title="Pix refunds" icon="rotate-left" href="/api-reference/refunds/overview">
+    Query and reconcile subsequent refunds.
+  </Card>
+</CardGroup>

@@ -1,0 +1,72 @@
+---
+title: "List infraction reports"
+sidebarTitle: "List reports"
+description: "Find infraction reports for transactions received by an account using status, identifiers and time filters. Returns paginated infraction task summaries."
+openapi: "openapi/en.json POST /v3/infractions/list"
+keywords: ["/v3/infractions/list", "MED case", "infraction report", "account scope"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Lists infraction tasks for transactions received by the selected account. Use `infraction_id`, not a report business ID, for the detail lookup.
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    The query uses the account bound to your AK. Omit both account-target headers, or send both matching that account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send `X-ISPB` and `X-Account-Number` for an account you own. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use an ACCOUNT or USER credential.</Warning>
+  </Tab>
+</Tabs>
+
+## Scope and filters
+
+Reports must concern transactions received by the selected account. Reports for other accounts in the same case are excluded.
+
+Filters are combined with AND. Nonempty identifiers use exact matching; omitted or empty identifiers leave that filter unset.
+
+Omit enum filters to include all values. Sending `0` filters for UNSPECIFIED, rather than disabling the filter.
+
+Time bounds are inclusive and use Unix milliseconds (UTC). A zero or negative bound is ignored; reversed positive bounds produce no matches.
+
+## Pagination
+
+Results are ordered by creation time, newest first. `page` defaults to `1`; `page_size` defaults to `20` when omitted or nonpositive.
+
+Send a `page_size` from `1` to `100`. Larger values query 100 items but remain unchanged in `data.page.page_size` and the `total_pages` calculation.
+
+Keep the same filters and account selection when requesting the next page.
+
+## Read the result
+
+When `code` is `200`, read `data.items` and the pagination metadata. An empty list means no visible records matched the filters.
+
+Open the matching task with `data.items[].infraction_id`. The report `amount` is requested funds, not necessarily the original, blocked or returned amount.
+
+## Query retries
+
+If a query fails or times out, repeat the same lookup rather than creating a new case. Sign each attempt with new `X-Nonce` and `X-Timestamp` values.
+
+Read the business `code` even when HTTP status is `200`. Include the response header `xxx-log-id` when contacting support.
+
+## Try it in the Playground
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/infractions/list" body={{"page": 1, "page_size": 20}} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Get infraction report details" icon="magnifying-glass" href="/api-reference/med/get-infraction-report-details">
+    Inspect the selected infraction task.
+  </Card>
+  <Card title="MED overview" icon="shield-halved" href="/api-reference/med/overview">
+    Review MED and infraction reports.
+  </Card>
+</CardGroup>

@@ -1,0 +1,6 @@
+{
+ "api-reference/onboarding/create-mor-account": "api-reference/onboarding/create-managed-account",
+ "api-reference/onboarding/create-va-account": "api-reference/onboarding/create-managed-account",
+ "api-reference/onboarding/create-pa-account": "api-reference/onboarding/create-managed-account",
+ "api-reference/accounts/get-subaccounts-and-balances": "api-reference/accounts/get-account-balance"
+}

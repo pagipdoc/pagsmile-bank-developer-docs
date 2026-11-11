@@ -1,0 +1,106 @@
+---
+title: "Generate dynamic QR code"
+sidebarTitle: "Dynamic QR code"
+description: "Create a dynamic Pix QR code with a BRL amount and expiration for an account. Returns the Base64 payment payload, QR code ID and merchant order ID."
+openapi: "openapi/en.json POST /v3/qr_code/generate/dynamic"
+keywords: ["/v3/qr_code/generate/dynamic", "dynamic Pix QR code", "Pix pay-in", "merchant_order_id"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Creates a dynamic Pix QR code for the target account. When `code` is `200`, the QR code was generated; no payment is confirmed.
+
+| Credentials | Idempotency | Result |
+| --- | --- | --- |
+| ACCOUNT, USER | Duplicate order rejected | QR generated |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    Use the account bound to your AK. If you send `X-ISPB` and `X-Account-Number`, both must match that account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use an ACCOUNT or USER credential for the receiving account.</Warning>
+  </Tab>
+</Tabs>
+
+The account must be active, allow incoming payments and have no [closure](/api-reference/accounts/close-account/overview) in progress. Its holder document and account type must be present.
+
+Use an ACTIVE Pix key belonging to that account. The key's registered account number, holder document and document type must match the account.
+
+An unknown key returns `4004004` with message `PIX key not found`.
+
+The account holder's name must contain printable ASCII characters or whitespace. Other non-ASCII characters in that name are rejected.
+
+## Amount and expiration
+
+Send `amount` as a decimal string in BRL, greater than `0`, with at most two decimal places, such as `"10.50"`. Do not send JSON numbers.
+
+`expires` is a duration in seconds. Omit it or send `0` to use `7200` seconds.
+
+## Optional payer information
+
+Provide `payer_name` and `payer_document_id` together, or omit both. This rule applies even when `payer_verify` is `false`.
+
+The document must have 11 or 14 characters. This validation checks length, not document authenticity.
+
+When `payer_verify` is `true`, both fields are included in QR creation. The payer name must contain printable ASCII characters or whitespace.
+
+When `payer_verify` is `false`, payer information is not included. Setting it to `true` without either payer field does not add payer information.
+
+## Order IDs and retries
+
+This request has no `txid` field. The server generates `qr_code_id`; save the returned identifier unchanged.
+
+Start `merchant_order_id` with a valid UTC date in `YYMMDD` format. That day's interval must overlap the current UTC time's one-hour window in either direction.
+
+Use today's UTC date for normal requests. Only letters, digits, hyphens and underscores are allowed.
+
+Use an order ID unique across your accounts and operations that use merchant order IDs. The shared duplicate check retains an ID for 48 hours.
+
+An already reserved order ID is rejected. Resubmitting it does not return the original QR code as an idempotent success.
+
+Reservation expiry does not prove that generation failed. Resolve the original attempt before recreating the QR code.
+
+If the response is lost, query [QR code details](/api-reference/payin/get-qr-code-details) with the saved `qr_code_id`. If you have no QR code ID, preserve the order ID and contact support.
+
+Do not create another order to infer the original payment's outcome. Include the environment, account, order ID, request time and `xxx-log-id` when requesting support.
+
+Sign every attempt with a new `X-Nonce` and `X-Timestamp`. A failed signature check still consumes the nonce.
+
+## Read the result
+
+Save `data.qr_code_id` and `data.merchant_order_id`. The response contains the Base64 payment payload in `data.payload_base64`; `data.payload_image_base64` is empty.
+
+Base64-decode `data.payload_base64` into UTF-8 Pix payment text. Display the decoded text as the copy-and-paste code and generate a QR image from the same text. Do not use the Base64 value as an image or a directly payable code.
+
+Use [pay-in callbacks](/api-reference/payin/callbacks) and [transaction details](/api-reference/payin/get-transaction-details) to confirm payment. QR generation does not prove a credit to the account.
+
+## Try it in the Playground
+
+Replace the example order's date prefix with today's UTC date and use an ACTIVE Pix key belonging to your target account. Sign the final body.
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/qr_code/generate/dynamic" body={{ amount: "10.50", city: "SAO PAULO", merchant_order_id: "261110_ORDER_001", pix_key: "8e67c99a-7c55-4e91-9557-512b5e198561", pix_key_type: 5 }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="QR code details" icon="qrcode" href="/api-reference/payin/get-qr-code-details">
+    Look up the QR code you generated.
+  </Card>
+  <Card title="Pay-in callbacks" icon="bell" href="/api-reference/payin/callbacks">
+    Handle incoming payment notifications.
+  </Card>
+  <Card title="Static QR code" icon="qrcode" href="/api-reference/payin/generate-static-qr-code">
+    Compare the alternative QR creation endpoint.
+  </Card>
+  <Card title="Pay-in overview" icon="arrow-down-to-line" href="/api-reference/payin/overview">
+    Follow the receiving and reconciliation flow.
+  </Card>
+</CardGroup>

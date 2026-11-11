@@ -1,0 +1,106 @@
+---
+title: "Pay with Pix using bank account details"
+sidebarTitle: "Bank account details"
+description: "Submit a Pix payment using the payee's bank details. Returns a transaction ID and PROCESSING status; query the payment to confirm completion."
+openapi: "openapi/en.json POST /v3/transfers/pix/bank-account"
+keywords: ["/v3/transfers/pix/bank-account", "Pix payout", "bank account details", "merchant_order_id"]
+---
+
+import { PlaygroundSigner } from "/snippets/playground-signer.jsx";
+
+Sends a Pix payment using the payee's bank account details, without a separate initialization or confirmation call. A successful submission accepts the payment for processing, not completion.
+
+| Credentials | Idempotency | Result |
+| --- | --- | --- |
+| ACCOUNT, USER | Order ID, 48 hours | Asynchronous |
+
+## Before you call
+
+<Tabs>
+  <Tab title="ACCOUNT" icon="building-columns">
+    You pay from the account bound to your AK. Omit both account-target headers, or send `X-ISPB` and `X-Account-Number` matching that account.
+  </Tab>
+  <Tab title="USER" icon="user">
+    Send both `X-ISPB` and `X-Account-Number` to select a payer account owned by the USER. Include both headers in the [signature](/environments-and-credentials#sign-requests).
+  </Tab>
+  <Tab title="PLATFORM" icon="server">
+    <Warning>PLATFORM credentials cannot call this endpoint. Use an ACCOUNT or USER credential for the payer account.</Warning>
+  </Tab>
+</Tabs>
+
+The payer account and its required parent accounts must be active. Keep enough available balance to cover the payment and applicable fees.
+
+## Check the payee and amount
+
+The payer and payee cannot have the same bank ISPB and account number. Check the payee's identity and banking details before submitting.
+
+A `payee.bank_code` that matches no bank in the participant directory returns `400` with message `Payee bank code is invalid`.
+
+Provide both `payee.document_type` and `payee.bank_account_type`. The accepted types appear in the generated request reference below; unspecified types are rejected.
+
+Use decimal strings in BRL, such as `"10.00"`. The amount must be positive and exactly representable with two decimal places.
+
+Payment processing can still fail after submission. API acceptance does not prove that funds were debited or received.
+
+## Read the result
+
+When `code` is `200`, save `data.txn_id` and `data.merchant_order_id`. The submission response returns `data.txn_status` as `5` (PROCESSING).
+
+Query [payment status](/api-reference/payout/get-payment-status) or [payment details](/api-reference/payout/get-payment-details) to confirm the outcome.
+
+| Status | Meaning | What it proves | Next step |
+| --- | --- | --- | --- |
+| `5` PROCESSING | Accepted for processing | No completion evidence | Query status |
+| `2` COMPLETED | Payment completed | Completion recorded | Reconcile the payment |
+| `3` FAILED | Recorded failure | Failure recorded locally | Reconcile before any replacement |
+
+For Pix, `FAILED` records a Pagsmile failure; it does not prove that funds did not move at the bank. Reconcile payment details and the matching statement entry before creating any replacement payment. See [Get payment status](/api-reference/payout/get-payment-status) for the two-hour rule.
+
+This endpoint returns no participant details or settlement identifier. Retrieve them from payment details when available.
+
+## Retries and duplicates
+
+Generate `merchant_order_id` using the current UTC date as its `YYMMDD` prefix. Use a distinct ID for each new payment across your integrations.
+
+The date must overlap the current time's ±1-hour window. This checks the date portion, not a timestamp encoded in the rest of the ID.
+
+After a timeout, network error or system error, confirm the original payment's outcome before creating another payment.
+
+<AccordionGroup>
+  <Accordion title="The result is unknown" icon="clock-rotate-left">
+    After a timeout, network error or system error, query [payment details](/api-reference/payout/get-payment-details) using a saved `txn_id` or `settlement_id`. You may also send the original `merchant_order_id`, but an order ID alone is not sufficient.
+
+    If you received neither identifier, locate the matching [account statement](/api-reference/accounts/get-account-statement) entry to recover its `txn_id`. If you cannot find a matching entry, contact support with the original order ID and response header `xxx-log-id`. Do not create a replacement payment while the original outcome is unknown.
+  </Accordion>
+  <Accordion title="The order ID is already reserved" icon="clone">
+    Reserved order IDs are protected for 48 hours. Reusing one returns code `4001013` with message `merchant_order_id already exists`, not the original success response. Query the original payment instead.
+  </Accordion>
+  <Accordion title="Signing failed" icon="signature">
+    Sign every attempt with a new `X-Nonce` and `X-Timestamp`. A failed signature check still consumes the nonce. See [authentication errors](/api-reference/error-catalog#authentication-errors).
+  </Accordion>
+</AccordionGroup>
+
+## Try it in the Playground
+
+The example uses fictional payee details. Replace them with your Sandbox payee's details and update the order ID's UTC date before signing.
+
+<Accordion title="Sign a Playground request" icon="pen-nib">
+  <PlaygroundSigner method="POST" path="/v3/transfers/pix/bank-account" body={{ payee: { name: "Demo Receiver", document_id: "12345678909", document_type: 1, bank_account: "00000001", bank_account_type: 1, bank_branch: "0001", bank_code: "12345678" }, amount: "10.00", currency: "BRL", merchant_order_id: "261110-pix-bank-001" }} />
+</Accordion>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Get payment status" icon="clock" href="/api-reference/payout/get-payment-status">
+    Check the payment's processing outcome.
+  </Card>
+  <Card title="Get payment details" icon="receipt" href="/api-reference/payout/get-payment-details">
+    Retrieve participants and settlement details.
+  </Card>
+  <Card title="Pix payment callbacks" icon="bell" href="/api-reference/payout/pix/callbacks">
+    Handle payment status notifications.
+  </Card>
+  <Card title="Account balance" icon="wallet" href="/api-reference/accounts/get-account-balance">
+    Check the payer account's available funds.
+  </Card>
+</CardGroup>
