@@ -100,6 +100,16 @@
         "tabs": [
           {
             "tab": "Guides",
+            "global": {
+              "anchors": [
+                {
+                  "anchor": "API reference",
+                  "icon": "code",
+                  "href": "/api-reference/overview",
+                  "color": { "light": "#12795C", "dark": "#5FD9B4" }
+                }
+              ]
+            },
             "groups": [
               {
                 "group": "Get started",
@@ -280,6 +290,16 @@
         "tabs": [
           {
             "tab": "Guias",
+            "global": {
+              "anchors": [
+                {
+                  "anchor": "Referência da API",
+                  "icon": "code",
+                  "href": "/pt-br/api-reference/overview",
+                  "color": { "light": "#12795C", "dark": "#5FD9B4" }
+                }
+              ]
+            },
             "groups": [
               {
                 "group": "Primeiros passos",

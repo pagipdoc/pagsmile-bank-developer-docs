@@ -1,14 +1,14 @@
 ---
 title: "Set up API access"
 sidebarTitle: "API access"
-description: "Set up Sandbox API keys and allowed IP addresses, then sign and test requests from these docs. Production addresses are shown for reference only."
+description: "Get Sandbox keys from Developer Center, configure allowed IPs, and test signed requests. Production API addresses are shown for reference only."
 keywords: ["API keys", "IP whitelist", "public IP", "AK SK", "credentials"]
 ---
 
+Get your Sandbox keys from Pagsmile Developer Center and configure access from your server or this browser. Every API request must come from an allowed IP address and carry a signature made with the credential's secret key.
+
 import { IpAllowlistHelper } from "/snippets/ip-allowlist-helper.jsx";
 import { CredentialSetup } from "/snippets/credential-setup.jsx";
-
-Every API request must come from an IP address on the credential's **Allow List** and carry a signature made with the credential's secret key. This guide takes you through the Pagsmile Banking dashboard: get your Sandbox keys, allow your public IP addresses, and enter the Sandbox keys in these docs once. After that, the signature tool on every API page uses your Sandbox keys.
 
 <Note>
   Credential entry, signing tools, and online API testing in these docs are **Sandbox only**. Production API addresses are shown for reference only. Keep Production AK/SK in your server's secret manager; do not enter them here.
@@ -16,95 +16,81 @@ Every API request must come from an IP address on the credential's **Allow List*
 
 ## Before you begin
 
-- **Sandbox dashboard access.** Sign in to the [Sandbox dashboard](https://banking-sandbox.pagsmile.com.br) to get the credentials used in this guide. Each environment has its own keys, Allow Lists, and [base URL](/environments-and-credentials#environments). Configure Production credentials separately on your server.
-- **Account MFA.** To enable, disable, or reset a key, or to update its Allow List, enter the 6-digit **Google Verification code**. Without account MFA, the dashboard shows **Account MFA required**. Set it up as described in [Enable API access](/quickstart#enable-api-access).
-- **Open API.** In **Bank Account Level Credentials**, the **Open API** toggle must be on.
+- **Banking access.** Sign in to the [Banking portal](https://banking.pagsmile.com.br/login) with your production login. These instructions follow the upcoming **Developer Center** workflow; use them when that menu is available. The test account has no separate Sandbox portal login.
+- **A prepared test account.** Production account opening and activation trigger preparation of your Sandbox account and its ACCOUNT key pair. Check the preparation status in **Developer Center → Overview**. See [Enable API access](/quickstart#enable-api-access).
+- **Credential management permission.** The primary member manages test keys and IPs. If your team account has read-only access, ask the primary member to complete those steps. Sandbox operations in Developer Center do not require MFA or another verification code; Banking sign-in requirements still apply.
+
+Each environment has separate credentials, allowlists, and a [base URL](/environments-and-credentials#environments). Manage Production access separately through the Banking portal's **API Keys** flow.
 
 ## Choose a credential
 
-The **API Keys and Webhooks** page has one card per credential. Each card has its own key pair and its own **Allow List**, so configure every credential you use.
+Developer Center prepares an ACCOUNT credential for its test account. Use that credential for this guide. The tools in these docs also accept separately provisioned USER credentials; Developer Center does not create them as part of the default setup.
 
-| Credential | Dashboard card (Portuguese UI) | Key prefixes | Use it for | Account headers |
-| --- | --- | --- | --- | --- |
-| Bank account level | **Bank Account Level Credentials** (**Credenciais da conta bancária**), shown with the account number | `ak_acct_`, `sk_acct_` | Operations on that one account: balance, statement, Pix, QR codes, TED, refunds, MED, and Pix keys, plus event subscriptions for that account | Omit `X-ISPB` and `X-Account-Number` |
-| User level | **User Level Credentials (OpenVA & Onboarding)** (**Credenciais do usuário (OpenVA e Onboarding)**) | `ak_user_`, `sk_user_` | Managed accounts and event subscriptions, plus operations on any account the user can access | Send both headers for account operations; omit them for managed-account and event-subscription operations |
+| Credential | Key prefixes | Use it for | Account headers |
+| --- | --- | --- | --- |
+| ACCOUNT (bank account level) | `ak_acct_`, `sk_acct_` | Supported operations on that one account: balance, statement, Pix, QR codes, TED, refunds, MED, Pix keys, and event subscriptions | Omit `X-ISPB` and `X-Account-Number` |
+| USER (user level, provisioned separately) | `ak_user_`, `sk_user_` | Managed accounts and event subscriptions, plus operations on accounts the user can access | Send both headers for account operations; omit them for managed-account and event-subscription operations |
 
 See [Credentials and account selection](/environments-and-credentials#credentials-and-account-selection) for the complete header rules.
 
 ## Set up access
 
 <Steps>
-  <Step title="Open the API Keys page">
-    1. In the dashboard, check the selected account at the bottom of the sidebar. Select **Switch account** to change it.
-    2. Select **API Keys** in the sidebar to open **API Keys and Webhooks**.
+  <Step title="Open Test credentials">
+    In the Banking portal, select **Developer Center**, then **Test credentials**. Check the **Sandbox** label, test account, and API base URL: `https://ebanking-openapi-sandbox.pagsmile.com.br`.
+
+    Use the test account displayed here. Switching the production account does not reassign the default test credential.
   </Step>
   <Step title="Get your access key and secret key">
-    The dashboard shows a new key pair only once. Afterwards, the table shows masked values such as `ak_acct***`.
+    Select **View and copy credentials** to reveal the automatically created Sandbox AK/SK. Copy both complete values into your server's secret manager. Masked values cannot authenticate a request.
 
-    - **No key yet:** in the credential's card, select **Enable Access Key** and enter the Google Verification code.
-    - **Key pair already stored:** keep it and continue with the next step.
-    - **Lost or exposed secret key:** select the reset icon (circular arrow) in the **Action** column. **Reset API Key** invalidates the current key immediately. Enter the Google Verification code to confirm.
+    You can reveal the Sandbox pair again later. If you already stored it, continue without generating another pair. Check that the credential is **Enabled**; if it is **Paused**, select **Enable** and confirm the action.
 
-    In **New API Keys**, copy the **Access Key** and the **Secret Key** with their copy icons and store them in your secret manager. Select **I have saved my keys**, then **Close**.
+    If a key is exposed, select **Rotate credentials** and confirm the impact. Rotation replaces both the AK and SK, and the old pair stops accepting new requests. These Sandbox actions do not require MFA.
 
     <Warning>
-      A reset stops every server that still uses the old key pair. Deploy the new pair right after you reset it.
+      After rotation, update every service using the old pair and any webhook verification configuration that uses the same secret. Requests signed with the old pair will be rejected.
     </Warning>
-
-    Check that the key's **Status** is **Enabled**. If it shows **Disabled**, turn on the switch next to the reset icon in the **Action** column. In **Enable API Key**, enter the Google Verification code to confirm, then check that **Status** shows **Enabled**. This switch controls the key only. It's separate from the **Open API** toggle of the bank account.
-
-    <Frame caption="Save API credentials, full keys masked">
-      <img src="/images/quickstart/save-api-credentials-full-keys-masked.png" alt="New API Keys dialog with the access key, the secret key, and the confirmation checkbox" />
-    </Frame>
   </Step>
   <Step title="Find your public IP addresses">
-    The helper in the next step shows this computer's public IP as the Pagsmile API sees it. Allow that address to test from this browser: **Test connection**, **Send to Sandbox**, and the API playground send their requests from here.
+    Find the public IPv4 address of each server that calls the API. Run the following command on the calling server; the Sandbox API host returns the source address it sees.
 
-    Your servers usually reach the API from other addresses. Run this command on each server that calls the API. The API host replies with the source address it sees for your request.
+    Developer Center accepts IPv4 addresses and IPv4 CIDR ranges. The `-4` option makes this check use IPv4.
 
     <CodeGroup>
 
     ```bash Linux and macOS
-    curl -s https://ebanking-openapi-sandbox.pagsmile.com.br/cdn-cgi/trace | grep '^ip='
     curl -4 -s https://ebanking-openapi-sandbox.pagsmile.com.br/cdn-cgi/trace | grep '^ip='
     ```
 
     ```powershell Windows
-    curl.exe -s https://ebanking-openapi-sandbox.pagsmile.com.br/cdn-cgi/trace | findstr /b "ip="
     curl.exe -4 -s https://ebanking-openapi-sandbox.pagsmile.com.br/cdn-cgi/trace | findstr /b "ip="
     ```
 
     </CodeGroup>
 
-    The first command shows the address your server uses by default; the second forces IPv4. For production, replace the host with `ebanking-openapi.pagsmile.com.br`.
-
     Run the command a few times. If the address changes, your network sends traffic through several public addresses: add each one. Allow a CIDR range only when your network or cloud provider confirms that the range is dedicated to your egress. For a stable list, give your servers a fixed egress IP, such as a NAT gateway with a static address.
 
-    Use the public egress address. In a cloud network, that is usually the NAT gateway's address. Addresses inside a private network, such as an office network or a VPC, never reach the API.
+    The helper below detects this browser's address, not your server's. Allow that IPv4 address only if you also want to use **Test connection**, **Send to Sandbox**, or the API playground in these docs. A Developer Center test uses a different request path and does not verify your server's access.
 
-    <Warning>
-      The API hostnames resolve to both IPv4 and IPv6 addresses, so a server with IPv6 connectivity can reach the API over IPv6. The dashboard's **Allow List** field removes letters, so IPv6 addresses that contain `a` to `f` can't be saved. Configure your HTTP client to use IPv4 (for example, `curl -4`) and allow the IPv4 address, or contact Pagsmile support.
-    </Warning>
+    If the helper detects IPv6, run the generated cURL command with `curl -4` from this computer or use a network with IPv4 access. Browsers cannot be forced to use IPv4 by these docs. Configure your server's HTTP client to use IPv4 as well.
   </Step>
-  <Step title="Add the addresses to the Allow List">
-    1. In the credential's card, select the pencil icon in the **Allow List** column.
-    2. In **Update Allow List**, copy the field's current value into **Current list in the dashboard** in the helper below.
-    3. Enter your server addresses in **IP addresses or CIDR ranges to add**. To test from this browser, also select **Add to list** next to the address under **Your public IP**. If an IPv6 address has no **Add to list** button, the dashboard can't store it: test from a network that uses IPv4, run the generated cURL command with `curl -4` on this computer, or contact Pagsmile support.
-    4. Select **Copy** in the helper and replace the field's content with the copied value.
-    5. Enter the 6-digit **Google Verification code** and submit. The dashboard shows **Allow List updated successfully.**
-
-    <Frame caption="Edit Allow List and submit the verification code">
-      <img src="/images/quickstart/edit-allow-list-and-submit-the-verification-code.png" alt="Update Allow List dialog with the IP field and the Google Verification code field" />
-    </Frame>
+  <Step title="Save the IP allowlist">
+    1. In **Test credentials**, select **Edit** under **IP allowlist**.
+    2. Copy the saved entries into **Current list in the dashboard** in the helper below to keep existing access.
+    3. Enter the server IPv4 addresses or CIDR ranges in **IP addresses or CIDR ranges to add**. To test from this browser, also select **Add to list** beside its detected IPv4 address.
+    4. Select **Copy**, paste the complete list into Developer Center, and select **Save allowlist**. No MFA code is required.
+    5. Check the saved list. Developer Center removes duplicates and stores CIDR entries as network ranges.
 
     <IpAllowlistHelper />
 
-    The API applies these rules to the Allow List:
+    Developer Center applies these rules:
 
-    - Separate entries with commas. Spaces around an entry are ignored.
-    - An entry is an exact address or a CIDR range: an address, a slash, and the prefix length. The API compares an exact IPv6 entry as text, so write it in compressed form or as a `/128` range.
-    - An empty Allow List rejects every request with `4004103`. A source address that matches no entry also returns `4004103`; the current message doesn't show the address.
-    - `0.0.0.0/0` allows every IPv4 address. Use exact addresses or narrow ranges in production.
+    - Use IPv4 addresses or IPv4 CIDR ranges, separated by commas or new lines.
+    - Save up to 10 distinct entries. CIDR prefixes must be `/1` through `/32`; `/0` is rejected. Use exact addresses or narrow ranges that belong to your servers.
+    - Replacing the list removes access for omitted addresses. An empty list rejects every request with `4004103`; a source address that matches no entry also returns `4004103`.
+
+    To test from your server, continue with [Send your first signed request](/quickstart#send-your-first-signed-request). The next two steps are optional and test from this browser.
   </Step>
   <Step title="Enter your Sandbox keys in these docs">
     <CredentialSetup />
@@ -129,14 +115,14 @@ See [Credentials and account selection](/environments-and-credentials#credential
     | Result | Meaning | What to do |
     | --- | --- | --- |
     | `code` `200` | Key, signature, and IP were accepted | Continue with the [API reference](/api-reference/overview) |
-    | `code` `401` | The API doesn't recognize the AK. The response is HTTP 200 with the message `User is invalid` | Check that the key is from Sandbox and paste the complete AK from **New API Keys**. The table shows only a masked value |
-    | `code` `4004103` | Source IP isn't on the Allow List | Browser test: add the address under **Your public IP**. If it's already listed, select **Detect again**: the network can leave from more than one address, so add each confirmed address or test from a fixed outgoing IP. If it's an IPv6 address with letters, the dashboard can't store it, so test over IPv4 or contact Pagsmile support. Server request: add the address that the server command shows and check whether the client used IPv6 |
+    | `code` `401` | The API doesn't recognize the AK. The response is HTTP 200 with the message `User is invalid` | Use the complete Sandbox AK from **Test credentials → View and copy credentials**. After rotation, replace both saved keys |
+    | `code` `4004103` | Source IP isn't on the allowlist | Browser test: check **Your public IP**, select **Detect again**, and allow each confirmed IPv4 address. For IPv6, run cURL with `curl -4` or use an IPv4 network. Server request: allow the address returned by the server command and configure the client to use IPv4 |
     | `code` `4004107` | Signature is invalid | Check that the SK belongs to the AK and that you sign the exact body bytes |
     | `code` `4004105` | Timestamp is invalid or expired | Sync the clock; send the current Unix time in milliseconds |
     | `code` `4004106` | Nonce was already used | Generate a new nonce and signature for every attempt |
     | `code` `4004101` | The `X-Client-ID` header is missing | Send every header in [Sign requests](/environments-and-credentials#sign-requests) |
     | `code` `4004102` | `X-Timestamp`, `X-Nonce`, or `X-Signature` is missing, or the timestamp isn't a number | Send every header in [Sign requests](/environments-and-credentials#sign-requests), with the timestamp in Unix milliseconds |
-    | `code` `4004003` | Permission denied | Check that the key **Status** is **Enabled**. If it's **Disabled**, turn on its switch in the **Action** column. Also check the **Open API** toggle and the credential type. With user-level credentials, check that the user can access the account in `X-Account-Number` |
+    | `code` `4004003` | Permission denied | Check that the test account is ready and its credential is **Enabled** in **Test credentials**. Confirm the operation is available to that account and credential type. With USER credentials, check access to the account in `X-Account-Number` |
     | HTTP 403 with `error code: 1010` | The edge rejected the client's `User-Agent` | Send a descriptive `User-Agent` header; see [Authentication errors](/environments-and-credentials#authentication-errors) |
   </Step>
 </Steps>
@@ -150,14 +136,14 @@ Each API page has a signature tool. When you have saved keys in this tab, it fil
 - **Generate headers and cURL** creates a cURL command in bash syntax; on Windows, run it in Git Bash or WSL. Its signature is valid for 5 minutes and for one request.
 - **Send to Sandbox** sends that request from this browser and shows the response. Write operations change Sandbox data.
 
-The API playground on each API page sends requests directly from this browser to Sandbox only, without a proxy. Allow the address that the helper detects for the Sandbox API host. If a playground request returns `4004103`, select **Detect again** and allow each address it shows. Paste the headers from **Generate headers and cURL** into its fields.
+The API playground on each API page sends requests directly from this browser to Sandbox only, without a proxy. Allow the IPv4 address that the helper detects for the Sandbox API host. If a playground request returns `4004103`, select **Detect again** and check the source address. For IPv6, use cURL with `curl -4` or an IPv4 network. Paste the headers from **Generate headers and cURL** into the playground's fields.
 
 Browsers can't send everything that the API accepts. The API's cross-origin (CORS) policy doesn't allow `X-ISPB` or `X-Account-Number` from browsers in **Send to Sandbox** or in the API playground. For account operations with a user-level credential, copy the cURL command and run it on your server.
 
 <Visibility for="agents">
 | Tool | Behavior |
 | --- | --- |
-| IP allowlist helper | When the page opens, reads the `ip=` line of `https://ebanking-openapi-sandbox.pagsmile.com.br/cdn-cgi/trace`: the address the Sandbox API host sees for this browser. Does not contact Production. Shows every detected address. Only addresses without letters get an **Add to list** button and appear in the input placeholder; an IPv6 address with letters shows the IPv4 and support guidance instead. Merges new and existing entries, removes duplicates, and outputs a comma-separated list only when every entry is valid. Rejects invalid IPv4, IPv6, and CIDR syntax, and IPv6 entries with letters, which the dashboard field can't store; warns about private or reserved addresses, `/0` ranges, and uncompressed exact IPv6 entries. |
+| IP allowlist helper | Reads the `ip=` line of `https://ebanking-openapi-sandbox.pagsmile.com.br/cdn-cgi/trace`: the address the Sandbox API host sees for this browser. Does not contact Production. Shows detected addresses and allows adding IPv4 addresses. IPv6 detection directs you to use `curl -4` or an IPv4 network. Merges existing and new IPv4/CIDR entries into a comma-separated list, normalizes CIDR network addresses, and removes duplicates. Accepts at most 10 entries with CIDR prefixes `/1` through `/32`. The helper prepares text; you must save it in Developer Center. |
 | Credential setup | Stores Sandbox bank-account-level and user-level AK/SK and an optional default `X-ISPB` and `X-Account-Number` in the tab's memory only. The environment is fixed to Sandbox. Generates Sandbox `PAGSMILE_BASE_URL`, `PAGSMILE_AK`, and `PAGSMILE_SK` for bash and PowerShell. Tests `POST /v3/bank_account` or `POST /v3/onboarding/managed_accounts/list` from the browser. Production addresses are for reference only. |
 | Signature tool | Uses the saved credential that matches the operation, signs one POST request, outputs a cURL command with a `User-Agent` header and, in the Sandbox without account headers, sends the request from the browser. |
 | API playground | Configured with `api.playground.proxy: false` and only a Sandbox server: sends each request directly from the browser to Sandbox, so the API checks this browser's public IP. A request with `X-ISPB` or `X-Account-Number` fails the CORS preflight, and the playground shows `unable to complete request`. |
@@ -167,7 +153,7 @@ Browsers can't send everything that the API accepts. The API's cross-origin (COR
 
 <CardGroup cols={2}>
   <Card title="Quickstart" icon="rocket" href="/quickstart">
-    Register your account, enable Open API, and send your first request.
+    Open Developer Center and send your first signed Sandbox request.
   </Card>
   <Card title="Credentials and signing" icon="key" href="/environments-and-credentials">
     Header rules, the string to sign, and test vectors.

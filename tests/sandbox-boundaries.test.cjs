@@ -17,14 +17,14 @@ const oldCredentials = () => ({
 // Exercise the real component handlers with a small hook harness. The JSX view
 // starts at each marker and is omitted, so these tests need no React/build deps.
 // Browser rendering and native Mintlify Playground remain separate UI checks.
-function mount(file, name, marker, exposed, credentials) {
+function mount(file, name, marker, exposed, credentials, props = {}) {
   const source = fs.readFileSync(path.join(root, "snippets", file), "utf8");
   const boundary = source.indexOf(marker);
   assert(boundary > 0, `Handler/view boundary not found in ${file}`);
   const handlerSource = source.slice(0, boundary).replace("export const", "const")
     + `\nreturn { ${exposed} };\n};\nthis.Component = ${name};`;
-  const states = [], refs = [], effects = [], calls = [];
-  let stateIndex = 0, refIndex = 0, first = true;
+  const states = [], refs = [], effects = [], calls = [], focused = [];
+  let stateIndex = 0, refIndex = 0, effectIndex = 0, pendingEffects = [];
   const window = {
     __pgsDocsCreds: credentials,
     addEventListener() {}, removeEventListener() {}, dispatchEvent() {},
@@ -41,15 +41,23 @@ function mount(file, name, marker, exposed, credentials) {
       const index = refIndex++;
       return refs[index] || (refs[index] = { current: initial });
     },
-    useEffect(effect) { if (first) effects.push(effect); },
+    useEffect(effect, deps) {
+      const index = effectIndex++;
+      const previous = effects[index];
+      if (!previous || !deps || deps.some((value, i) => !Object.is(value, previous[i]))) {
+        effects[index] = deps;
+        pendingEffects.push(effect);
+      }
+    },
     window,
-    document: { getElementById: () => null },
+    document: { getElementById: (id) => ({ focus: () => focused.push(id) }) },
     navigator: { clipboard: { writeText: async () => {} } },
     crypto: webcrypto, TextEncoder, Uint8Array, URL, AbortController, Event,
     setTimeout, clearTimeout,
     async fetch(url, options) {
       calls.push({ url, options });
       return {
+        ok: true,
         status: 200,
         text: async () => String(url).endsWith("/cdn-cgi/trace")
           ? "ip=203.0.113.4\n" : JSON.stringify({ code: 200, data: {} }),
@@ -61,17 +69,112 @@ function mount(file, name, marker, exposed, credentials) {
   function render() {
     stateIndex = 0;
     refIndex = 0;
-    const view = context.Component({});
-    if (first) {
-      first = false;
-      effects.forEach((effect) => effect());
+    effectIndex = 0;
+    const view = context.Component(props);
+    if (pendingEffects.length) {
+      const scheduled = pendingEffects;
+      pendingEffects = [];
+      scheduled.forEach((effect) => effect());
       return render();
     }
     return view;
   }
   render();
-  return { render, calls, window, source };
+  return { render, calls, window, source, focused };
 }
+
+test("credential errors preserve saved keys and focus the missing field", () => {
+  const harness = mount("credential-setup.jsx", "CredentialSetup", "  const input =", "save, clear, set, saved, issues, msgType");
+  let view = harness.render();
+  view.save();
+  view = harness.render();
+  assert.equal(view.msgType, "error");
+  assert.equal(harness.focused.at(-1), "cs-account-ak");
+  view.set("account", "ak", "ak_acct_doc_test");
+  harness.render().save();
+  view = harness.render();
+  assert.equal(view.msgType, "error");
+  assert.equal(harness.focused.at(-1), "cs-account-sk");
+  assert.deepEqual(Array.from(view.issues("account")[0].fields), ["sk"]);
+  assert.equal(view.saved.account, null);
+  view.set("account", "sk", "sk_acct_doc_test");
+  harness.render().save();
+  view = harness.render();
+  assert.equal(view.msgType, "success");
+  view.set("account", "sk", "");
+  harness.render().save();
+  view = harness.render();
+  assert.equal(view.msgType, "error");
+  assert.equal(view.saved.account.sk, "sk_acct_doc_test");
+  view.clear();
+  view = harness.render();
+  assert.equal(view.msgType, "success");
+  assert.equal(view.saved.account, null);
+  assert.equal(harness.calls.length, 0);
+});
+
+test("signer validation focuses missing keys and input edits clear the old error and signature", async () => {
+  const harness = mount("playground-signer.jsx", "PlaygroundSigner", "  const field =", "generate, setC, invalidate, invalidFields, msgType, out, checkVector");
+  let view = harness.render();
+  await view.generate();
+  view = harness.render();
+  assert.equal(view.msgType, "error");
+  assert.deepEqual(Array.from(view.invalidFields), ["ak", "sk"]);
+  assert.equal(harness.focused.at(-1), "-v3-bank-account-ak");
+  view.invalidate();
+  view.setC("ak")("ak_acct_doc_test");
+  view = harness.render();
+  assert.equal(view.msgType, "info");
+  assert.equal(view.invalidFields.length, 0);
+  await view.generate();
+  view = harness.render();
+  assert.deepEqual(Array.from(view.invalidFields), ["sk"]);
+  assert.equal(harness.focused.at(-1), "-v3-bank-account-sk");
+  view.invalidate();
+  view.setC("sk")("sk_acct_doc_test");
+  view = harness.render();
+  await view.generate();
+  view = harness.render();
+  assert(view.out);
+  view.invalidate();
+  view = harness.render();
+  assert.equal(view.out, null);
+  assert.equal(view.msgType, "info");
+  await view.checkVector();
+  assert.equal(harness.render().msgType, "success");
+  assert.equal(harness.calls.length, 0);
+});
+
+test("signer validation identifies the first relevant field without generating or sending", async (t) => {
+  const cases = [
+    { name: "swapped keys", ak: "sk_acct_doc_test", sk: "ak_acct_doc_test", fields: ["ak", "sk"] },
+    { name: "AK prefix", ak: "doc_test", fields: ["ak"] },
+    { name: "SK characters", sk: "sk_acct_doc_test!", fields: ["sk"] },
+    { name: "user-only operation", props: { scope: "user" }, fields: ["ak"] },
+    { name: "missing account headers", ak: "ak_user_doc_test", fields: ["ispb", "acct"] },
+    { name: "partial account headers", ak: "ak_user_doc_test", ispb: "12345678", fields: ["acct"] },
+    { name: "invalid JSON", body: "{", fields: ["body"] },
+    { name: "invalid editable path", props: { editable: true }, path: "/v3/../bank_account", fields: ["p"] },
+  ];
+  for (const c of cases) {
+    await t.test(c.name, async () => {
+      const harness = mount("playground-signer.jsx", "PlaygroundSigner", "  const field =", "generate, setC, setText, setP, invalidFields, msgType, out", undefined, c.props);
+      let view = harness.render();
+      view.setC("ak")(c.ak || "ak_acct_doc_test");
+      view.setC("sk")(c.sk || "sk_acct_doc_test");
+      if (c.ispb) view.setC("ispb")(c.ispb);
+      if (c.body) view.setText(c.body);
+      if (c.path) view.setP(c.path);
+      await harness.render().generate();
+      view = harness.render();
+      assert.equal(view.msgType, "error");
+      assert.deepEqual(Array.from(view.invalidFields), c.fields);
+      assert.equal(harness.focused.at(-1), `-v3-bank-account-${c.fields[0]}`);
+      assert.equal(view.out, null);
+      assert.equal(harness.calls.length, 0);
+    });
+  }
+});
 
 test("credential setup clears legacy Production keys and only exports/tests Sandbox", async () => {
   const harness = mount("credential-setup.jsx", "CredentialSetup", "  const input =", "save, clear, set, test, envText, saved, f", oldCredentials());
@@ -126,6 +229,61 @@ test("IP detection never probes Production", async () => {
   await new Promise(setImmediate);
   assert.equal(harness.calls.length, 1);
   assert.equal(harness.calls[0].url, SANDBOX + "/cdn-cgi/trace");
+});
+
+test("IP helper matches IPv4/CIDR input boundaries and returns reusable network addresses", () => {
+  const harness = mount("ip-allowlist-helper.jsx", "IpAllowlistHelper", "  return (", "check");
+  const view = harness.render();
+  for (const value of ["203.0.113.42", "203.0.113.42/32", "203.0.113.42/24", "128.3.4.5/1", "128.3.4.5/01"]) {
+    const checked = view.check(value);
+    assert.equal(checked.bad, undefined, value);
+    assert.equal(view.check(checked.normalized).bad, undefined, `Reusable output for ${value}`);
+  }
+  assert.equal(view.check("203.0.113.42/24").normalized, "203.0.113.0/24");
+  assert.equal(view.check("203.0.113.42/32").normalized, "203.0.113.42");
+  assert.equal(view.check("128.3.4.5/1").normalized, "128.0.0.0/1");
+  for (const value of ["203.0.113.42/0", "203.0.113.42/33", "203.0.113.42/003", "203.0.113.256", "203.0.113.042", "203.0.113.42/24/1", "2001:db8::1", "2001:4860::8888/64", "2001:4860::8888", "0.1.2.3", "127.0.0.1", "224.0.0.1", "255.255.255.255", "1.2.3.4/1"]) {
+    assert(view.check(value).bad, value);
+  }
+  assert(view.check("192.168.1.2").warn.length);
+});
+
+test("IP helper deduplicates normalized entries before enforcing the ten-entry limit", () => {
+  const harness = mount("ip-allowlist-helper.jsx", "IpAllowlistHelper", "  return (", "setCur, setAdd, list, value, overLimit, hasBad");
+  let view = harness.render();
+  const ten = Array.from({ length: 10 }, (_, i) => `203.0.113.${i + 1}`);
+  view.setCur(ten.join("\n"));
+  view.setAdd("203.0.113.1/32，203.0.113.2/32");
+  view = harness.render();
+  assert.equal(view.list.length, 10);
+  assert.equal(view.overLimit, false);
+  assert.equal(view.value, ten.join(","));
+  view.setAdd("203.0.113.11");
+  view = harness.render();
+  assert.equal(view.overLimit, true);
+  assert.equal(view.value, "");
+  view.setCur("203.0.113.42/24");
+  view.setAdd("203.0.113.0/24,203.0.113.200/24");
+  view = harness.render();
+  assert.equal(view.list.length, 1);
+  assert.equal(view.value, "203.0.113.0/24");
+  view.setAdd("::1");
+  view = harness.render();
+  assert.equal(view.hasBad, true);
+  assert.equal(view.value, "");
+});
+
+test("IPv6 detection remains visible but is never offered as an IPv4 allowlist entry", async () => {
+  const harness = mount("ip-allowlist-helper.jsx", "IpAllowlistHelper", "  return (", "setSeen, detected, v6rows");
+  await new Promise(setImmediate);
+  harness.render().setSeen({ sandbox: "2001:4860::8888" });
+  const view = harness.render();
+  assert.equal(view.detected.length, 0);
+  assert.equal(view.v6rows.length, 1);
+  assert.equal(view.v6rows[0][1], "2001:4860::8888");
+  assert.equal(harness.calls.length, 1);
+  assert.equal(harness.calls[0].url, SANDBOX + "/cdn-cgi/trace");
+  assert.equal(harness.calls[0].options.credentials, "omit");
 });
 
 for (const locale of ["en", "pt-br"]) {

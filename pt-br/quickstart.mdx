@@ -1,11 +1,11 @@
 ---
 title: "Início rápido"
 sidebarTitle: "Início rápido"
-description: "Cadastre sua conta, habilite o acesso à Open API, salve suas credenciais e envie uma requisição assinada no Sandbox para consultar os dados e saldos da conta."
+description: "Cadastre sua conta, acesse a Central do desenvolvedor, obtenha as credenciais do Sandbox e consulte os dados e saldos com uma requisição do seu servidor."
 keywords: ["início rápido", "acesso à API", "AK SK", "primeira requisição"]
 ---
 
-Use este guia para cadastrar sua conta Pagsmile e enviar sua primeira consulta de conta assinada. Configure o acesso à Open API antes de chamar a API.
+Use este guia para cadastrar sua conta Pagsmile, preparar o acesso ao Sandbox na Central do desenvolvedor e enviar sua primeira consulta assinada pelo seu servidor.
 
 ## Cadastrar sua conta
 
@@ -294,98 +294,54 @@ Siga o formulário atual para documentos, verificações e instruções de ativa
 
 ## Habilitar o acesso à API
 
-Entre no [portal Banking](https://banking.pagsmile.com.br/login) e confira a conta que você usará na integração.
+Após a abertura e a ativação da conta de produção, acesse sua conta de teste do Sandbox pela **Central do desenvolvedor** no [portal Banking](https://banking.pagsmile.com.br/login).
+
+<Info>
+  Estas etapas descrevem o fluxo da próxima versão da Central do desenvolvedor. Siga-as quando a **Central do desenvolvedor** estiver disponível no seu portal Banking.
+</Info>
 
 <Steps>
-  <Step title="Configurar o MFA da conta">
-    Abra **Settings**, depois **Security**, e selecione **Set Up Account MFA**. Siga as instruções para vincular o autenticador da conta.
+  <Step title="Abrir a Central do desenvolvedor">
+    Entre no portal Banking com seu acesso de produção e selecione **Central do desenvolvedor** no menu lateral. Abra **Visão geral** e confira o indicador **Sandbox** e a conta de teste exibida.
 
-    O MFA da conta é obrigatório para habilitar o acesso à Open API ou gerenciar chaves de API.
-
-    <Frame caption="Configurar o MFA da conta em Settings">
-      <img src="/images/quickstart/account-mfa-setup-in-settings.png" alt="Configurar o MFA da conta em Settings" />
-    </Frame>
+    A conta do Sandbox é exclusiva para API e não tem acesso separado ao portal. As operações do Sandbox na Central do desenvolvedor não exigem MFA, senha de pagamento nem outro código de verificação. Os requisitos de autenticação para entrar no Banking continuam valendo.
   </Step>
-  <Step title="Habilitar a Open API">
-    Abra **Chaves API** (**API Keys**). Em **Credenciais da conta bancária** (**Bank Account Level Credentials**), habilite **API Aberta** (**Open API**) e informe o código solicitado pelo autenticador.
+  <Step title="Aguardar a preparação da conta de teste">
+    A Pagsmile prepara automaticamente uma conta de teste no Sandbox e suas chaves de acesso (AK) e secreta (SK) do tipo ACCOUNT após a ativação da conta de produção. Você não precisa criar outra conta nem gerar o primeiro par de chaves.
 
-    O controle fica disponível para o titular de uma conta CNPJ. Se você não tiver acesso, peça à Pagsmile que confirme a configuração da conta.
-
-    <Frame caption="Informar o código do autenticador para habilitar a Open API">
-      <img src="/images/quickstart/enter-your-google-authenticator-code-to-enable-ope.png" alt="Informar o código do autenticador para habilitar a Open API" />
-    </Frame>
+    Se a preparação estiver em andamento, volte à **Visão geral** mais tarde. Se ela falhar, siga a ação de recuperação exibida. Confira a conta de teste antes de continuar; trocar de conta de produção não altera a conta vinculada às credenciais de teste.
   </Step>
-  <Step title="Criar e salvar suas credenciais ACCOUNT">
-    Em **Credenciais da conta bancária** (**Bank Account Level Credentials**), confira a conta selecionada e selecione **Ativar chave de acesso** (**Enable Access Key**). Conclua a confirmação por MFA.
+  <Step title="Preparar o acesso pelo seu servidor">
+    Abra **Credenciais de teste**. O titular pode selecionar **Ver e copiar credenciais**, adicionar o IP público de saída do servidor em **IPs permitidos** e conferir se a credencial está **Ativa**.
 
-    Salve a chave de acesso (AK) e a chave secreta (SK) em local seguro. Envie a AK em `X-Client-ID`; mantenha a SK no servidor para assinar requisições. O painel mostra as chaves uma única vez. Para testar requisições nesta documentação, informe-as em [Configurar acesso à API](/pt-br/api-access-setup).
+    Siga [Configurar acesso à API](/pt-br/api-access-setup) para guardar o par de chaves do Sandbox, identificar o IP correto e configurar seu servidor. Essa página também permite informar credenciais do Sandbox e testar nesta documentação, se você preferir.
 
-    <Accordion title="Criação e armazenamento das credenciais" icon="images">
-      <Frame caption="Conferir a conta selecionada e habilitar a Access Key">
-        <img src="/images/quickstart/confirm-the-current-bank-account-and-enable-access.png" alt="Conferir a conta selecionada e habilitar a Access Key" />
-      </Frame>
-
-      <Frame caption="Salvar as credenciais da API, com as chaves completas ocultas">
-        <img src="/images/quickstart/save-api-credentials-full-keys-masked.png" alt="Salvar as credenciais da API, com as chaves completas ocultas" />
-      </Frame>
-    </Accordion>
-  </Step>
-  <Step title="Configurar a lista de permissões de IP">
-    Edite a **Lista de IPs Permitidos** (**Allow List**) da credencial e adicione o IP de saída do seu servidor de API. Conclua a confirmação solicitada.
-
-    Uma lista vazia bloqueia todas as requisições. Você pode permitir endereços IP específicos ou faixas CIDR. Para descobrir o IP público do servidor e montar a lista, use [Configurar acesso à API](/pt-br/api-access-setup).
-
-    <Frame caption="Editar a lista de permissões e confirmar a alteração">
-      <img src="/images/quickstart/edit-allow-list-and-submit-the-verification-code.png" alt="Editar a lista de permissões e confirmar a alteração" />
-    </Frame>
-  </Step>
-  <Step title="Preparar webhooks para a integração de pagamentos">
-    Na seção da credencial correspondente, selecione **Add Webhook**. Escolha a aplicação e o evento, depois configure a URL de callback e o tipo de conteúdo.
-
-    Veja [Webhooks](/pt-br/api-reference/webhooks/overview) para configurar eventos e [Verificar callbacks](/pt-br/environments-and-credentials#verificar-callbacks) para conferir a assinatura.
-
-    <Frame caption="Adicionar um webhook com aplicação, evento e URL de callback">
-      <img src="/images/quickstart/add-a-webhook-select-an-application-event-and-call.png" alt="Adicionar um webhook com aplicação, evento e URL de callback" />
-    </Frame>
+    Se seu usuário de equipe não puder gerenciar credenciais, peça ao titular que conclua esta etapa. Você pode consultar as credenciais do Sandbox novamente sem renová-las.
   </Step>
 </Steps>
 
-A seção **User Level Credentials (OpenVA & Onboarding)** aparece quando a funcionalidade PSP está habilitada. Confirme a disponibilidade com a Pagsmile se sua integração precisar de credenciais USER.
+## Explorar APIs na Central do desenvolvedor
 
-<Accordion title="Configuração de credenciais USER" icon="images">
-  <Frame caption="Abrir a configuração de credenciais USER e webhooks">
-    <img src="/images/quickstart/entry-point-for-user-level-credentials-and-webhook.png" alt="Abrir a configuração de credenciais USER e webhooks" />
-  </Frame>
-</Accordion>
+Em **Visão geral**, encontre **Teste sua integração**. Selecione **Contas e saldos** em **Cenário de integração** e depois **Testar no sandbox** para `POST /v3/bank_account`.
+
+O formulário lê os campos e exemplos da documentação da API e preenche o contexto da conta de teste. Esta consulta usa o corpo `{}`. Nas outras operações, confira os valores de exemplo e informe os campos de negócio necessários para seu teste. Você pode examinar a requisição em formulário ou JSON.
+
+Uma resposta identificada como exemplo ou simulação não comprova que uma chamada à API funcionou. Mesmo uma chamada bem-sucedida pela Central do desenvolvedor não verifica o IP nem o código de assinatura do seu servidor. Continue abaixo para verificar sua própria integração.
 
 ## Enviar sua primeira requisição assinada
 
-Use `POST /v3/bank_account` para consultar a conta-alvo. Envie o objeto JSON vazio `{}`; o corpo da requisição não tem campos de negócio.
+Envie `POST /v3/bank_account` pelo seu servidor para consultar a conta de teste do Sandbox. Use o par de chaves ACCOUNT de **Credenciais de teste** e o objeto JSON vazio `{}`.
 
-<Tabs>
-  <Tab title="ACCOUNT" icon="building-columns">
-    Use a AK/SK de uma credencial ACCOUNT na primeira chamada. A credencial define a conta, por isso os exemplos abaixo omitem os cabeçalhos de seleção de conta.
-
-    Mantenha esses cabeçalhos omitidos ao executar os exemplos ACCOUNT abaixo.
-  </Tab>
-  <Tab title="USER" icon="user">
-    Selecione uma conta do USER com `X-ISPB` e `X-Account-Number`. Inclua os dois cabeçalhos na assinatura.
-
-    Os exemplos abaixo não incluem esses cabeçalhos. Use a [ferramenta de assinatura](/pt-br/environments-and-credentials#assinar-requisições) para assinar uma requisição USER.
-  </Tab>
-  <Tab title="PLATFORM" icon="server">
-    <Warning>Credenciais PLATFORM não podem chamar este endpoint. Use credenciais ACCOUNT ou credenciais USER com uma conta autorizada.</Warning>
-  </Tab>
-</Tabs>
+A credencial seleciona a conta, por isso os exemplos omitem `X-ISPB` e `X-Account-Number`. Se sua integração usa credenciais USER provisionadas separadamente, siga [Credenciais e seleção de conta](/pt-br/environments-and-credentials#credenciais-e-seleção-de-conta). Credenciais PLATFORM não podem chamar este endpoint.
 
 <Steps>
-  <Step title="Escolher o ambiente e as credenciais">
-    Comece com credenciais configuradas para o Sandbox. A URL base do Sandbox é `https://ebanking-openapi-sandbox.pagsmile.com.br`.
+  <Step title="Confirmar o destino Sandbox">
+    Use `https://ebanking-openapi-sandbox.pagsmile.com.br` e o par de chaves ACCOUNT do Sandbox. Confira se o IP de saída do servidor está na lista de IPs permitidos dessa credencial.
 
-    A URL base de produção é `https://ebanking-openapi.pagsmile.com.br`. Confira o ambiente selecionado antes de enviar uma requisição.
+    A URL base de Produção, `https://ebanking-openapi.pagsmile.com.br`, é exibida apenas para consulta. A entrada de credenciais e os testes online desta documentação são exclusivos do Sandbox.
   </Step>
   <Step title="Preparar o exemplo">
-    Defina `PAGSMILE_AK` e `PAGSMILE_SK` no ambiente do servidor. Os exemplos usam o Sandbox por padrão; `PAGSMILE_BASE_URL` substitui a URL base. [Configurar acesso à API](/pt-br/api-access-setup) gera essas variáveis para bash e PowerShell.
+    Defina `PAGSMILE_AK` e `PAGSMILE_SK` no ambiente do servidor. Os exemplos usam o Sandbox por padrão; se definir `PAGSMILE_BASE_URL`, mantenha a URL do Sandbox neste guia. [Configurar acesso à API](/pt-br/api-access-setup) gera essas variáveis para bash e PowerShell.
 
     Use o ambiente de execução indicado na aba da linguagem. Não incorpore credenciais ao código do navegador, ao controle de versão ou a mensagens de suporte.
   </Step>
@@ -756,3 +712,9 @@ echo $response, PHP_EOL;
 ```
 
 </CodeGroup>
+
+## Continuar a integração
+
+Escolha a próxima operação na [referência da API](/pt-br/api-reference/overview) ou na lista de cenários de **Teste sua integração**. Para testes de pagamentos, configure [assinaturas de eventos de webhook](/pt-br/api-reference/webhooks/overview) e [verifique os callbacks](/pt-br/environments-and-credentials#verificar-callbacks) antes de processar notificações. Use **Transações de teste** na Central do desenvolvedor e o endpoint de consulta correspondente para conferir os resultados.
+
+Os testes no Sandbox não habilitam funcionalidades nem transferem dados de teste para Produção. Gerencie as credenciais de Produção por **Chaves API** no portal Banking e mantenha-as fora das ferramentas de assinatura e teste desta documentação.

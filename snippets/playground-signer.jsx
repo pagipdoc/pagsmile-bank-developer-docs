@@ -42,6 +42,8 @@ export const PlaygroundSigner = ({ method = "POST", path = "/v3/bank_account", b
   const [text, setText] = useState(JSON.stringify(body, null, 2));
   const [out, setOut] = useState(null);
   const [msg, setMsg] = useState("");
+  const [msgType, setMsgType] = useState("info");
+  const [invalidFields, setInvalidFields] = useState([]);
   const [copied, setCopied] = useState("");
   const [store, setStore] = useState({ env: "sandbox", account: null, user: null });
   const [src, setSrc] = useState("manual");
@@ -53,7 +55,15 @@ export const PlaygroundSigner = ({ method = "POST", path = "/v3/bank_account", b
   const mounted = useRef(true);
   const headerScope = scope === "account";
   const kinds = scope === "user" ? ["user"] : (scope === "owner" ? ["user", "account"] : ["account", "user"]);
-  const reset = (note = "") => { setOut(null); setResp(null); setCopied(""); setMsg(note); };
+  const message = (note, type = "info") => { setMsg(note); setMsgType(type); };
+  const reset = (note = "") => { setOut(null); setResp(null); setCopied(""); setInvalidFields([]); message(note); };
+  const fail = (note, fields = []) => { message(note, "error"); setInvalidFields(fields); };
+  useEffect(() => {
+    // Focus after the error text and its ARIA association have rendered.
+    if (!invalidFields.length) return;
+    const el = document.getElementById(`${uid}-${invalidFields[0]}`);
+    if (el) el.focus();
+  }, [invalidFields]);
   const fill = (s, choice) => {
     const c = choice === "manual" ? null : s[choice];
     const h = choice === "user" && headerScope && c;
@@ -123,16 +133,17 @@ export const PlaygroundSigner = ({ method = "POST", path = "/v3/bank_account", b
   const generate = async () => {
     const token = ++revision.current;
     reset();
-    if (p !== p.trim() || !/^\/[A-Za-z0-9/_.~!$&'()*+,;=:@-]*$/.test(p) || p.split("/").some((s) => s === "." || s === "..")) { setMsg(T.pathError); return; }
-    if (!ak || !sk) { setMsg(T.need); return; }
-    if (ak.includes("sk_") || sk.includes("ak_")) { setMsg(T.swap); return; }
-    if (!/^ak_(acct|user)_/.test(ak)) { setMsg(T.akFmt); return; }
-    if (![ak, sk].every((v) => /^[A-Za-z0-9_-]+$/.test(v))) { setMsg(T.charset); return; }
-    if (scope === "user" && !ak.startsWith("ak_user_")) { setMsg(T.userOnly); return; }
+    if (p !== p.trim() || !/^\/[A-Za-z0-9/_.~!$&'()*+,;=:@-]*$/.test(p) || p.split("/").some((s) => s === "." || s === "..")) { fail(T.pathError, editable ? ["p"] : []); return; }
+    if (!ak || !sk) { fail(T.need, ["ak", "sk"].filter((k) => !cred[k])); return; }
+    if (ak.includes("sk_") || sk.includes("ak_")) { fail(T.swap, ["ak", "sk"]); return; }
+    if (!/^ak_(acct|user)_/.test(ak)) { fail(T.akFmt, ["ak"]); return; }
+    const badKeys = ["ak", "sk"].filter((k) => !/^[A-Za-z0-9_-]+$/.test(cred[k]));
+    if (badKeys.length) { fail(T.charset, badKeys); return; }
+    if (scope === "user" && !ak.startsWith("ak_user_")) { fail(T.userOnly, ["ak"]); return; }
     const userHdr = headerScope && ak.startsWith("ak_user_");
-    if (userHdr && (ispb === "") !== (acct === "")) { setMsg(T.pair); return; }
-    if (userHdr && (!ispb || !acct)) { setMsg(T.userHdr); return; }
-    try { JSON.parse(text); } catch (e) { setMsg(T.bad); return; }
+    if (userHdr && (ispb === "") !== (acct === "")) { fail(T.pair, [ispb === "" ? "ispb" : "acct"]); return; }
+    if (userHdr && (!ispb || !acct)) { fail(T.userHdr, ["ispb", "acct"].filter((k) => !cred[k])); return; }
+    try { JSON.parse(text); } catch (e) { fail(T.bad, ["body"]); return; }
     const compact = compactJson(text);
     try {
       const ts = String(Date.now());
@@ -151,14 +162,14 @@ export const PlaygroundSigner = ({ method = "POST", path = "/v3/bank_account", b
       rows.push(["Body", compact]);
       if (token === revision.current) setOut({ rows, sts, curl, send, token, sandbox: true, cors: Boolean(hIspb) });
     } catch (e) {
-      if (token === revision.current) { setOut(null); setMsg(T.error); }
+      if (token === revision.current) { setOut(null); fail(T.error); }
     }
   };
 
   const sendNow = async () => {
     if (!out || out.used) return;
     // Enforce the destination at the send boundary as well as in the UI.
-    if (new URL(out.send.url).origin !== SANDBOX_URL) { setMsg(T.prod); return; }
+    if (new URL(out.send.url).origin !== SANDBOX_URL) { fail(T.prod); return; }
     const token = out.token;
     setOut((o) => (o && o.token === token ? { ...o, used: true } : o));
     setResp({ busy: true });
@@ -189,10 +200,12 @@ export const PlaygroundSigner = ({ method = "POST", path = "/v3/bank_account", b
   };
 
   const checkVector = async () => {
+    setInvalidFields([]);
     const h = { "content-type": "application/json", "x-client-id": "ak_doc_test", "x-content-hash": "", "x-nonce": "doc-fixed-nonce", "x-timestamp": "1791792000000" };
     h["x-content-hash"] = await sha256("{}");
     const sig = await hmac("sk_doc_test_only", stringToSign("POST", "/v3/bank_account", h, h["x-content-hash"], h["x-timestamp"], h["x-nonce"]));
-    setMsg(sig === "c19804458b983470c32734cc84d581b4c946d7b4667e1fccd0d1ed585e931654" ? T.vok : T.vbad);
+    const matches = sig === "c19804458b983470c32734cc84d581b4c946d7b4667e1fccd0d1ed585e931654";
+    message(matches ? T.vok : T.vbad, matches ? "success" : "error");
   };
   const copy = async (label, value) => {
     try { await navigator.clipboard.writeText(value); setCopied(label); setTimeout(() => setCopied(""), 1500); } catch (e) { setCopied("fail"); }
@@ -200,7 +213,7 @@ export const PlaygroundSigner = ({ method = "POST", path = "/v3/bank_account", b
   const field = (id, label, value, set, type = "text") => (
     <label htmlFor={`${uid}-${id}`} className="pgs-field">
       <span className="pgs-label">{label}</span>
-      <input id={`${uid}-${id}`} type={type} value={value} onChange={(e) => { invalidate(); const key = id === "ak" || id === "sk"; const digits = id === "ispb" || id === "acct"; if (key) setSrc("manual"); set(key ? e.target.value.trim() : (digits ? e.target.value.replace(/\D/g, "") : e.target.value)); }} autoComplete="off" spellCheck={false} disabled={busy} className="pgs-input pgs-mono" />
+      <input id={`${uid}-${id}`} type={type} value={value} onChange={(e) => { invalidate(); const key = id === "ak" || id === "sk"; const digits = id === "ispb" || id === "acct"; if (key) setSrc("manual"); set(key ? e.target.value.trim() : (digits ? e.target.value.replace(/\D/g, "") : e.target.value)); }} aria-invalid={invalidFields.includes(id) ? "true" : undefined} aria-describedby={invalidFields.includes(id) ? `${uid}-message` : undefined} autoComplete="off" spellCheck={false} disabled={busy} className="pgs-input pgs-mono" />
     </label>
   );
   const choices = [["account", T.acctCred], ["user", T.userCred]].filter(([k]) => store[k] && kinds.includes(k));
@@ -251,18 +264,18 @@ export const PlaygroundSigner = ({ method = "POST", path = "/v3/bank_account", b
       </div>
       <label htmlFor={`${uid}-body`} className="pgs-field">
         <span className="pgs-label">{T.body}</span>
-        <textarea id={`${uid}-body`} rows={Math.min(10, Math.max(3, text.split("\n").length))} value={text} onChange={(e) => { invalidate(); setText(e.target.value); }} spellCheck={false} disabled={busy} className="pgs-input pgs-mono pgs-area" />
+        <textarea id={`${uid}-body`} rows={Math.min(10, Math.max(3, text.split("\n").length))} value={text} onChange={(e) => { invalidate(); setText(e.target.value); }} aria-invalid={invalidFields.includes("body") ? "true" : undefined} aria-describedby={invalidFields.includes("body") ? `${uid}-message` : undefined} spellCheck={false} disabled={busy} className="pgs-input pgs-mono pgs-area" />
       </label>
       <div className="pgs-actions">
         <button type="button" onClick={generate} disabled={busy} className="pgs-btn pgs-primary">{T.gen}</button>
         <button type="button" onClick={checkVector} className="pgs-btn">{T.vec}</button>
       </div>
-      {msg ? <p role="status" className="pgs-msg">{msg}</p> : null}
+      {msg ? <p id={`${uid}-message`} role="status" aria-atomic="true" className={msgType === "error" ? "pgs-warn" : msgType === "success" ? "pgs-msg" : "pgs-info"}>{msg}</p> : null}
       {live ? (
         <div className="pgs-out" aria-live="polite">
           <p className="pgs-note">{T.valid}</p>
           {copied === "fail" ? <p role="status" className="pgs-warn">{T.copyFail}</p> : null}
-          <div className="pgs-row">
+          <div className="pgs-row pgs-row-stack">
             <span className="pgs-key">cURL (bash)</span>
             <pre className="pgs-pre pgs-val">{out.curl}</pre>
             <button type="button" onClick={() => copy("cURL", out.curl)} className="pgs-copy" aria-label={`${T.copy} cURL`}>{copied === "cURL" ? T.copied : T.copy}</button>

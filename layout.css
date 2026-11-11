@@ -1,0 +1,80 @@
+/* Use Mintlify's reading-width variable so the layout keeps its responsive behavior. */
+:root {
+  --content-width: 52rem;
+}
+
+/* Native cross-section anchors remain normal links in desktop and mobile navigation. */
+.nav-anchor[href="/api-reference/overview"],
+.nav-anchor[href="/pt-br/api-reference/overview"] {
+  min-height: 46px;
+  margin-bottom: 20px;
+  padding: 10px 14px;
+  border: 1px solid rgba(18, 121, 92, 0.3);
+  border-radius: 12px;
+  background: rgba(43, 193, 150, 0.09);
+  color: var(--pgs-ink);
+  font-weight: 650;
+  line-height: 1.45;
+  text-decoration: none;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.nav-anchor[href="/api-reference/overview"] svg,
+.nav-anchor[href="/pt-br/api-reference/overview"] svg {
+  background-color: var(--pgs-mint-ink);
+  flex-shrink: 0;
+}
+
+.nav-anchor[href="/api-reference/overview"]:hover,
+.nav-anchor[href="/pt-br/api-reference/overview"]:hover {
+  background: rgba(43, 193, 150, 0.16);
+  border-color: var(--pgs-mint-ink);
+}
+
+.nav-anchor[href="/api-reference/overview"]:focus-visible,
+.nav-anchor[href="/pt-br/api-reference/overview"]:focus-visible {
+  outline: 3px solid var(--pgs-mint-ink);
+  outline-offset: 2px;
+}
+
+/* Keep the article and TOC, but spend less of a desktop viewport on empty gutters. */
+@media (min-width: 1024px) {
+  #content-container {
+    padding-inline: 2rem;
+  }
+
+  #content-container > div:has(> #content-area) {
+    padding-left: 0;
+    column-gap: 2rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  #table-of-contents-layout {
+    width: 15rem;
+    padding-left: 1rem;
+  }
+
+  #table-of-contents {
+    width: 100%;
+  }
+}
+
+/* API response selectors need a second line on small screens. */
+@media (max-width: 640px) {
+  #content-area [data-table-wrapper] {
+    --page-padding: 16px;
+  }
+
+  .api-section-heading > div:first-child {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-anchor[href="/api-reference/overview"],
+  .nav-anchor[href="/pt-br/api-reference/overview"] {
+    transition: none;
+  }
+}

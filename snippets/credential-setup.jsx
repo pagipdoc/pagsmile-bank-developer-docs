@@ -12,7 +12,7 @@ export const CredentialSetup = ({ lang = "en" }) => {
     test: "Testar conexão (Sandbox)", testing: "Testando…", testNote: "Envia uma requisição de leitura assinada a partir deste navegador; por isso, o IP deste computador precisa estar na Lista de IPs Permitidos.",
     prodNoTest: "Produção: endereço apenas para consulta. Não informe AK/SK de Produção nesta documentação. Configure e execute a integração de Produção no seu servidor.",
     copy: "Copiar com a SK", copied: "Copiado", copyFail: "Não foi possível copiar. Selecione Mostrar SK e copie o texto manualmente.",
-    r: { 200: "Conectado: chave, assinatura e IP foram aceitos.", 401: "Chave de acesso desconhecida (code 401): confira se a chave é do Sandbox e cole a AK completa.", 4004103: "IP não permitido: adicione o IP mostrado em Seu IP público à Lista de IPs Permitidos desta credencial. Se ele já estiver na lista, selecione Detectar de novo: esta rede pode sair por mais de um endereço, então adicione cada endereço confirmado ou teste a partir de uma rede com IP de saída fixo. Se for um IPv6 com letras, o painel não consegue salvá-lo: teste por IPv4 ou fale com o suporte da Pagsmile.", 4004107: "Assinatura inválida: confira se a SK pertence a esta AK.", 4004105: "Horário inválido: sincronize o relógio deste computador.", 4004003: "Permissão negada: confira se a chave está Habilitada, se a API Aberta (Open API) está ativada e se a credencial é do tipo certo.", 4004101: "O cabeçalho X-Client-ID está ausente.", 4004102: "X-Timestamp, X-Nonce ou X-Signature está ausente, ou o timestamp não é numérico." },
+    r: { 200: "Conectado: chave, assinatura e IP foram aceitos.", 401: "Chave de acesso desconhecida (code 401): confira se a chave é do Sandbox e cole a AK completa.", 4004103: "IP não permitido: adicione o IPv4 mostrado em Seu IP público à Lista de IPs Permitidos desta credencial. Se ele já estiver na lista, selecione Detectar de novo: esta rede pode sair por mais de um endereço, então adicione cada endereço confirmado ou teste a partir de uma rede com IP de saída fixo. Se a conexão usar IPv6, consulte o IPv4 de saída com curl -4 e execute a chamada por IPv4.", 4004107: "Assinatura inválida: confira se a SK pertence a esta AK.", 4004105: "Horário inválido: sincronize o relógio deste computador.", 4004003: "Permissão negada: confira se a conta de teste está pronta e se a credencial está Ativa em Credenciais de teste. Confirme se a operação está disponível para essa conta e esse tipo de credencial.", 4004101: "O cabeçalho X-Client-ID está ausente.", 4004102: "X-Timestamp, X-Nonce ou X-Signature está ausente, ou o timestamp não é numérico." },
     other: "Resultado inesperado; consulte o catálogo de erros.", net: "O navegador não alcançou a API (rede, extensão ou CORS). Execute o exemplo no servidor.",
   } : {
     intro: "Enter Sandbox credentials only. They stay only in this tab's memory: the signature tools on other pages use them until you reload or close the tab. Your SK is never sent.",
@@ -27,7 +27,7 @@ export const CredentialSetup = ({ lang = "en" }) => {
     test: "Test connection (Sandbox)", testing: "Testing…", testNote: "Sends one signed read request from this browser, so this computer's IP must be on the credential's Allow List.",
     prodNoTest: "Production: address for reference only. Do not enter Production AK/SK in these docs. Configure and run your Production integration on your server.",
     copy: "Copy with SK", copied: "Copied", copyFail: "Couldn't copy. Select Show SK, then select the text and copy it manually.",
-    r: { 200: "Connected: the key, signature, and IP were accepted.", 401: "Unknown access key (code 401): check that the key is from Sandbox and paste the complete AK.", 4004103: "IP not allowed: add the IP shown under Your public IP to this credential's Allow List. If it's already listed, select Detect again: this network can leave from more than one address, so add each confirmed address or test from a network with a fixed outgoing IP. If it's an IPv6 address with letters, the dashboard can't store it: test over IPv4 or contact Pagsmile support.", 4004107: "Invalid signature: check that the SK belongs to this AK.", 4004105: "Invalid timestamp: sync this computer's clock.", 4004003: "Permission denied: check that the key is Enabled, Open API is on, and you used the right credential type.", 4004101: "The X-Client-ID header is missing.", 4004102: "X-Timestamp, X-Nonce, or X-Signature is missing, or the timestamp isn't a number." },
+    r: { 200: "Connected: the key, signature, and IP were accepted.", 401: "Unknown access key (code 401): check that the key is from Sandbox and paste the complete AK.", 4004103: "IP not allowed: add the IPv4 shown under Your public IP to this credential's Allow List. If it's already listed, select Detect again: this network can leave from more than one address, so add each confirmed address or test from a network with a fixed outgoing IP. If the connection uses IPv6, find your outbound IPv4 with curl -4 and run the request over IPv4.", 4004107: "Invalid signature: check that the SK belongs to this AK.", 4004105: "Invalid timestamp: sync this computer's clock.", 4004003: "Permission denied: check that the test account is ready and its credential is Enabled in Test credentials. Confirm the operation is available to that account and credential type.", 4004101: "The X-Client-ID header is missing.", 4004102: "X-Timestamp, X-Nonce, or X-Signature is missing, or the timestamp isn't a number." },
     other: "Unexpected result; see the error catalog.", net: "This browser could not reach the API (network, extension, or CORS). Run the sample on your server.",
   };
   const URLS = { sandbox: "https://ebanking-openapi-sandbox.pagsmile.com.br", production: "https://ebanking-openapi.pagsmile.com.br" };
@@ -37,11 +37,13 @@ export const CredentialSetup = ({ lang = "en" }) => {
   const [saved, setSaved] = useState(null);
   const [show, setShow] = useState(false);
   const [msg, setMsg] = useState("");
+  const [msgType, setMsgType] = useState("info");
   const [res, setRes] = useState({});
   const [copied, setCopied] = useState("");
   const [tried, setTried] = useState(false);
   const rev = useRef(0);
   const pending = useRef({});
+  const message = (note, type = "info") => { setMsg(note); setMsgType(type); };
 
   const store = () => {
     // Discard credentials left by the previous environment-selectable version.
@@ -64,7 +66,7 @@ export const CredentialSetup = ({ lang = "en" }) => {
     setRes({});
     let v = value.trim();
     if (key === "ispb" || key === "acct") v = v.replace(/\D/g, "");
-    setMsg("");
+    message("");
     setF((prev) => ({ ...prev, [kind]: { ...prev[kind], [key]: v } }));
   };
 
@@ -101,25 +103,25 @@ export const CredentialSetup = ({ lang = "en" }) => {
     if (all.length) {
       setTried(true);
       const [k, i] = all.find(([, x]) => x.id === "swap") || all.find(([, x]) => x.id === "half") || all[0];
-      setMsg(i.id === "swap" ? T.swap : i.id === "half" ? T.half : T.fixFirst);
+      message(i.id === "swap" ? T.swap : i.id === "half" ? T.half : T.fixFirst, "error");
       focusField(k, i.fields[0]);
       return;
     }
     const a = f.account.ak && f.account.sk ? { ...f.account } : null;
     const u = f.user.ak && f.user.sk ? { ...f.user } : null;
-    if (!a && !u) { setMsg(T.nothing); focusField("account", "ak"); return; }
+    if (!a && !u) { message(T.nothing, "error"); focusField("account", "ak"); return; }
     setTried(false);
     publish({ env: "sandbox", account: a, user: u });
     setF({ env: "sandbox", account: a ? { ...a } : blank().account, user: u ? { ...u } : blank().user });
     setRes({});
-    setMsg(T.saved);
+    message(T.saved, "success");
   };
   const clear = () => {
     publish({ env: "sandbox", account: null, user: null });
     setF(blank());
     setTried(false);
     setRes({});
-    setMsg(T.cleared);
+    message(T.cleared, "success");
   };
 
   const enc = (s) => new TextEncoder().encode(s);
@@ -219,7 +221,7 @@ export const CredentialSetup = ({ lang = "en" }) => {
         <button type="button" onClick={() => setShow(!show)} className="pgs-btn" aria-pressed={show}>{show ? T.hide : T.show}</button>
         <button type="button" onClick={clear} className="pgs-btn">{T.clear}</button>
       </div>
-      {msg ? <p role="status" className="pgs-msg">{msg}</p> : null}
+      {msg ? <p role="status" aria-atomic="true" className={msgType === "error" ? "pgs-warn" : msgType === "success" ? "pgs-msg" : "pgs-info"}>{msg}</p> : null}
       {savedKinds.length ? (
         <div className="pgs-out">
           <p className="pgs-legend">{T.envTitle}</p>

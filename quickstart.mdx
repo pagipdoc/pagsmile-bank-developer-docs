@@ -1,11 +1,11 @@
 ---
 title: "Quickstart"
 sidebarTitle: "Quickstart"
-description: "Register your account, enable Open API access, save your credentials and send a signed Sandbox request to retrieve account details and balances."
+description: "Register your account, open Developer Center, get your Sandbox credentials, and send a signed request from your server to query account details and balances."
 keywords: ["quickstart", "API access", "AK SK", "first request"]
 ---
 
-Use this guide to register your Pagsmile account and send your first signed account query. Configure Open API access before calling the API.
+Use this guide to register your Pagsmile account, prepare Sandbox access in Developer Center, and send your first signed account query from your server.
 
 ## Register your account
 
@@ -294,98 +294,54 @@ Follow the current form for required documents, verification tasks and activatio
 
 ## Enable API access
 
-Sign in to the [Banking portal](https://banking.pagsmile.com.br/login) and confirm the account you will use for the integration.
+After your production account has been opened and activated, use **Developer Center** in the [Banking portal](https://banking.pagsmile.com.br/login) to access your Sandbox test account.
+
+<Info>
+  These steps describe the upcoming Developer Center workflow. Follow them when **Developer Center** is available in your Banking portal.
+</Info>
 
 <Steps>
-  <Step title="Set up account MFA">
-    Open **Settings**, then **Security**, and select **Set Up Account MFA**. Follow the prompts to bind the account authenticator.
+  <Step title="Open Developer Center">
+    Sign in to the Banking portal with your production login, then select **Developer Center** in the sidebar. Open **Overview** and check the **Sandbox** label and the test account shown there.
 
-    Account MFA is required before you enable Open API access or manage API keys.
-
-    <Frame caption="Account MFA setup in Settings">
-      <img src="/images/quickstart/account-mfa-setup-in-settings.png" alt="Account MFA setup in Settings" />
-    </Frame>
+    The Sandbox account is for API use and has no separate portal login. Sandbox operations in Developer Center do not require MFA, a payment password, or another verification code. Your Banking sign-in requirements still apply.
   </Step>
-  <Step title="Enable Open API">
-    Open **API Keys**. In **Bank Account Level Credentials**, turn on **Open API** and enter the requested authenticator code.
+  <Step title="Wait for your test account to be ready">
+    Pagsmile automatically prepares a Sandbox test account and its ACCOUNT access key (AK) and secret key (SK) after production account activation. You do not need to create another account or generate the initial key pair.
 
-    The toggle is available to the owner of a CNPJ account. If you cannot access it, ask Pagsmile to confirm your account configuration.
-
-    <Frame caption="Enter your Google Authenticator code to enable Open API">
-      <img src="/images/quickstart/enter-your-google-authenticator-code-to-enable-ope.png" alt="Enter your Google Authenticator code to enable Open API" />
-    </Frame>
+    If preparation is still in progress, return to **Overview** later. If it fails, follow the recovery action shown there. Check the displayed test account before continuing; switching production accounts does not reassign the test credentials.
   </Step>
-  <Step title="Create and save your ACCOUNT credentials">
-    In **Bank Account Level Credentials**, confirm the selected account and select **Enable Access Key**. Complete the MFA confirmation.
+  <Step title="Prepare access from your server">
+    Open **Test credentials**. The primary member can select **View and copy credentials**, add the server's public outbound IP under **IP allowlist**, and confirm that the credential is **Enabled**.
 
-    Save the Access Key (AK) and Secret Key (SK) securely. Use the AK in `X-Client-ID`; keep the SK on your server for signing. The dashboard shows the keys only once. To try requests in these docs, enter them in [Set up API access](/api-access-setup).
+    Follow [Set up API access](/api-access-setup) to save the Sandbox key pair, find the correct IP, and configure your server. That page also provides optional Sandbox credential entry and testing in these docs.
 
-    <Accordion title="Create and save credentials" icon="images">
-      <Frame caption="Confirm the current bank account and enable Access Key">
-        <img src="/images/quickstart/confirm-the-current-bank-account-and-enable-access.png" alt="Confirm the current bank account and enable Access Key" />
-      </Frame>
-
-      <Frame caption="Save API credentials, full keys masked">
-        <img src="/images/quickstart/save-api-credentials-full-keys-masked.png" alt="Save API credentials, full keys masked" />
-      </Frame>
-    </Accordion>
-  </Step>
-  <Step title="Configure the IP allowlist">
-    Edit **Allow List** for the credential and add the outbound IP address of your API server. Complete the requested confirmation.
-
-    An empty allowlist denies every request. You can allow exact IP addresses or CIDR ranges. To find your server's public IP address and build the list, use [Set up API access](/api-access-setup).
-
-    <Frame caption="Edit Allow List and submit the verification code">
-      <img src="/images/quickstart/edit-allow-list-and-submit-the-verification-code.png" alt="Edit Allow List and submit the verification code" />
-    </Frame>
-  </Step>
-  <Step title="Prepare webhooks for payment integration">
-    In the matching credential section, select **Add Webhook**. Choose the application and event, then configure the callback URL and content type.
-
-    See [Webhooks](/api-reference/webhooks/overview) for event configuration and [Verify callbacks](/environments-and-credentials#verify-callbacks) for signature verification.
-
-    <Frame caption="Add a webhook: select an application, event, and callback URL">
-      <img src="/images/quickstart/add-a-webhook-select-an-application-event-and-call.png" alt="Add a webhook: select an application, event, and callback URL" />
-    </Frame>
+    If your team account cannot manage credentials, ask the primary member to complete this step. Sandbox credentials can be viewed again later without rotating them.
   </Step>
 </Steps>
 
-The **User Level Credentials (OpenVA & Onboarding)** section appears when PSP functionality is enabled. Confirm availability with Pagsmile if your integration needs USER credentials.
+## Explore APIs in Developer Center
 
-<Accordion title="USER credentials setup" icon="images">
-  <Frame caption="Entry point for USER-level credentials and webhook configuration">
-    <img src="/images/quickstart/entry-point-for-user-level-credentials-and-webhook.png" alt="Entry point for USER-level credentials and webhook configuration" />
-  </Frame>
-</Accordion>
+In **Overview**, find **Test your integration**. Select **Accounts and funds** in **Integration scenario**, then select **Test in sandbox** for `POST /v3/bank_account`.
+
+The form reads the request fields and examples from the API documentation and fills in the test account context. This account query uses the body `{}`. For other operations, review example values and provide the business fields needed for your test. You can inspect the request as a form or JSON.
+
+A response labeled as an example or simulation does not prove that an API request succeeded. Even a successful request from Developer Center does not verify your server's IP or signing code. Continue below to check your own integration.
 
 ## Send your first signed request
 
-Use `POST /v3/bank_account` to retrieve the target account. Send the empty JSON object `{}`; the request body has no business fields.
+Send `POST /v3/bank_account` from your server to retrieve the Sandbox test account. Use the ACCOUNT key pair from **Test credentials** and the empty JSON object `{}`.
 
-<Tabs>
-  <Tab title="ACCOUNT" icon="building-columns">
-    Use the ACCOUNT AK/SK for your first call. The account comes from the credential, so the samples below omit account-target headers.
-
-    Keep those headers omitted when running the ACCOUNT samples below.
-  </Tab>
-  <Tab title="USER" icon="user">
-    Select an account owned by the USER with both `X-ISPB` and `X-Account-Number`. Include both headers in the signature.
-
-    The samples below do not include these headers. Use the [signature tool](/environments-and-credentials#sign-requests) to sign a USER request.
-  </Tab>
-  <Tab title="PLATFORM" icon="server">
-    <Warning>PLATFORM credentials cannot call this endpoint. Use ACCOUNT credentials, or USER credentials with an authorized account.</Warning>
-  </Tab>
-</Tabs>
+The credential selects the account, so the examples omit `X-ISPB` and `X-Account-Number`. If your integration uses separately provisioned USER credentials, follow [Credentials and account selection](/environments-and-credentials#credentials-and-account-selection) instead. PLATFORM credentials cannot call this endpoint.
 
 <Steps>
-  <Step title="Choose the environment and credentials">
-    Start with credentials configured for the Sandbox. The Sandbox base URL is `https://ebanking-openapi-sandbox.pagsmile.com.br`.
+  <Step title="Confirm the Sandbox target">
+    Use `https://ebanking-openapi-sandbox.pagsmile.com.br` and the Sandbox ACCOUNT key pair. Confirm that your server's outbound IP is on that credential's allowlist.
 
-    The production base URL is `https://ebanking-openapi.pagsmile.com.br`. Confirm the selected environment before sending a request.
+    The Production base URL, `https://ebanking-openapi.pagsmile.com.br`, is shown for reference only. Credential entry and online testing in these docs are Sandbox only.
   </Step>
   <Step title="Prepare the sample">
-    Set `PAGSMILE_AK` and `PAGSMILE_SK` in your server environment. The examples default to the Sandbox; `PAGSMILE_BASE_URL` overrides the base URL. [Set up API access](/api-access-setup) generates these variables for bash and PowerShell.
+    Set `PAGSMILE_AK` and `PAGSMILE_SK` in your server environment. The examples default to Sandbox; if you set `PAGSMILE_BASE_URL`, keep the Sandbox URL for this guide. [Set up API access](/api-access-setup) generates these variables for bash and PowerShell.
 
     Use the runtime shown in your language tab. Do not put credentials in browser code, source control or support messages.
   </Step>
@@ -756,3 +712,9 @@ echo $response, PHP_EOL;
 ```
 
 </CodeGroup>
+
+## Continue your integration
+
+Choose your next operation in the [API reference](/api-reference/overview) or the **Test your integration** scenario list. For payment tests, configure [webhook event subscriptions](/api-reference/webhooks/overview) and [verify callbacks](/environments-and-credentials#verify-callbacks) before processing notifications. Use **Test transactions** in Developer Center and the relevant query endpoint to check transaction results.
+
+Sandbox tests do not enable Production capabilities or move test data to Production. Manage Production credentials through **API Keys** in the Banking portal, and keep them out of these docs' signing and testing tools.
