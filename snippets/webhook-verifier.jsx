@@ -1,7 +1,7 @@
 export const WebhookVerifier = ({ lang = "en" }) => {
   const T = lang === "pt" ? {
-    intro: "Confira uma notificação recebida. O cálculo acontece só neste navegador: a SK não é enviada nem armazenada.",
-    sk: "SK (chave secreta)", path: "Caminho do callback", query: "Query string (opcional)", body: "Corpo bruto recebido",
+    intro: "Confira uma notificação do Sandbox. O cálculo acontece só neste navegador: a SK não é enviada nem armazenada. Não informe credenciais nem dados de Produção.",
+    sk: "SK do Sandbox (chave secreta)", path: "Caminho do callback", query: "Query string (opcional)", body: "Corpo bruto recebido",
     verify: "Verificar", sample: "Carregar exemplo", hash: "X-Content-Hash corresponde ao corpo", sig: "X-Signature confere",
     nonce: "X-Nonce tem 32 caracteres hexadecimais minúsculos", age: "Idade do X-Timestamp", sts: "StringToSign",
     yes: "Sim", no: "Não", note: "Cole o corpo exatamente como recebido, sem reformatar o JSON.", minutes: "min",
@@ -11,8 +11,8 @@ export const WebhookVerifier = ({ lang = "en" }) => {
     pathError: "Caminho não suportado. Use um caminho ASCII sem escapes percentuais, como /pagsmile/webhooks. Para URLs com escapes, verifique no servidor conforme o tipo de callback.",
     sigFormat: "X-Signature tem 64 caracteres hexadecimais minúsculos",
   } : {
-    intro: "Check a callback you received. Everything is computed in this browser: your SK is never sent or stored.",
-    sk: "SK (secret key)", path: "Callback path", query: "Query string (optional)", body: "Raw body received",
+    intro: "Check a Sandbox callback. Everything is computed in this browser: your SK is never sent or stored. Do not enter Production credentials or data.",
+    sk: "Sandbox SK (secret key)", path: "Callback path", query: "Query string (optional)", body: "Raw body received",
     verify: "Verify", sample: "Load sample", hash: "X-Content-Hash matches the body", sig: "X-Signature matches",
     nonce: "X-Nonce is 32 lowercase hex characters", age: "X-Timestamp age", sts: "StringToSign",
     yes: "Yes", no: "No", note: "Paste the body exactly as received. Do not reformat the JSON.", minutes: "min",

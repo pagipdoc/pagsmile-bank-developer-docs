@@ -1,65 +1,30 @@
 ---
 title: "Pagsmile Open API"
 sidebarTitle: "Overview"
-description: "Open managed accounts, collect with Pix QR codes, pay out by Pix or TED, refund, handle MED cases and receive signed callbacks with one signed JSON API."
+description: "Integrate managed accounts, Pix and TED payments, refunds, MED and signed webhooks."
 mode: "wide"
 keywords: ["Pagsmile", "Open API", "Pix", "Brazil banking API", "managed accounts"]
 ---
 
-This site covers the whole integration: credentials and request signing, every v3 endpoint with a Playground and signed code samples, callbacks and their verification, and the error codes the API returns. Every endpoint takes a signed `POST` request with a JSON body, in Sandbox and in Production.
+import { ConnectionMap } from "/snippets/connection-map.jsx";
+
+<ConnectionMap />
 
 ## Start here
 
 <Columns cols={4}>
-  <Card title="Quickstart" icon="/icons/rapid-activation.svg" href="/quickstart">
-    Register, get your credentials and make a first signed call.
+  <Card title="Start in Sandbox" className="pgs-start-primary" icon="/icons/rapid-activation.svg" href="/quickstart">
+    New here? Get your Sandbox credentials and make your first signed call.
   </Card>
   <Card title="Set up API access" icon="/icons/secure-lock.svg" href="/api-access-setup">
-    Allow your server's IP, enter your keys once and sign requests on every page.
+    Allow your server's IP and enter Sandbox AK/SK for the signing tools.
   </Card>
   <Card title="API reference" icon="/icons/api-integration.svg" href="/api-reference/overview">
-    Every endpoint with schemas, signed code samples and a Playground.
+    Find endpoints, schemas and code samples. Try requests in Sandbox.
   </Card>
   <Card title="MED and disputes" icon="/icons/shield-check-outline.svg" href="/api-reference/med/overview">
     Open and track MED cases and read infraction reports.
   </Card>
-</Columns>
-
-## One call, end to end
-
-A request carries four signature headers and a JSON body. JSON business responses use the same envelope: read `code` first, then `data`.
-
-Handle HTTP 400 `text/plain` transport failures separately; do not parse them as JSON.
-
-<Columns cols={2}>
-
-```http Request
-POST /v3/pix_keys/create HTTP/1.1
-Host: ebanking-openapi-sandbox.pagsmile.com.br
-Content-Type: application/json
-User-Agent: your-app/1.0
-X-Client-ID: ak_live_example
-X-Timestamp: 1791792000000
-X-Nonce: 9f86d081884c7d659a2feaa0c55ad015
-X-Signature: <64 lowercase hex characters>
-
-{"pix_key_type":5}
-```
-
-```json Response (HTTP 200)
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "pix_key": "8e67c99a-7c55-4e91-9557-512b5e198561",
-    "pix_key_type": 5,
-    "status": 1,
-    "created_at": 1791792000000
-  },
-  "time": 1791792000000
-}
-```
-
 </Columns>
 
 ## Build by product
@@ -115,6 +80,43 @@ The tree shows object relationships, not the call order. A refund and a MED case
 
 </Accordion>
 
+## One call, end to end
+
+A request carries four signature headers and a JSON body. JSON business responses use the same envelope: read `code` first, then `data`.
+
+Handle HTTP 400 `text/plain` transport failures separately; do not parse them as JSON.
+
+<Columns cols={2}>
+
+```http Request
+POST /v3/pix_keys/create HTTP/1.1
+Host: ebanking-openapi-sandbox.pagsmile.com.br
+Content-Type: application/json
+User-Agent: your-app/1.0
+X-Client-ID: <SANDBOX_AK>
+X-Timestamp: 1791792000000
+X-Nonce: 9f86d081884c7d659a2feaa0c55ad015
+X-Signature: <64 lowercase hex characters>
+
+{"pix_key_type":5}
+```
+
+```json Response (HTTP 200)
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "pix_key": "8e67c99a-7c55-4e91-9557-512b5e198561",
+    "pix_key_type": 5,
+    "status": 1,
+    "created_at": 1791792000000
+  },
+  "time": 1791792000000
+}
+```
+
+</Columns>
+
 ## Your first call in four steps
 
 <Steps>
@@ -139,7 +141,7 @@ The tree shows object relationships, not the call order. A refund and a MED case
 | Sandbox | `https://ebanking-openapi-sandbox.pagsmile.com.br` |
 | Production | `https://ebanking-openapi.pagsmile.com.br` |
 
-Credentials are issued per environment. A Sandbox AK does not work in Production.
+Credentials are issued per environment. A Sandbox AK does not work in Production. This site's credential inputs and online debugging are Sandbox-only. The Production base URL is shown for reference.
 
 ## Tools on this site
 
@@ -151,7 +153,7 @@ Credentials are issued per environment. A Sandbox AK does not work in Production
     Paste a received callback and its headers to check the signature before you trust it.
   </Card>
   <Card title="API Playground" icon="play" href="/api-reference/overview">
-    Fill in parameters and send a request from any endpoint page, as a form or as JSON.
+    Fill in parameters and send a Sandbox request from any endpoint page, as a form or as JSON.
   </Card>
 </CardGroup>
 

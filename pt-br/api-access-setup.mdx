@@ -1,18 +1,22 @@
 ---
 title: "Configurar acesso à API"
 sidebarTitle: "Acesso à API"
-description: "Obtenha suas chaves de API da Pagsmile, adicione seus IPs públicos à Lista de IPs Permitidos e informe as chaves uma vez para assinar requisições em todas as páginas."
+description: "Configure chaves e IPs permitidos do Sandbox para assinar e testar requisições nesta documentação. Endereços de Produção são apenas para consulta."
 keywords: ["chaves de API", "lista de IPs permitidos", "IP público", "AK SK", "credenciais"]
 ---
 
 import { IpAllowlistHelper } from "/snippets/ip-allowlist-helper.jsx";
 import { CredentialSetup } from "/snippets/credential-setup.jsx";
 
-Toda requisição à API precisa vir de um IP que esteja na **Lista de IPs Permitidos** da credencial e levar uma assinatura feita com a chave secreta dessa credencial. Este guia percorre o painel Pagsmile Banking: obtenha suas chaves, permita seus IPs públicos e informe as chaves uma vez nesta documentação. Depois disso, a ferramenta de assinatura de cada página da API usa suas chaves.
+Toda requisição à API precisa vir de um IP que esteja na **Lista de IPs Permitidos** da credencial e levar uma assinatura feita com a chave secreta dessa credencial. Este guia percorre o painel Pagsmile Banking: obtenha suas chaves do Sandbox, permita seus IPs públicos e informe as chaves do Sandbox uma vez nesta documentação. Depois disso, a ferramenta de assinatura de cada página da API usa suas chaves do Sandbox.
+
+<Note>
+  A entrada de credenciais, as ferramentas de assinatura e os testes online desta documentação são **exclusivos do Sandbox**. Os endereços da API de Produção são apenas para consulta. Mantenha AK/SK de Produção no gerenciador de segredos do seu servidor; não as informe aqui.
+</Note>
 
 ## Antes de começar
 
-- **Acesso ao painel.** Entre no painel do ambiente que você vai chamar: [Sandbox](https://banking-sandbox.pagsmile.com.br) ou [Produção](https://banking.pagsmile.com.br/login). Cada ambiente tem suas próprias chaves, Listas de IPs Permitidos e [URL base](/pt-br/environments-and-credentials#ambientes).
+- **Acesso ao painel do Sandbox.** Entre no [painel do Sandbox](https://banking-sandbox.pagsmile.com.br) para obter as credenciais usadas neste guia. Cada ambiente tem suas próprias chaves, Listas de IPs Permitidos e [URL base](/pt-br/environments-and-credentials#ambientes). Configure as credenciais de Produção separadamente no seu servidor.
 - **MFA da conta.** Para ativar, desativar ou redefinir uma chave, ou para atualizar a Lista de IPs Permitidos dela, informe o **Código de verificação do Google** de 6 dígitos. Sem o MFA da conta, o painel mostra **MFA da conta obrigatório**. Configure-o conforme [Habilitar o acesso à API](/pt-br/quickstart#habilitar-o-acesso-à-api).
 - **API Aberta.** Em **Credenciais da conta bancária**, o botão **API Aberta** (**Open API**) precisa estar ativado.
 
@@ -102,7 +106,7 @@ Consulte [Credenciais e seleção de conta](/pt-br/environments-and-credentials#
     - Uma Lista de IPs Permitidos vazia rejeita todas as requisições com `4004103`. Um endereço de origem que não corresponde a nenhuma entrada também retorna `4004103`; a mensagem atual não mostra o endereço.
     - `0.0.0.0/0` permite qualquer endereço IPv4. Em Produção, use endereços exatos ou faixas estreitas.
   </Step>
-  <Step title="Informar as chaves nesta documentação">
+  <Step title="Informar as chaves do Sandbox nesta documentação">
     <CredentialSetup lang="pt" />
 
     - Cole cada par de chaves no cartão correspondente e selecione **Salvar nesta aba**. A ferramenta remove espaços nas pontas e só salva um cartão quando as chaves têm o prefixo do cartão, não estão invertidas e contêm só letras, dígitos, sublinhados e hifens. Se você editar um cartão salvo, selecione **Salvar nesta aba** de novo antes de copiar as variáveis ou testar a conexão.
@@ -110,7 +114,7 @@ Consulte [Credenciais e seleção de conta](/pt-br/environments-and-credentials#
     - As chaves ficam só na memória desta aba. Recarregar ou fechar a aba as apaga, outras abas não as veem, e **Limpar** as remove na hora. A documentação não grava chaves em cookies nem no armazenamento do navegador.
     - A ferramenta gera `PAGSMILE_BASE_URL`, `PAGSMILE_AK` e `PAGSMILE_SK` para bash e PowerShell. Os exemplos de requisição para servidor desta documentação leem essas variáveis.
 
-    Use chaves do Sandbox para testar requisições aqui. Nunca inclua credenciais no código de front-end da sua aplicação.
+    Informe apenas AK/SK do Sandbox. O ambiente é fixo no Sandbox; o endereço de Produção é informativo e não oferece campos de credenciais nem controles de teste. Nunca inclua credenciais no código de front-end da sua aplicação.
   </Step>
   <Step title="Testar a conexão">
     No Sandbox, selecione **Testar conexão** na ferramenta. Ela envia uma requisição de leitura assinada a partir deste navegador:
@@ -125,7 +129,7 @@ Consulte [Credenciais e seleção de conta](/pt-br/environments-and-credentials#
     | Resultado | Significado | O que fazer |
     | --- | --- | --- |
     | `code` `200` | Chave, assinatura e IP foram aceitos | Continue na [referência da API](/pt-br/api-reference/overview) |
-    | `code` `401` | A API não reconhece a AK. A resposta é HTTP 200 com a mensagem `User is invalid` | Confira o ambiente selecionado e cole a AK completa de **Novas chaves de API**. A tabela mostra só um valor mascarado |
+    | `code` `401` | A API não reconhece a AK. A resposta é HTTP 200 com a mensagem `User is invalid` | Confira se a chave é do Sandbox e cole a AK completa de **Novas chaves de API**. A tabela mostra só um valor mascarado |
     | `code` `4004103` | O IP de origem não está na Lista de IPs Permitidos | Teste no navegador: adicione o endereço em **Seu IP público**. Se ele já estiver na lista, selecione **Detectar de novo**: a rede pode sair por mais de um endereço, então adicione cada endereço confirmado ou teste a partir de um IP de saída fixo. Se for um IPv6 com letras, o painel não consegue salvá-lo, então teste por IPv4 ou fale com o suporte da Pagsmile. Requisição do servidor: adicione o endereço que o comando no servidor mostra e confira se o cliente usou IPv6 |
     | `code` `4004107` | Assinatura inválida | Confira se a SK pertence à AK e se você assina exatamente os bytes do corpo |
     | `code` `4004105` | Timestamp inválido ou expirado | Sincronize o relógio; envie o horário Unix atual em milissegundos |
@@ -146,17 +150,17 @@ Cada página da API tem uma ferramenta de assinatura. Quando há chaves salvas n
 - **Gerar cabeçalhos e cURL** cria um comando cURL em sintaxe bash; no Windows, execute no Git Bash ou no WSL. A assinatura vale por 5 minutos e para uma única requisição.
 - **Enviar ao Sandbox** envia essa requisição a partir deste navegador e mostra a resposta. Operações de escrita alteram dados do Sandbox.
 
-O Playground de cada página da API também envia as requisições diretamente deste navegador, sem proxy. Permita o endereço que o assistente detecta para o host da API escolhido no Playground. Se uma requisição do Playground retornar `4004103`, selecione **Detectar de novo** e permita cada endereço exibido. Cole nos campos dele os cabeçalhos gerados por **Gerar cabeçalhos e cURL**.
+O Playground de cada página da API envia as requisições diretamente deste navegador apenas ao Sandbox, sem proxy. Permita o endereço que o assistente detecta para o host da API do Sandbox. Se uma requisição do Playground retornar `4004103`, selecione **Detectar de novo** e permita cada endereço exibido. Cole nos campos dele os cabeçalhos gerados por **Gerar cabeçalhos e cURL**.
 
 Navegadores não conseguem enviar tudo o que a API aceita. A política de origem cruzada (CORS) da API não permite `X-ISPB` nem `X-Account-Number` vindos de navegadores, nem em **Enviar ao Sandbox** nem no Playground da API. Em operações de conta com a credencial do usuário, copie o comando cURL e execute-o no seu servidor.
 
 <Visibility for="agents">
 | Ferramenta | Comportamento |
 | --- | --- |
-| Assistente da Lista de IPs Permitidos | Ao abrir a página, lê a linha `ip=` de `https://ebanking-openapi-sandbox.pagsmile.com.br/cdn-cgi/trace` e `https://ebanking-openapi.pagsmile.com.br/cdn-cgi/trace`: o endereço que cada host da API vê para este navegador. Mostra todos os endereços detectados. Só os endereços sem letras recebem o botão **Adicionar à lista** e aparecem no texto de exemplo do campo; um IPv6 com letras mostra, em vez disso, a orientação sobre IPv4 e suporte. Junta entradas novas e existentes, remove duplicadas e gera uma lista separada por vírgulas só quando todas as entradas são válidas. Rejeita sintaxe IPv4, IPv6 e CIDR inválida e entradas IPv6 com letras, que o campo do painel não consegue salvar; avisa sobre endereços privados ou reservados, faixas `/0` e entradas IPv6 exatas fora da forma compacta. |
-| Configuração de credenciais | Guarda AK/SK da conta bancária e do usuário, o ambiente e `X-ISPB` e `X-Account-Number` padrão opcionais apenas na memória da aba. Gera `PAGSMILE_BASE_URL`, `PAGSMILE_AK` e `PAGSMILE_SK` para bash e PowerShell. No Sandbox, testa `POST /v3/bank_account` ou `POST /v3/onboarding/managed_accounts/list` a partir do navegador. |
+| Assistente da Lista de IPs Permitidos | Ao abrir a página, lê a linha `ip=` de `https://ebanking-openapi-sandbox.pagsmile.com.br/cdn-cgi/trace`: o endereço que o host da API do Sandbox vê para este navegador. Não acessa Produção. Mostra todos os endereços detectados. Só os endereços sem letras recebem o botão **Adicionar à lista** e aparecem no texto de exemplo do campo; um IPv6 com letras mostra, em vez disso, a orientação sobre IPv4 e suporte. Junta entradas novas e existentes, remove duplicadas e gera uma lista separada por vírgulas só quando todas as entradas são válidas. Rejeita sintaxe IPv4, IPv6 e CIDR inválida e entradas IPv6 com letras, que o campo do painel não consegue salvar; avisa sobre endereços privados ou reservados, faixas `/0` e entradas IPv6 exatas fora da forma compacta. |
+| Configuração de credenciais | Guarda AK/SK do Sandbox da conta bancária e do usuário, além de `X-ISPB` e `X-Account-Number` padrão opcionais, apenas na memória da aba. O ambiente é fixo no Sandbox. Gera `PAGSMILE_BASE_URL` do Sandbox, `PAGSMILE_AK` e `PAGSMILE_SK` para bash e PowerShell. Testa `POST /v3/bank_account` ou `POST /v3/onboarding/managed_accounts/list` a partir do navegador. Endereços de Produção são apenas para consulta. |
 | Ferramenta de assinatura | Usa a credencial salva que corresponde à operação, assina uma requisição POST, gera um comando cURL com o cabeçalho `User-Agent` e, no Sandbox sem cabeçalhos de conta, envia a requisição a partir do navegador. |
-| Playground da API | Configurado com `api.playground.proxy: false`: envia cada requisição diretamente do navegador para o servidor escolhido, então a API confere o IP público deste navegador. Uma requisição com `X-ISPB` ou `X-Account-Number` falha na verificação prévia de CORS, e o Playground mostra `unable to complete request`. |
+| Playground da API | Configurado com `api.playground.proxy: false` e somente o servidor Sandbox: envia cada requisição diretamente do navegador ao Sandbox, então a API confere o IP público deste navegador. Uma requisição com `X-ISPB` ou `X-Account-Number` falha na verificação prévia de CORS, e o Playground mostra `unable to complete request`. |
 </Visibility>
 
 ## Relacionados

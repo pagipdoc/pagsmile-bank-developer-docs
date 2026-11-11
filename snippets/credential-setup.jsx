@@ -1,6 +1,6 @@
 export const CredentialSetup = ({ lang = "en" }) => {
   const T = lang === "pt" ? {
-    intro: "Informe as credenciais uma vez. Elas ficam só na memória desta aba: as ferramentas de assinatura das outras páginas as usam até você recarregar ou fechar a aba. A SK nunca é enviada.",
+    intro: "Informe apenas credenciais do Sandbox. Elas ficam só na memória desta aba: as ferramentas de assinatura das outras páginas as usam até você recarregar ou fechar a aba. A SK nunca é enviada.",
     env: "Ambiente", sandbox: "Sandbox", production: "Produção",
     acctTitle: "Credenciais da conta bancária", userTitle: "Credenciais do usuário (OpenVA e Onboarding)",
     ak: "Chave de Acesso (AK)", sk: "Chave Secreta (SK)", ispb: "X-ISPB da conta padrão (opcional)", acct: "X-Account-Number da conta padrão (opcional)",
@@ -10,12 +10,12 @@ export const CredentialSetup = ({ lang = "en" }) => {
     pre: (k, p) => `${k} deve começar com ${p}.`, swap: "A AK e a SK parecem estar invertidas. Corrija antes de salvar: uma SK no campo AK seria enviada no cabeçalho X-Client-ID.", pair: "Informe X-ISPB e X-Account-Number juntos.", ispbLen: "X-ISPB tem 8 dígitos.",
     envTitle: "Variáveis de ambiente para os exemplos", envNote: "Os exemplos de requisição para servidor leem estas variáveis. Guarde-as no gerenciador de segredos do servidor; não as envie para o controle de versão. A cópia inclui a SK completa, mesmo quando ela está oculta.",
     test: "Testar conexão (Sandbox)", testing: "Testando…", testNote: "Envia uma requisição de leitura assinada a partir deste navegador; por isso, o IP deste computador precisa estar na Lista de IPs Permitidos.",
-    prodNoTest: "O teste no navegador só está disponível no Sandbox. Em Produção, execute os exemplos no seu servidor.",
+    prodNoTest: "Produção: endereço apenas para consulta. Não informe AK/SK de Produção nesta documentação. Configure e execute a integração de Produção no seu servidor.",
     copy: "Copiar com a SK", copied: "Copiado", copyFail: "Não foi possível copiar. Selecione Mostrar SK e copie o texto manualmente.",
-    r: { 200: "Conectado: chave, assinatura e IP foram aceitos.", 401: "Chave de acesso desconhecida (code 401): confira o ambiente selecionado e cole a AK completa.", 4004103: "IP não permitido: adicione o IP mostrado em Seu IP público à Lista de IPs Permitidos desta credencial. Se ele já estiver na lista, selecione Detectar de novo: esta rede pode sair por mais de um endereço, então adicione cada endereço confirmado ou teste a partir de uma rede com IP de saída fixo. Se for um IPv6 com letras, o painel não consegue salvá-lo: teste por IPv4 ou fale com o suporte da Pagsmile.", 4004107: "Assinatura inválida: confira se a SK pertence a esta AK.", 4004105: "Horário inválido: sincronize o relógio deste computador.", 4004003: "Permissão negada: confira se a chave está Habilitada, se a API Aberta (Open API) está ativada e se a credencial é do tipo certo.", 4004101: "O cabeçalho X-Client-ID está ausente.", 4004102: "X-Timestamp, X-Nonce ou X-Signature está ausente, ou o timestamp não é numérico." },
+    r: { 200: "Conectado: chave, assinatura e IP foram aceitos.", 401: "Chave de acesso desconhecida (code 401): confira se a chave é do Sandbox e cole a AK completa.", 4004103: "IP não permitido: adicione o IP mostrado em Seu IP público à Lista de IPs Permitidos desta credencial. Se ele já estiver na lista, selecione Detectar de novo: esta rede pode sair por mais de um endereço, então adicione cada endereço confirmado ou teste a partir de uma rede com IP de saída fixo. Se for um IPv6 com letras, o painel não consegue salvá-lo: teste por IPv4 ou fale com o suporte da Pagsmile.", 4004107: "Assinatura inválida: confira se a SK pertence a esta AK.", 4004105: "Horário inválido: sincronize o relógio deste computador.", 4004003: "Permissão negada: confira se a chave está Habilitada, se a API Aberta (Open API) está ativada e se a credencial é do tipo certo.", 4004101: "O cabeçalho X-Client-ID está ausente.", 4004102: "X-Timestamp, X-Nonce ou X-Signature está ausente, ou o timestamp não é numérico." },
     other: "Resultado inesperado; consulte o catálogo de erros.", net: "O navegador não alcançou a API (rede, extensão ou CORS). Execute o exemplo no servidor.",
   } : {
-    intro: "Enter your credentials once. They stay only in this tab's memory: the signature tools on other pages use them until you reload or close the tab. Your SK is never sent.",
+    intro: "Enter Sandbox credentials only. They stay only in this tab's memory: the signature tools on other pages use them until you reload or close the tab. Your SK is never sent.",
     env: "Environment", sandbox: "Sandbox", production: "Production",
     acctTitle: "Bank Account Level Credentials", userTitle: "User Level Credentials (OpenVA & Onboarding)",
     ak: "Access Key (AK)", sk: "Secret Key (SK)", ispb: "Default account X-ISPB (optional)", acct: "Default account X-Account-Number (optional)",
@@ -25,9 +25,9 @@ export const CredentialSetup = ({ lang = "en" }) => {
     pre: (k, p) => `${k} should start with ${p}.`, swap: "The AK and SK look swapped. Fix them before saving: an SK in the AK field would be sent in the X-Client-ID header.", pair: "Enter X-ISPB and X-Account-Number together.", ispbLen: "X-ISPB has 8 digits.",
     envTitle: "Environment variables for the samples", envNote: "The server-side request samples read these variables. Keep them in your server's secret manager; don't commit them to source control. Copying includes the full SK, even when it's hidden.",
     test: "Test connection (Sandbox)", testing: "Testing…", testNote: "Sends one signed read request from this browser, so this computer's IP must be on the credential's Allow List.",
-    prodNoTest: "The browser test is available only in the Sandbox. In Production, run the samples on your server.",
+    prodNoTest: "Production: address for reference only. Do not enter Production AK/SK in these docs. Configure and run your Production integration on your server.",
     copy: "Copy with SK", copied: "Copied", copyFail: "Couldn't copy. Select Show SK, then select the text and copy it manually.",
-    r: { 200: "Connected: the key, signature, and IP were accepted.", 401: "Unknown access key (code 401): check the selected environment and paste the complete AK.", 4004103: "IP not allowed: add the IP shown under Your public IP to this credential's Allow List. If it's already listed, select Detect again: this network can leave from more than one address, so add each confirmed address or test from a network with a fixed outgoing IP. If it's an IPv6 address with letters, the dashboard can't store it: test over IPv4 or contact Pagsmile support.", 4004107: "Invalid signature: check that the SK belongs to this AK.", 4004105: "Invalid timestamp: sync this computer's clock.", 4004003: "Permission denied: check that the key is Enabled, Open API is on, and you used the right credential type.", 4004101: "The X-Client-ID header is missing.", 4004102: "X-Timestamp, X-Nonce, or X-Signature is missing, or the timestamp isn't a number." },
+    r: { 200: "Connected: the key, signature, and IP were accepted.", 401: "Unknown access key (code 401): check that the key is from Sandbox and paste the complete AK.", 4004103: "IP not allowed: add the IP shown under Your public IP to this credential's Allow List. If it's already listed, select Detect again: this network can leave from more than one address, so add each confirmed address or test from a network with a fixed outgoing IP. If it's an IPv6 address with letters, the dashboard can't store it: test over IPv4 or contact Pagsmile support.", 4004107: "Invalid signature: check that the SK belongs to this AK.", 4004105: "Invalid timestamp: sync this computer's clock.", 4004003: "Permission denied: check that the key is Enabled, Open API is on, and you used the right credential type.", 4004101: "The X-Client-ID header is missing.", 4004102: "X-Timestamp, X-Nonce, or X-Signature is missing, or the timestamp isn't a number." },
     other: "Unexpected result; see the error catalog.", net: "This browser could not reach the API (network, extension, or CORS). Run the sample on your server.",
   };
   const URLS = { sandbox: "https://ebanking-openapi-sandbox.pagsmile.com.br", production: "https://ebanking-openapi.pagsmile.com.br" };
@@ -44,13 +44,14 @@ export const CredentialSetup = ({ lang = "en" }) => {
   const pending = useRef({});
 
   const store = () => {
-    if (!window.__pgsDocsCreds) window.__pgsDocsCreds = { env: "sandbox", account: null, user: null };
+    // Discard credentials left by the previous environment-selectable version.
+    if (!window.__pgsDocsCreds || window.__pgsDocsCreds.env !== "sandbox") window.__pgsDocsCreds = { env: "sandbox", account: null, user: null };
     return window.__pgsDocsCreds;
   };
   useEffect(() => {
     const s = store();
     setSaved({ ...s });
-    setF({ env: s.env || "sandbox", account: s.account ? { ...s.account } : blank().account, user: s.user ? { ...s.user } : blank().user });
+    setF({ env: "sandbox", account: s.account ? { ...s.account } : blank().account, user: s.user ? { ...s.user } : blank().user });
   }, []);
 
   const cancelTests = () => {
@@ -64,7 +65,7 @@ export const CredentialSetup = ({ lang = "en" }) => {
     let v = value.trim();
     if (key === "ispb" || key === "acct") v = v.replace(/\D/g, "");
     setMsg("");
-    setF((prev) => (kind === "env" ? { ...prev, env: value } : { ...prev, [kind]: { ...prev[kind], [key]: v } }));
+    setF((prev) => ({ ...prev, [kind]: { ...prev[kind], [key]: v } }));
   };
 
   const swapped = (c) => c.ak.includes("sk_") || c.sk.includes("ak_");
@@ -108,8 +109,8 @@ export const CredentialSetup = ({ lang = "en" }) => {
     const u = f.user.ak && f.user.sk ? { ...f.user } : null;
     if (!a && !u) { setMsg(T.nothing); focusField("account", "ak"); return; }
     setTried(false);
-    publish({ env: f.env, account: a, user: u });
-    setF({ env: f.env, account: a ? { ...a } : blank().account, user: u ? { ...u } : blank().user });
+    publish({ env: "sandbox", account: a, user: u });
+    setF({ env: "sandbox", account: a ? { ...a } : blank().account, user: u ? { ...u } : blank().user });
     setRes({});
     setMsg(T.saved);
   };
@@ -131,7 +132,7 @@ export const CredentialSetup = ({ lang = "en" }) => {
 
   const test = async (kind) => {
     const c = saved && saved[kind];
-    if (!c || swapped(c)) return;
+    if (!c || saved.env !== "sandbox" || swapped(c)) return;
     const mine = rev.current;
     const [path, body] = TESTS[kind];
     setRes((p) => ({ ...p, [kind]: { busy: true } }));
@@ -164,7 +165,7 @@ export const CredentialSetup = ({ lang = "en" }) => {
   const qPs = (s) => `'${String(s).replace(/['\u2018\u2019\u201A\u201B]/g, "$&$&")}'`;
   const envText = (c, ps, reveal) => {
     const sk = reveal ? c.sk : `${c.sk.slice(0, 8)}••••••••`;
-    const base = URLS[saved.env || "sandbox"];
+    const base = URLS.sandbox;
     return ps
       ? `$env:PAGSMILE_BASE_URL = ${qPs(base)}\n$env:PAGSMILE_AK = ${qPs(c.ak)}\n$env:PAGSMILE_SK = ${qPs(sk)}`
       : `export PAGSMILE_BASE_URL=${q(base)}\nexport PAGSMILE_AK=${q(c.ak)}\nexport PAGSMILE_SK=${q(sk)}`;
@@ -202,13 +203,15 @@ export const CredentialSetup = ({ lang = "en" }) => {
   return (
     <div className="pgs not-prose">
       <p className="pgs-intro">{T.intro}</p>
-      <label htmlFor="cs-env" className="pgs-field">
-        <span className="pgs-label">{T.env}</span>
-        <select id="cs-env" value={f.env} onChange={(e) => set("env", "", e.target.value)} className="pgs-input">
-          <option value="sandbox">{T.sandbox} — {URLS.sandbox}</option>
-          <option value="production">{T.production} — {URLS.production}</option>
-        </select>
-      </label>
+      <div className="pgs-field">
+        <span className="pgs-label">{T.env}: {T.sandbox}</span>
+        <code className="pgs-pre">{URLS.sandbox}</code>
+      </div>
+      <details className="pgs-details">
+        <summary>{T.production}</summary>
+        <p className="pgs-note">{T.prodNoTest}</p>
+        <code className="pgs-pre">{URLS.production}</code>
+      </details>
       {block("account", T.acctTitle)}
       {block("user", T.userTitle)}
       <div className="pgs-actions">

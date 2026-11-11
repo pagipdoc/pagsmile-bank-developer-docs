@@ -1,65 +1,30 @@
 ---
 title: "Pagsmile Open API"
 sidebarTitle: "Visão geral"
-description: "Abra contas gerenciadas, receba com QR Code Pix, pague por Pix ou TED, devolva, trate casos MED e receba callbacks assinados com uma única API JSON assinada."
+description: "Integre contas gerenciadas, pagamentos Pix e TED, devoluções, MED e webhooks assinados."
 mode: "wide"
 keywords: ["Pagsmile", "Open API", "Pix", "API bancária", "contas gerenciadas"]
 ---
 
-Este site cobre toda a integração: credenciais e assinatura de requisições, todos os endpoints v3 com Playground e exemplos de código assinados, callbacks e sua verificação, e os códigos de erro que a API retorna. Todos os endpoints recebem uma requisição `POST` assinada com corpo JSON, em Sandbox e em Produção.
+import { ConnectionMap } from "/snippets/connection-map.jsx";
+
+<ConnectionMap lang="pt" />
 
 ## Comece aqui
 
 <Columns cols={4}>
-  <Card title="Guia rápido" icon="/icons/rapid-activation.svg" href="/pt-br/quickstart">
-    Cadastre-se, obtenha as credenciais e faça a primeira chamada assinada.
+  <Card title="Comece no Sandbox" className="pgs-start-primary" icon="/icons/rapid-activation.svg" href="/pt-br/quickstart">
+    Primeira vez aqui? Obtenha suas credenciais de Sandbox e faça a primeira chamada assinada.
   </Card>
   <Card title="Configurar acesso à API" icon="/icons/secure-lock.svg" href="/pt-br/api-access-setup">
-    Permita o IP do servidor, informe suas chaves uma vez e assine requisições em todas as páginas.
+    Permita o IP do servidor e informe AK/SK de Sandbox para as ferramentas de assinatura.
   </Card>
   <Card title="Referência da API" icon="/icons/api-integration.svg" href="/pt-br/api-reference/overview">
-    Todos os endpoints com schemas, exemplos de código assinados e Playground.
+    Encontre endpoints, schemas e exemplos de código. Teste requisições no Sandbox.
   </Card>
   <Card title="MED e contestações" icon="/icons/shield-check-outline.svg" href="/pt-br/api-reference/med/overview">
     Abra e acompanhe casos MED e consulte notificações de infração.
   </Card>
-</Columns>
-
-## Uma chamada, do início ao fim
-
-Uma requisição leva quatro cabeçalhos de assinatura e um corpo JSON. As respostas de negócio em JSON usam o mesmo envelope: leia primeiro `code` e depois `data`.
-
-Trate separadamente as falhas de transporte com HTTP 400 e corpo `text/plain`; não interprete esse corpo como JSON.
-
-<Columns cols={2}>
-
-```http Requisição
-POST /v3/pix_keys/create HTTP/1.1
-Host: ebanking-openapi-sandbox.pagsmile.com.br
-Content-Type: application/json
-User-Agent: your-app/1.0
-X-Client-ID: ak_live_example
-X-Timestamp: 1791792000000
-X-Nonce: 9f86d081884c7d659a2feaa0c55ad015
-X-Signature: <64 caracteres hexadecimais minúsculos>
-
-{"pix_key_type":5}
-```
-
-```json Resposta (HTTP 200)
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "pix_key": "8e67c99a-7c55-4e91-9557-512b5e198561",
-    "pix_key_type": 5,
-    "status": 1,
-    "created_at": 1791792000000
-  },
-  "time": 1791792000000
-}
-```
-
 </Columns>
 
 ## Por produto
@@ -115,6 +80,43 @@ A árvore mostra relações entre objetos, não a ordem das chamadas. Uma devolu
 
 </Accordion>
 
+## Uma chamada, do início ao fim
+
+Uma requisição leva quatro cabeçalhos de assinatura e um corpo JSON. As respostas de negócio em JSON usam o mesmo envelope: leia primeiro `code` e depois `data`.
+
+Trate separadamente as falhas de transporte com HTTP 400 e corpo `text/plain`; não interprete esse corpo como JSON.
+
+<Columns cols={2}>
+
+```http Requisição
+POST /v3/pix_keys/create HTTP/1.1
+Host: ebanking-openapi-sandbox.pagsmile.com.br
+Content-Type: application/json
+User-Agent: your-app/1.0
+X-Client-ID: <SANDBOX_AK>
+X-Timestamp: 1791792000000
+X-Nonce: 9f86d081884c7d659a2feaa0c55ad015
+X-Signature: <64 caracteres hexadecimais minúsculos>
+
+{"pix_key_type":5}
+```
+
+```json Resposta (HTTP 200)
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "pix_key": "8e67c99a-7c55-4e91-9557-512b5e198561",
+    "pix_key_type": 5,
+    "status": 1,
+    "created_at": 1791792000000
+  },
+  "time": 1791792000000
+}
+```
+
+</Columns>
+
 ## Primeira chamada em quatro passos
 
 <Steps>
@@ -139,7 +141,7 @@ A árvore mostra relações entre objetos, não a ordem das chamadas. Uma devolu
 | Sandbox | `https://ebanking-openapi-sandbox.pagsmile.com.br` |
 | Produção | `https://ebanking-openapi.pagsmile.com.br` |
 
-As credenciais são emitidas por ambiente. Uma AK de Sandbox não funciona em Produção.
+As credenciais são emitidas por ambiente. Uma AK de Sandbox não funciona em Produção. A entrada de credenciais e os testes online deste site são exclusivos do Sandbox. A URL base de Produção é exibida apenas como referência.
 
 ## Ferramentas deste site
 
@@ -151,7 +153,7 @@ As credenciais são emitidas por ambiente. Uma AK de Sandbox não funciona em Pr
     Cole um callback recebido e os cabeçalhos para conferir a assinatura antes de confiar nele.
   </Card>
   <Card title="API Playground" icon="play" href="/pt-br/api-reference/overview">
-    Preencha os parâmetros e envie uma requisição em qualquer página de endpoint, como formulário ou JSON.
+    Preencha os parâmetros e envie uma requisição ao Sandbox em qualquer página de endpoint, como formulário ou JSON.
   </Card>
 </CardGroup>
 

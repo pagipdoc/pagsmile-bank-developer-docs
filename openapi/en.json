@@ -12,11 +12,7 @@
   "servers": [
     {
       "url": "https://ebanking-openapi-sandbox.pagsmile.com.br",
-      "description": "Sandbox"
-    },
-    {
-      "url": "https://ebanking-openapi.pagsmile.com.br",
-      "description": "Production"
+      "description": "Sandbox — online testing only"
     }
   ],
   "security": [

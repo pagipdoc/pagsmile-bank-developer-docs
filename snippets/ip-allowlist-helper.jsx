@@ -1,9 +1,9 @@
 export const IpAllowlistHelper = ({ lang = "en" }) => {
   const T = lang === "pt" ? {
     detectTitle: "Seu IP público",
-    detectIntro: "Ao abrir esta página, este navegador pergunta aos hosts da API do Sandbox e de Produção qual endereço eles veem (/cdn-cgi/trace). A consulta não leva credenciais. Cada resultado é um retrato deste momento: requisições posteriores podem sair por outro endereço.",
+    detectIntro: "Ao abrir esta página, este navegador pergunta ao host da API do Sandbox qual endereço ele vê (/cdn-cgi/trace). A consulta não leva credenciais e não acessa Produção. Cada resultado é um retrato deste momento: requisições posteriores podem sair por outro endereço.",
     detect: "Detectar de novo", busy: "Detectando…", use: "Adicionar à lista", miss: "sem resposta. Selecione Detectar de novo ou execute o comando do servidor do passo anterior para esse host.", copyFail: "Não foi possível copiar. Selecione o valor e copie manualmente.",
-    both: "APIs do Sandbox e de Produção", sandbox: "API do Sandbox", production: "API de Produção",
+    sandbox: "API do Sandbox",
     failed: "Este navegador não conseguiu consultar os hosts da API. Execute neste computador o comando do servidor mostrado no passo anterior.",
     v6a: "Endereço IPv6 (", v6b: "): o painel não consegue salvá-lo porque contém letras. A detecção é um retrato deste momento: requisições posteriores podem sair por outro endereço. Se uma requisição usar este endereço e nenhuma entrada da Lista de IPs Permitidos o cobrir, a API retorna 4004103. Neste computador, execute o comando cURL gerado com curl -4 ou fale com o suporte da Pagsmile.",
     serverHint: "Este é o endereço da rede deste computador. Servidores costumam usar outros endereços: execute o comando do passo anterior em cada servidor.",
@@ -18,9 +18,9 @@ export const IpAllowlistHelper = ({ lang = "en" }) => {
     any: "Permite qualquer endereço desta família. Não use em produção.", dup: "duplicadas removidas",
   } : {
     detectTitle: "Your public IP",
-    detectIntro: "When this page opens, this browser asks the Sandbox and Production API hosts which address they see (/cdn-cgi/trace). The request carries no credentials. Each result is a snapshot: later requests can leave from another address.",
+    detectIntro: "When this page opens, this browser asks the Sandbox API host which address it sees (/cdn-cgi/trace). The request carries no credentials and does not contact Production. Each result is a snapshot: later requests can leave from another address.",
     detect: "Detect again", busy: "Detecting…", use: "Add to list", miss: "no answer. Select Detect again, or run the server command from the previous step against this host.", copyFail: "Couldn't copy. Select the value and copy it manually.",
-    both: "Sandbox and Production APIs", sandbox: "Sandbox API", production: "Production API",
+    sandbox: "Sandbox API",
     failed: "This browser couldn't reach the API hosts. Run the server command from the previous step on this computer.",
     v6a: "IPv6 address (", v6b: "): the dashboard can't save it because it contains letters. Detection is a snapshot: later requests can leave from another address. If a request uses this address and no Allow List entry covers it, the API returns 4004103. From this computer, run the generated cURL command with curl -4, or contact Pagsmile support.",
     serverHint: "This is the address of this computer's network. Servers usually use other addresses: run the command from the previous step on each server.",
@@ -34,7 +34,7 @@ export const IpAllowlistHelper = ({ lang = "en" }) => {
     notCanon: "An exact IPv6 entry must use the compressed form: ", private: "Private, reserved, or documentation address. The API sees your public egress IP.",
     any: "Allows every address of this family. Don't use it in production.", dup: "duplicates removed",
   };
-  const HOSTS = [["sandbox", "https://ebanking-openapi-sandbox.pagsmile.com.br"], ["production", "https://ebanking-openapi.pagsmile.com.br"]];
+  const HOSTS = [["sandbox", "https://ebanking-openapi-sandbox.pagsmile.com.br"]];
   const [seen, setSeen] = useState({});
   const [state, setState] = useState("busy");
   const [add, setAdd] = useState("");
@@ -95,9 +95,7 @@ export const IpAllowlistHelper = ({ lang = "en" }) => {
 
   useEffect(() => { detect(); return () => { run.current += 1; }; }, []);
 
-  const rows = seen.sandbox && seen.sandbox === seen.production
-    ? [[T.both, seen.sandbox]]
-    : HOSTS.filter(([k]) => seen[k]).map(([k]) => [T[k], seen[k]]);
+  const rows = HOSTS.filter(([k]) => seen[k]).map(([k]) => [T[k], seen[k]]);
   const lettered = (ip) => ip.indexOf(":") >= 0 && /[a-f]/i.test(ip);
   const detected = rows.map(([, ip]) => ip).filter((ip) => !lettered(ip));
   const v6rows = rows.filter(([, ip]) => ip.indexOf(":") >= 0 && /[a-f]/i.test(ip));

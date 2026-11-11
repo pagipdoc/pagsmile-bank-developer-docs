@@ -1,18 +1,22 @@
 ---
 title: "Set up API access"
 sidebarTitle: "API access"
-description: "Get your Pagsmile API keys, add your public IP addresses to the Allow List, and enter the keys once so every API page signs requests with them."
+description: "Set up Sandbox API keys and allowed IP addresses, then sign and test requests from these docs. Production addresses are shown for reference only."
 keywords: ["API keys", "IP whitelist", "public IP", "AK SK", "credentials"]
 ---
 
 import { IpAllowlistHelper } from "/snippets/ip-allowlist-helper.jsx";
 import { CredentialSetup } from "/snippets/credential-setup.jsx";
 
-Every API request must come from an IP address on the credential's **Allow List** and carry a signature made with the credential's secret key. This guide takes you through the Pagsmile Banking dashboard: get your keys, allow your public IP addresses, and enter the keys in these docs once. After that, the signature tool on every API page uses your keys.
+Every API request must come from an IP address on the credential's **Allow List** and carry a signature made with the credential's secret key. This guide takes you through the Pagsmile Banking dashboard: get your Sandbox keys, allow your public IP addresses, and enter the Sandbox keys in these docs once. After that, the signature tool on every API page uses your Sandbox keys.
+
+<Note>
+  Credential entry, signing tools, and online API testing in these docs are **Sandbox only**. Production API addresses are shown for reference only. Keep Production AK/SK in your server's secret manager; do not enter them here.
+</Note>
 
 ## Before you begin
 
-- **Dashboard access.** Sign in to the dashboard of the environment you will call: [Sandbox](https://banking-sandbox.pagsmile.com.br) or [Production](https://banking.pagsmile.com.br/login). Each environment has its own keys, Allow Lists, and [base URL](/environments-and-credentials#environments).
+- **Sandbox dashboard access.** Sign in to the [Sandbox dashboard](https://banking-sandbox.pagsmile.com.br) to get the credentials used in this guide. Each environment has its own keys, Allow Lists, and [base URL](/environments-and-credentials#environments). Configure Production credentials separately on your server.
 - **Account MFA.** To enable, disable, or reset a key, or to update its Allow List, enter the 6-digit **Google Verification code**. Without account MFA, the dashboard shows **Account MFA required**. Set it up as described in [Enable API access](/quickstart#enable-api-access).
 - **Open API.** In **Bank Account Level Credentials**, the **Open API** toggle must be on.
 
@@ -102,7 +106,7 @@ See [Credentials and account selection](/environments-and-credentials#credential
     - An empty Allow List rejects every request with `4004103`. A source address that matches no entry also returns `4004103`; the current message doesn't show the address.
     - `0.0.0.0/0` allows every IPv4 address. Use exact addresses or narrow ranges in production.
   </Step>
-  <Step title="Enter your keys in these docs">
+  <Step title="Enter your Sandbox keys in these docs">
     <CredentialSetup />
 
     - Paste each key pair into its card and select **Save in this tab**. The tool trims surrounding spaces and saves a card only when its keys have the card's prefix, aren't swapped, and contain only letters, digits, underscores, and hyphens. After you edit a saved card, select **Save in this tab** again before you copy the variables or test the connection.
@@ -110,7 +114,7 @@ See [Credentials and account selection](/environments-and-credentials#credential
     - The keys stay only in this tab's memory. Reloading or closing the tab clears them, other tabs don't see them, and **Clear** removes them right away. The docs don't write keys to cookies or browser storage.
     - The tool generates `PAGSMILE_BASE_URL`, `PAGSMILE_AK`, and `PAGSMILE_SK` for bash and PowerShell. The server-side request samples in these docs read these variables.
 
-    Use Sandbox keys to try requests here. Never put credentials in your application's front-end code.
+    Enter Sandbox AK/SK only. The environment is fixed to Sandbox; the Production address is informational and has no credential or test controls. Never put credentials in your application's front-end code.
   </Step>
   <Step title="Test the connection">
     In the Sandbox, select **Test connection** in the tool. It sends one signed read request from this browser:
@@ -125,7 +129,7 @@ See [Credentials and account selection](/environments-and-credentials#credential
     | Result | Meaning | What to do |
     | --- | --- | --- |
     | `code` `200` | Key, signature, and IP were accepted | Continue with the [API reference](/api-reference/overview) |
-    | `code` `401` | The API doesn't recognize the AK. The response is HTTP 200 with the message `User is invalid` | Check the selected environment and paste the complete AK from **New API Keys**. The table shows only a masked value |
+    | `code` `401` | The API doesn't recognize the AK. The response is HTTP 200 with the message `User is invalid` | Check that the key is from Sandbox and paste the complete AK from **New API Keys**. The table shows only a masked value |
     | `code` `4004103` | Source IP isn't on the Allow List | Browser test: add the address under **Your public IP**. If it's already listed, select **Detect again**: the network can leave from more than one address, so add each confirmed address or test from a fixed outgoing IP. If it's an IPv6 address with letters, the dashboard can't store it, so test over IPv4 or contact Pagsmile support. Server request: add the address that the server command shows and check whether the client used IPv6 |
     | `code` `4004107` | Signature is invalid | Check that the SK belongs to the AK and that you sign the exact body bytes |
     | `code` `4004105` | Timestamp is invalid or expired | Sync the clock; send the current Unix time in milliseconds |
@@ -146,17 +150,17 @@ Each API page has a signature tool. When you have saved keys in this tab, it fil
 - **Generate headers and cURL** creates a cURL command in bash syntax; on Windows, run it in Git Bash or WSL. Its signature is valid for 5 minutes and for one request.
 - **Send to Sandbox** sends that request from this browser and shows the response. Write operations change Sandbox data.
 
-The API playground on each API page also sends requests directly from this browser, without a proxy. Allow the address that the helper detects for the API host you select in the playground. If a playground request returns `4004103`, select **Detect again** and allow each address it shows. Paste the headers from **Generate headers and cURL** into its fields.
+The API playground on each API page sends requests directly from this browser to Sandbox only, without a proxy. Allow the address that the helper detects for the Sandbox API host. If a playground request returns `4004103`, select **Detect again** and allow each address it shows. Paste the headers from **Generate headers and cURL** into its fields.
 
 Browsers can't send everything that the API accepts. The API's cross-origin (CORS) policy doesn't allow `X-ISPB` or `X-Account-Number` from browsers in **Send to Sandbox** or in the API playground. For account operations with a user-level credential, copy the cURL command and run it on your server.
 
 <Visibility for="agents">
 | Tool | Behavior |
 | --- | --- |
-| IP allowlist helper | When the page opens, reads the `ip=` line of `https://ebanking-openapi-sandbox.pagsmile.com.br/cdn-cgi/trace` and `https://ebanking-openapi.pagsmile.com.br/cdn-cgi/trace`: the address each API host sees for this browser. Shows every detected address. Only addresses without letters get an **Add to list** button and appear in the input placeholder; an IPv6 address with letters shows the IPv4 and support guidance instead. Merges new and existing entries, removes duplicates, and outputs a comma-separated list only when every entry is valid. Rejects invalid IPv4, IPv6, and CIDR syntax, and IPv6 entries with letters, which the dashboard field can't store; warns about private or reserved addresses, `/0` ranges, and uncompressed exact IPv6 entries. |
-| Credential setup | Stores bank-account-level and user-level AK/SK, the environment, and an optional default `X-ISPB` and `X-Account-Number` in the tab's memory only. Generates `PAGSMILE_BASE_URL`, `PAGSMILE_AK`, and `PAGSMILE_SK` for bash and PowerShell. In the Sandbox, tests `POST /v3/bank_account` or `POST /v3/onboarding/managed_accounts/list` from the browser. |
+| IP allowlist helper | When the page opens, reads the `ip=` line of `https://ebanking-openapi-sandbox.pagsmile.com.br/cdn-cgi/trace`: the address the Sandbox API host sees for this browser. Does not contact Production. Shows every detected address. Only addresses without letters get an **Add to list** button and appear in the input placeholder; an IPv6 address with letters shows the IPv4 and support guidance instead. Merges new and existing entries, removes duplicates, and outputs a comma-separated list only when every entry is valid. Rejects invalid IPv4, IPv6, and CIDR syntax, and IPv6 entries with letters, which the dashboard field can't store; warns about private or reserved addresses, `/0` ranges, and uncompressed exact IPv6 entries. |
+| Credential setup | Stores Sandbox bank-account-level and user-level AK/SK and an optional default `X-ISPB` and `X-Account-Number` in the tab's memory only. The environment is fixed to Sandbox. Generates Sandbox `PAGSMILE_BASE_URL`, `PAGSMILE_AK`, and `PAGSMILE_SK` for bash and PowerShell. Tests `POST /v3/bank_account` or `POST /v3/onboarding/managed_accounts/list` from the browser. Production addresses are for reference only. |
 | Signature tool | Uses the saved credential that matches the operation, signs one POST request, outputs a cURL command with a `User-Agent` header and, in the Sandbox without account headers, sends the request from the browser. |
-| API playground | Configured with `api.playground.proxy: false`: sends each request directly from the browser to the selected server, so the API checks this browser's public IP. A request with `X-ISPB` or `X-Account-Number` fails the CORS preflight, and the playground shows `unable to complete request`. |
+| API playground | Configured with `api.playground.proxy: false` and only a Sandbox server: sends each request directly from the browser to Sandbox, so the API checks this browser's public IP. A request with `X-ISPB` or `X-Account-Number` fails the CORS preflight, and the playground shows `unable to complete request`. |
 </Visibility>
 
 ## Related

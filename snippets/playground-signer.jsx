@@ -1,6 +1,6 @@
 export const PlaygroundSigner = ({ method = "POST", path = "/v3/bank_account", body = {}, lang = "en", editable = false, scope = "account" }) => {
   const T = lang === "pt" ? {
-    intro: "Gere os cabeçalhos de autenticação e um comando cURL (bash) para uma requisição POST. A assinatura é calculada neste navegador: a SK não é enviada.",
+    intro: "Use apenas AK/SK do Sandbox para gerar os cabeçalhos e um comando cURL (bash). A assinatura é calculada neste navegador: a SK não é enviada. Não informe credenciais de Produção.",
     method: "Método", path: "Caminho", ak: "AK (X-Client-ID)", sk: "SK (chave secreta)", ispb: "X-ISPB (opcional)", acct: "X-Account-Number (opcional)",
     body: "Corpo JSON", gen: "Gerar cabeçalhos e cURL", vec: "Conferir com o vetor de teste", copy: "Copiar", copied: "Copiado", copyFail: "Não foi possível copiar. Selecione o texto e copie manualmente.", shell: "Sintaxe bash. No Windows, execute no Git Bash ou no WSL.", akFmt: "A AK deve começar com ak_acct_ ou ak_user_.", charset: "As chaves têm só letras, dígitos, sublinhados e hifens. Remova espaços, aspas e outros caracteres.",
     src: "Credencial", manual: "Informar manualmente", acctCred: "Credenciais da conta bancária (salvas)", userCred: "Credenciais do usuário (salvas)", rowsTitle: "Cabeçalhos individuais para o Playground",
@@ -14,9 +14,9 @@ export const PlaygroundSigner = ({ method = "POST", path = "/v3/bank_account", b
     send: "Enviar ao Sandbox", sending: "Enviando…", sent: "Resposta do Sandbox", net: "O navegador não recebeu uma resposta completa (rede, extensão ou CORS). A requisição pode ter chegado à API. Confira o resultado com uma consulta antes de qualquer nova tentativa de escrita.", timeout: "Sem resposta em 30 segundos. A requisição pode ter chegado à API. Confira o resultado com uma consulta antes de qualquer nova tentativa de escrita.", userOnly: "Esta operação aceita só credenciais do usuário: a AK deve começar com ak_user_.", userHdr: "Credenciais do usuário precisam de X-ISPB e X-Account-Number em operações de conta. Informe os dois ou adicione uma conta padrão em Configurar acesso à API.", ispbReq: "X-ISPB (obrigatório com credenciais do usuário)", acctReq: "X-Account-Number (obrigatório com credenciais do usuário)",
     cors: "Navegadores não podem enviar X-ISPB e X-Account-Number para esta API (CORS). Execute o cURL no servidor.", cut: "Mostrando os primeiros 8.000 caracteres; a resposta é maior.", copyFull: "Copiar resposta completa",
     srv5xx: "O servidor retornou um erro, e uma escrita pode ter sido aplicada. Confira o resultado com uma consulta antes de qualquer nova tentativa de escrita.", unrec: "A resposta não é um resultado reconhecível da API, então uma escrita pode ter sido aplicada. Confira o resultado com uma consulta antes de qualquer nova tentativa de escrita.", prevPending: (x) => `Uma requisição enviada de outra página (POST ${x}) ainda não tinha retornado quando você saiu dela. Sair da página não cancela a requisição. Confira o resultado com uma consulta antes de qualquer nova tentativa de escrita.`, prevDone: (x, h, c) => `Uma requisição enviada de outra página (POST ${x}) retornou HTTP ${h}${c === null ? "" : `, code ${c}`} depois que você saiu dela.`, prevUnknown: (x) => `Uma requisição enviada de outra página (POST ${x}) terminou sem resultado claro depois que você saiu dela. Confira o resultado com uma consulta antes de qualquer nova tentativa de escrita.`, dismiss: "Dispensar",
-    prod: "Ambiente de Produção: execute o cURL no seu servidor.", sendNote: "Envia desta aba, então a API vê o IP deste computador. Operações de escrita alteram dados do Sandbox.",
+    prod: "Esta ferramenta só envia requisições ao Sandbox.", sendNote: "Envia desta aba, então a API vê o IP deste computador. Operações de escrita alteram dados do Sandbox.",
   } : {
-    intro: "Generate the authentication headers and a cURL command (bash) for one POST request. Signing happens in this browser: your SK is never sent.",
+    intro: "Use Sandbox AK/SK only to generate authentication headers and a cURL command (bash). Signing happens in this browser: your SK is never sent. Do not enter Production credentials.",
     method: "Method", path: "Path", ak: "AK (X-Client-ID)", sk: "SK (secret key)", ispb: "X-ISPB (optional)", acct: "X-Account-Number (optional)",
     body: "JSON body", gen: "Generate headers and cURL", vec: "Check against the test vector", copy: "Copy", copied: "Copied", copyFail: "Couldn't copy. Select the text and copy it manually.", shell: "Bash syntax. On Windows, run it in Git Bash or WSL.", akFmt: "The AK must start with ak_acct_ or ak_user_.", charset: "Keys contain only letters, digits, underscores, and hyphens. Remove spaces, quotes, and other characters.",
     src: "Credential", manual: "Enter manually", acctCred: "Bank Account Level Credentials (saved)", userCred: "User Level Credentials (saved)", rowsTitle: "Individual headers for the API playground",
@@ -30,9 +30,9 @@ export const PlaygroundSigner = ({ method = "POST", path = "/v3/bank_account", b
     send: "Send to Sandbox", sending: "Sending…", sent: "Sandbox response", net: "This browser didn't receive a complete response (network, extension, or CORS). The request may still have reached the API. Check the result with a read request before any new write attempt.", timeout: "No response within 30 seconds. The request may still have reached the API. Check the result with a read request before any new write attempt.", userOnly: "This operation accepts only user-level credentials: the AK must start with ak_user_.", userHdr: "User-level credentials need X-ISPB and X-Account-Number for account operations. Enter both, or add a default account in Set up API access.", ispbReq: "X-ISPB (required with user-level credentials)", acctReq: "X-Account-Number (required with user-level credentials)",
     cors: "Browsers can't send X-ISPB and X-Account-Number to this API (CORS). Run the cURL command on your server.", cut: "Showing the first 8,000 characters; the response is longer.", copyFull: "Copy full response",
     srv5xx: "The server returned an error, and a write may still have been applied. Check the result with a read request before any new write attempt.", unrec: "The response isn't a recognizable API result, so a write may still have been applied. Check the result with a read request before any new write attempt.", prevPending: (x) => `A request sent from another page (POST ${x}) hadn't returned when you left that page. Leaving a page doesn't cancel a request. Check its result with a read request before any new write attempt.`, prevDone: (x, h, c) => `A request sent from another page (POST ${x}) returned HTTP ${h}${c === null ? "" : `, code ${c}`} after you left that page.`, prevUnknown: (x) => `A request sent from another page (POST ${x}) ended without a clear result after you left that page. Check its result with a read request before any new write attempt.`, dismiss: "Dismiss",
-    prod: "Production environment: run the cURL command on your server.", sendNote: "Sends from this tab, so the API sees this computer's IP. Write operations change Sandbox data.",
+    prod: "This tool sends requests to Sandbox only.", sendNote: "Sends from this tab, so the API sees this computer's IP. Write operations change Sandbox data.",
   };
-  const URLS = { sandbox: "https://ebanking-openapi-sandbox.pagsmile.com.br", production: "https://ebanking-openapi.pagsmile.com.br" };
+  const SANDBOX_URL = "https://ebanking-openapi-sandbox.pagsmile.com.br";
   const uid = String(path).replace(/[^a-z0-9]/gi, "-");
   const m = "POST";
   const [p, setP] = useState(path);
@@ -61,6 +61,8 @@ export const PlaygroundSigner = ({ method = "POST", path = "/v3/bank_account", b
   };
   useEffect(() => {
     const load = () => {
+      // Never import credentials saved for another environment by an older page.
+      if (window.__pgsDocsCreds && window.__pgsDocsCreds.env !== "sandbox") window.__pgsDocsCreds = { env: "sandbox", account: null, user: null };
       const s = { env: "sandbox", account: null, user: null, ...(window.__pgsDocsCreds || {}) };
       const choice = kinds.find((k) => s[k]) || "manual";
       setStore(s);
@@ -143,11 +145,11 @@ export const PlaygroundSigner = ({ method = "POST", path = "/v3/bank_account", b
       const sig = await hmac(sk, sts);
       const rows = [["X-Client-ID", ak], ["X-Timestamp", ts], ["X-Nonce", nonce], ["X-Content-Hash", hash], ["X-Signature", sig]];
       if (hIspb) rows.push(["X-ISPB", hIspb], ["X-Account-Number", hAcct]);
-      const base = URLS[store.env] || URLS.sandbox;
+      const base = SANDBOX_URL;
       const curl = [`curl -sS -X POST ${q(base + p)}`, `-H 'Content-Type: application/json'`, `-H 'User-Agent: your-app/1.0'`, ...rows.map(([k, v]) => `-H ${q(`${k}: ${v}`)}`), `--data-raw ${q(compact)}`].join(" \\\n  ");
       const send = { url: base + p, compact, headers: Object.fromEntries([["Content-Type", "application/json"], ...rows]) };
       rows.push(["Body", compact]);
-      if (token === revision.current) setOut({ rows, sts, curl, send, token, sandbox: base === URLS.sandbox, cors: Boolean(hIspb) });
+      if (token === revision.current) setOut({ rows, sts, curl, send, token, sandbox: true, cors: Boolean(hIspb) });
     } catch (e) {
       if (token === revision.current) { setOut(null); setMsg(T.error); }
     }
@@ -155,6 +157,8 @@ export const PlaygroundSigner = ({ method = "POST", path = "/v3/bank_account", b
 
   const sendNow = async () => {
     if (!out || out.used) return;
+    // Enforce the destination at the send boundary as well as in the UI.
+    if (new URL(out.send.url).origin !== SANDBOX_URL) { setMsg(T.prod); return; }
     const token = out.token;
     setOut((o) => (o && o.token === token ? { ...o, used: true } : o));
     setResp({ busy: true });
