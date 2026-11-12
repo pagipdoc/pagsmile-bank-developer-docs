@@ -1,5 +1,6 @@
 node_modules/
-.mintlify/
+.mintlify/*
+!.mintlify/AGENTS.md
 .next/
 out/
 dist/
@@ -9,3 +10,4 @@ dist/
 *.log
 .DS_Store
 Thumbs.db
+mint-validation.json

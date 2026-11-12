@@ -1,0 +1,49 @@
+name: Documentation checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    name: Docs contract and Mintlify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out documentation
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Check protocol, navigation and Sandbox boundaries
+        run: node --test tests/sandbox-boundaries.test.cjs tests/docs-contract.test.cjs
+      - name: Check changed lines for whitespace errors
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ && ! "$BASE_SHA" =~ ^0+$ ]]; then
+            git diff --check "$BASE_SHA" HEAD
+          else
+            git show --format= --check HEAD
+          fi
+      - name: Validate and build Mintlify
+        shell: bash
+        run: |
+          npx --yes mint@4.3.16 validate --format json | tee mint-validation.json
+          node -e "const r=require('./mint-validation.json'); if(!r.passed || r.summary.errors || r.summary.warnings || !r.build.ran || !r.build.passed) process.exit(1)"
+      - name: Check internal links and targets
+        run: npx --yes mint@4.3.16 broken-links --check-anchors --check-redirects --check-snippets

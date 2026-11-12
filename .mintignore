@@ -1,3 +1,11 @@
 src/_props
 src/
 redirects.json
+README.md
+CONTRIBUTING.md
+AGENTS.md
+.mintlify/
+maintenance/
+.github/
+tests/
+mint-validation.json
