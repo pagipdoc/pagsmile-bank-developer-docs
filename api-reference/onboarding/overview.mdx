@@ -16,6 +16,9 @@ Managed account onboarding lets you create MOR, VA and PA accounts under a USER.
   <Step title="Confirm the opening fee and balance">
     Contact Pagsmile Support to confirm the fee is configured. Ask the owning MA account holder to confirm enough available balance on the MA for MOR and VA, or on the selected direct parent for PA. See [Account-opening fees](/api-reference/onboarding/create-managed-account#account-opening-fees) for the fee errors and how to retry.
   </Step>
+  <Step title="Configure KYB callbacks for VA or PA">
+    Register your HTTPS callback URL for **VA ACCOUNT KYB** under the owning USER before creating the account. [Webhook setup](/api-reference/onboarding/kyb-callbacks#before-you-receive-callbacks)
+  </Step>
   <Step title="Create the managed account">
     Sign the request with the owning USER credential. Keep the returned `reference_id` to query the account later.
 
