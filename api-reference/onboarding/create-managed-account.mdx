@@ -32,7 +32,24 @@ Creates an MOR, VA or PA account under the owning USER. PA always requires a par
 
 Sign the exact JSON body you send. See [Sign requests](/environments-and-credentials#sign-requests) for required headers and IP allowlist rules.
 
+### Account-opening fees
+
+Before you send the creation request, contact Pagsmile Support to confirm that the account-opening fee is configured. For PA, confirm the applicable KYC or KYB fee for the applicant's document type.
+
+Ask the owning MA account holder to confirm the payer has enough available BRL balance to cover the fee. The owning MA pays for MOR and VA. The direct parent in `linked_account` pays for PA. The paying bank account must be ACTIVE and have no closure in progress.
+
+Creation cannot succeed until the fee is charged. Both fee errors return HTTP `200` with a business `code` and `data: null`. See the named response examples for the full JSON bodies.
+
+| Business code | Response example | What to do |
+| --- | --- | --- |
+| `4004004` | Opening fee configuration not found | Ask Pagsmile Support to configure the fee, then retry with the same `reference_id` and unchanged request body. |
+| `4001999` | Insufficient balance for the account-opening fee | Add funds to the paying account, then retry with the same `reference_id` and unchanged request body. |
+
+Sign the retry with a fresh nonce and timestamp. A matching retry reuses an already confirmed fee payment. MOR can reserve the opening request before fee collection, so keep the original `reference_id` even when the response has `data: null`.
+
 ## Choose an account model
+
+The request and response examples show a minimal MOR opening, a CNPJ VA with hosted verification, and PA hosted verification for both CPF (KYC) and CNPJ (KYB). Replace the example references, applicant data, return URL and parent account details with values for your environment.
 
 <View title="MOR">
 
@@ -44,7 +61,7 @@ The MA needs compliance whose status is APPROVED or FORCE_APPROVED, valid identi
 
 Omit `compliance_mode`, `compliance_payload`, `provider_session_info`, `return_url` and `linked_account`. MOR rejects nonzero compliance modes, compliance or session objects, nonblank return URLs and any linked-account object.
 
-The response has an empty `verification_url`. That does not mean activation is complete; read the account status.
+The **MOR active** response example has `status: 2` (ACTIVE) and an empty `verification_url`. MOR can also return `status: 1` (PENDING). Read the status to determine whether activation is complete.
 
 </View>
 
@@ -54,7 +71,9 @@ The response has an empty `verification_url`. That does not mean activation is c
 
 VA submits its own applicant verification data. The owning USER determines the parent MA; do not send `linked_account`.
 
-Choose HOSTED_LINK, API_BODY or PROVIDER_SESSION. Production VA accepts CNPJ applicants. Sandbox also accepts CPF; this broader policy does not establish production eligibility.
+Choose HOSTED_LINK, API_BODY or PROVIDER_SESSION. For VA, use a CNPJ applicant (`document_type: 2`), the only document type supported in production. Sandbox may also accept CPF for testing.
+
+The **VA hosted KYB (CNPJ)** example uses `compliance_mode: 1` and returns `status: 1` (PENDING). Send the applicant to the returned `verification_url` to complete the business verification.
 
 For a new VA, the account-opening fee is collected from the parent MA after the verification session is created. A fee failure stops account creation.
 
@@ -64,7 +83,7 @@ For a new VA, the account-opening fee is collected from the parent MA after the 
 
 ### PA rules
 
-PA submits its own applicant verification data. Choose HOSTED_LINK, API_BODY or PROVIDER_SESSION.
+PA submits its own applicant verification data. Choose HOSTED_LINK, API_BODY or PROVIDER_SESSION. Use `document_type: 1` for individual CPF (KYC) or `document_type: 2` for company CNPJ (KYB).
 
 Send `linked_account` with both `ispb` and `account_number` in every mode. Neither field can be blank.
 
@@ -74,6 +93,8 @@ The selected parent and owning MA must have matching ACTIVE bank accounts. The s
 
 For a new PA, the account-opening fee is collected from that direct parent after the verification session is created.
 
+The **PA hosted KYC (CPF)** and **PA hosted KYB (CNPJ)** examples each return `status: 1` (PENDING) and a `verification_url` for the applicant.
+
 </View>
 
 ## Choose how to submit verification
@@ -82,11 +103,11 @@ For VA and PA, basic applicant details belong in `compliance_payload` in all thr
 
 | Mode | What you submit |
 | --- | --- |
-| HOSTED_LINK (`1`) | Applicant details and `return_url` |
-| API_BODY (`2`) | Applicant details and detailed verification data |
+| HOSTED_LINK (`1`) | Applicant details and `return_url`. Direct the applicant to the returned `verification_url`. |
+| API_BODY (`2`) | Applicant details and the KYC or KYB payload that Pagsmile submits to the compliance provider. |
 | PROVIDER_SESSION (`3`) | Applicant details and existing verification IDs |
 
-With HOSTED_LINK, `return_url` is a top-level field and cannot be blank. Use the returned `verification_url` to complete the hosted submission.
+With HOSTED_LINK, `return_url` is a top-level field and cannot be blank.
 
 With API_BODY, CPF requires `user_data`; CNPJ requires `business_data`. Required personal fields must be nonblank, and company data requires a nonblank trade name.
 
@@ -95,18 +116,6 @@ Follow the applicable verification template for additional answers, dates and fi
 With PROVIDER_SESSION, send a nonblank `provider_session_info.provider_session_id`. A profile or case ID alone is insufficient. These identifiers are ignored in the other modes.
 
 Only API_BODY accepts a nonempty `client_reference_data` array. Keep it inside `compliance_payload`, not at the top level.
-
-## Account-opening fees
-
-Opening MOR, VA or PA includes a configured fee in BRL. The parent MA pays for MOR and VA; the selected direct parent pays for PA.
-
-The payer needs sufficient available funds and an ACTIVE bank account with no closure in progress. A matching retry reuses an already confirmed fee payment.
-
-When `code` is `4001999`, fund the payer account and retry with the same `reference_id` and original body.
-
-`4004004` with message `Account creation fee configuration was not found. Please contact support.` means that the required account-creation fee configuration was not found. Contact support; retrying the same request does not resolve it.
-
-MOR can reserve the opening request before its fee is confirmed. Even an error with `data` equal to `null` does not prove that no request exists.
 
 ## Read the result
 

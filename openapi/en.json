@@ -1028,7 +1028,7 @@
       "post": {
         "operationId": "createManagedAccount",
         "summary": "Create managed account",
-        "description": "Creates an MOR, VA or PA managed account under the owning USER and returns its reference, current status and verification URL.",
+        "description": "Creates an MOR, VA or PA managed account under the owning USER and returns its reference, current status and verification URL. Before calling, ask Pagsmile Support to confirm the opening fee is configured. Confirm sufficient available balance on the MA for MOR and VA, or on the account in `linked_account` for PA.",
         "tags": [
           "Onboarding"
         ],
@@ -1050,16 +1050,16 @@
                   "value": {
                     "reference_id": "mor-example-001",
                     "model": 1,
-                    "trading_name": "Empresa Exemplo",
-                    "notification_email": "finance@example.test"
+                    "trading_name": "Empresa Exemplo"
                   }
                 },
                 "vaHosted": {
-                  "summary": "VA with hosted verification",
+                  "summary": "VA hosted KYB (CNPJ)",
                   "value": {
                     "reference_id": "va-example-001",
                     "model": 2,
                     "compliance_mode": 1,
+                    "trading_name": "Empresa Exemplo VA",
                     "compliance_payload": {
                       "document_type": 2,
                       "tax_id": "12345678000195",
@@ -1069,15 +1069,33 @@
                   }
                 },
                 "paHosted": {
-                  "summary": "PA with a required parent account",
+                  "summary": "PA hosted KYC (CPF)",
                   "value": {
-                    "reference_id": "pa-example-001",
+                    "reference_id": "pa-kyc-example-001",
                     "model": 3,
                     "compliance_mode": 1,
                     "compliance_payload": {
                       "document_type": 1,
                       "tax_id": "12345678909",
                       "legal_name": "Ana Silva"
+                    },
+                    "return_url": "https://merchant.example.test/onboarding/return",
+                    "linked_account": {
+                      "ispb": "12345678",
+                      "account_number": "00000001"
+                    }
+                  }
+                },
+                "paHostedKyb": {
+                  "summary": "PA hosted KYB (CNPJ)",
+                  "value": {
+                    "reference_id": "pa-kyb-example-001",
+                    "model": 3,
+                    "compliance_mode": 1,
+                    "compliance_payload": {
+                      "document_type": 2,
+                      "tax_id": "12345678000195",
+                      "legal_name": "Example PA Company Ltda."
                     },
                     "return_url": "https://merchant.example.test/onboarding/return",
                     "linked_account": {
@@ -1099,6 +1117,22 @@
                   "$ref": "#/components/schemas/CreateManagedAccountResponse"
                 },
                 "examples": {
+                  "morActive": {
+                    "summary": "MOR active",
+                    "value": {
+                      "code": 200,
+                      "message": "success",
+                      "data": {
+                        "reference_id": "mor-example-001",
+                        "model": 1,
+                        "status": 2,
+                        "verification_url": "",
+                        "error": null,
+                        "result": null
+                      },
+                      "time": 1788835338671
+                    }
+                  },
                   "morPending": {
                     "summary": "MOR request accepted, activation pending",
                     "value": {
@@ -1116,7 +1150,7 @@
                     }
                   },
                   "vaHosted": {
-                    "summary": "VA request accepted, verification pending",
+                  "summary": "VA hosted KYB (CNPJ)",
                     "value": {
                       "code": 200,
                       "message": "success",
@@ -1124,27 +1158,43 @@
                         "reference_id": "va-example-001",
                         "model": 2,
                         "status": 1,
-                        "verification_url": "https://verify.example.test/session/va-example-001",
+                      "verification_url": "https://verify.example.test/?business_onboarding_session_id=00000000-0000-4000-8000-000000000001",
                         "error": null,
                         "result": null
                       },
-                      "time": 1791792000000
+                    "time": 1788835341031
                     }
                   },
                   "paHosted": {
-                    "summary": "PA request accepted, verification pending",
+                  "summary": "PA hosted KYC (CPF)",
                     "value": {
                       "code": 200,
                       "message": "success",
                       "data": {
-                        "reference_id": "pa-example-001",
-                        "model": 3,
-                        "status": 1,
-                        "verification_url": "https://verify.example.test/session/pa-example-001",
+                      "reference_id": "pa-kyc-example-001",
+                      "model": 3,
+                      "status": 1,
+                      "verification_url": "https://verify.example.test/?verification_session_id=00000000-0000-4000-8000-000000000002",
                         "error": null,
                         "result": null
                       },
-                      "time": 1791792000000
+                      "time": 1788835343255
+                    }
+                  },
+                  "paHostedKyb": {
+                    "summary": "PA hosted KYB (CNPJ)",
+                    "value": {
+                      "code": 200,
+                      "message": "success",
+                      "data": {
+                        "reference_id": "pa-kyb-example-001",
+                        "model": 3,
+                        "status": 1,
+                      "verification_url": "https://verify.example.test/?business_onboarding_session_id=00000000-0000-4000-8000-000000000003",
+                        "error": null,
+                        "result": null
+                      },
+                    "time": 1788835346391
                     }
                   },
                   "paParentMissing": {
@@ -1189,19 +1239,19 @@
                       "code": 4004004,
                       "message": "Account creation fee configuration was not found. Please contact support.",
                       "data": null,
-                      "time": 1792713600000
+                      "time": 1791887681712
                     }
                   },
                   "signatureInvalid": {
                     "$ref": "#/components/examples/AuthSignatureInvalid"
                   },
                   "feeInsufficientBalance": {
-                    "summary": "Insufficient balance for the account opening fee",
+                    "summary": "Insufficient balance for the account-opening fee",
                     "value": {
                       "code": 4001999,
                       "message": "The account creation fee could not be charged because the balance is insufficient. Add funds and retry with the same reference_id.",
                       "data": null,
-                      "time": 1791792000000
+                      "time": 1791887835172
                     }
                   }
                 }
