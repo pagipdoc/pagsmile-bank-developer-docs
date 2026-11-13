@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
-const { webcrypto } = require("node:crypto");
+const { createHash, createHmac, webcrypto } = require("node:crypto");
 
 const root = path.resolve(__dirname, "..");
 const SANDBOX = "https://ebanking-openapi-sandbox.pagsmile.com.br";
@@ -306,3 +306,57 @@ for (const locale of ["en", "pt-br"]) {
     assert.equal(serverLists, 1);
   });
 }
+
+test("native Try it signs the exact Sandbox body with saved credentials and respects manual headers", { timeout: 5000 }, async () => {
+  const endpoint = "/v3/onboarding/managed_accounts/list";
+  const user = { ak: "ak_user_doc_test", sk: "sk_user_doc_test" };
+  const account = { ak: "ak_acct_doc_test", sk: "sk_acct_doc_test" };
+  const window = { __pgsDocsCreds: { env: "sandbox", user, account } };
+  const dialog = { isConnected: true, querySelector: () => ({ textContent: endpoint }) };
+  const document = { baseURI: "https://docs.example.test/", querySelector: () => dialog };
+
+  class Xhr {
+    static OPENED = 1;
+    constructor() {
+      this.sent = new Promise(resolve => { this.resolveSend = resolve; });
+    }
+    open() { this.readyState = Xhr.OPENED; this.headers = new Map(); }
+    setRequestHeader(name, value) { this.headers.set(name.toLowerCase(), value); }
+    send(body) { this.resolveSend({ body, headers: this.headers }); }
+    abort() { this.readyState = 0; }
+  }
+  vm.runInNewContext(fs.readFileSync(path.join(root, "sandbox-playground-auth.js"), "utf8"), {
+    window, document, XMLHttpRequest: Xhr, crypto: webcrypto, TextEncoder, Uint8Array, URL, DOMException,
+  });
+  const body = '{ "page": {"page": 1, "page_size": 20} }';
+  const request = (url, headers = {}) => {
+    const xhr = new Xhr();
+    xhr.open("POST", url);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    for (const [name, value] of Object.entries(headers)) xhr.setRequestHeader(name, value);
+    xhr.send(body);
+    return xhr.sent;
+  };
+
+  const first = await request(SANDBOX + endpoint);
+  const second = await request(SANDBOX + endpoint);
+  assert.equal(first.body, body);
+  assert.equal(first.headers.get("x-client-id"), user.ak);
+  assert.notEqual(first.headers.get("x-nonce"), second.headers.get("x-nonce"));
+  const hash = createHash("sha256").update(body).digest("hex");
+  const timestamp = first.headers.get("x-timestamp");
+  const nonce = first.headers.get("x-nonce");
+  const canonical = ["content-type:application/json", `x-client-id:${user.ak}`, `x-content-hash:${hash}`, `x-nonce:${nonce}`, `x-timestamp:${timestamp}`].join("\n");
+  const input = ["POST", endpoint, "", canonical, hash, timestamp, nonce].join("\n");
+  assert.equal(first.headers.get("x-content-hash"), hash);
+  assert.equal(first.headers.get("x-signature"), createHmac("sha256", user.sk).update(input).digest("hex"));
+
+  const manual = await request(SANDBOX + endpoint, { "X-Signature": "manual" });
+  assert.equal(manual.headers.get("x-signature"), "manual");
+  assert(!manual.headers.has("x-client-id"));
+  for (const url of [PRODUCTION + endpoint, SANDBOX + "/v3/bank_account", SANDBOX + endpoint + "?a=1"]) {
+    assert(!(await request(url)).headers.has("x-signature"));
+  }
+  document.querySelector = () => null;
+  assert(!(await request(SANDBOX + endpoint)).headers.has("x-signature"));
+});

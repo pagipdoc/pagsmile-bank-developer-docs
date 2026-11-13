@@ -131,6 +131,14 @@ Consulte [Credenciais e seleção de conta](/pt-br/environments-and-credentials#
 
 ## Usar suas chaves em todas as páginas da API
 
+### Enviar pelo Playground
+
+Salve a AK e a SK do Sandbox e abra o Playground de um endpoint na mesma aba. Com uma credencial compatível salva e os cabeçalhos de autenticação vazios, a seção **Autorização** aparece recolhida. Edite a requisição no formulário ou em **JSON** e envie. O Playground assina a requisição com um novo timestamp e nonce.
+
+As operações de contas gerenciadas usam a credencial USER salva. As assinaturas de eventos usam USER ou ACCOUNT. As demais operações de conta usam ACCOUNT. Abra **Autorização** para informar seus próprios cabeçalhos assinados.
+
+### Usar a ferramenta de assinatura
+
 Cada página da API tem uma ferramenta de assinatura. Quando há chaves salvas nesta aba, ela as preenche automaticamente:
 
 - **Operações de conta** usam primeiro a credencial da conta bancária. Com a credencial do usuário, a ferramenta adiciona `X-ISPB` e `X-Account-Number` da conta padrão.
@@ -138,7 +146,7 @@ Cada página da API tem uma ferramenta de assinatura. Quando há chaves salvas n
 - **Gerar cabeçalhos e cURL** cria um comando cURL em sintaxe bash; no Windows, execute no Git Bash ou no WSL. A assinatura vale por 5 minutos e para uma única requisição.
 - **Enviar ao Sandbox** envia essa requisição a partir deste navegador e mostra a resposta. Operações de escrita alteram dados do Sandbox.
 
-O Playground de cada página da API envia as requisições diretamente deste navegador apenas ao Sandbox, sem proxy. Permita o IPv4 que o assistente detecta para o host da API do Sandbox. Se uma requisição do Playground retornar `4004103`, selecione **Detectar de novo** e confira o endereço de origem. Para IPv6, use cURL com `curl -4` ou uma rede IPv4. Cole nos campos do Playground os cabeçalhos gerados por **Gerar cabeçalhos e cURL**.
+O Playground envia as requisições diretamente deste navegador ao Sandbox. Permita o IPv4 que o assistente detecta para o host da API do Sandbox. Se uma requisição retornar `4004103`, selecione **Detectar de novo** e confira o endereço de origem. Para IPv6, use cURL com `curl -4` ou uma rede IPv4.
 
 Navegadores não conseguem enviar tudo o que a API aceita. A política de origem cruzada (CORS) da API não permite `X-ISPB` nem `X-Account-Number` vindos de navegadores, nem em **Enviar ao Sandbox** nem no Playground da API. Em operações de conta com a credencial do usuário, copie o comando cURL e execute-o no seu servidor.
 

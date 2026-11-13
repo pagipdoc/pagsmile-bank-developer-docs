@@ -74,6 +74,13 @@ html.dark {
 }
 
 /* ---------- Interactive tools (PlaygroundSigner, WebhookVerifier) ---------- */
+.pgs-playground-auth-note {
+  color: var(--pgs-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 8px;
+}
+
 .pgs {
   border: 1px solid var(--pgs-line);
   border-radius: 14px;
