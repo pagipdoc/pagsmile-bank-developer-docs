@@ -131,6 +131,14 @@ See [Credentials and account selection](/environments-and-credentials#credential
 
 ## Use your keys on every API page
 
+### Send from Try it
+
+Save your Sandbox AK and SK and open **Try it** on an endpoint page in the same tab. With a matching credential and empty authentication headers, **Authorization** starts collapsed. Edit the request in **Form** or **JSON** and select **Send**. The Playground signs the request with a fresh timestamp and nonce.
+
+Managed-account operations use your saved USER credential. Event subscriptions use USER or ACCOUNT. Other account operations use ACCOUNT. Expand **Authorization** to enter your own signed headers.
+
+### Use the signature tool
+
 Each API page has a signature tool. When you have saved keys in this tab, it fills them in automatically:
 
 - **Account operations** use your bank-account-level credential first. With a user-level credential, the tool adds the default account's `X-ISPB` and `X-Account-Number`.
@@ -138,7 +146,7 @@ Each API page has a signature tool. When you have saved keys in this tab, it fil
 - **Generate headers and cURL** creates a cURL command in bash syntax; on Windows, run it in Git Bash or WSL. Its signature is valid for 5 minutes and for one request.
 - **Send to Sandbox** sends that request from this browser and shows the response. Write operations change Sandbox data.
 
-The API playground on each API page sends requests directly from this browser to Sandbox only, without a proxy. Allow the IPv4 address that the helper detects for the Sandbox API host. If a playground request returns `4004103`, select **Detect again** and check the source address. For IPv6, use cURL with `curl -4` or an IPv4 network. Paste the headers from **Generate headers and cURL** into the playground's fields.
+The API playground sends requests directly from this browser to Sandbox. Allow the IPv4 address that the helper detects for the Sandbox API host. If a request returns `4004103`, select **Detect again** and check the source address. For IPv6, use cURL with `curl -4` or an IPv4 network.
 
 Browsers can't send everything that the API accepts. The API's cross-origin (CORS) policy doesn't allow `X-ISPB` or `X-Account-Number` from browsers in **Send to Sandbox** or in the API playground. For account operations with a user-level credential, copy the cURL command and run it on your server.
 
