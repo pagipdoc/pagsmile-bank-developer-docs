@@ -162,6 +162,8 @@ For account-scoped calls, check `X-ISPB` and `X-Account-Number` against the [cre
 | `503` | `This service is temporarily unavailable, please try again later` | Requested service is unavailable. | Check endpoint availability with support. |
 | `504` | `Compliance submission status could not be confirmed. The account creation fee was not charged. Retry with the same reference_id.` | Onboarding submission result is unknown. | Retry with the same `reference_id` and a new signature. |
 
+For managed account creation, `4004004` with `Account creation fee configuration was not found. Please contact support.` identifies a missing fee configuration. `4001999` identifies insufficient available balance for the fee. Follow the [account-opening fee instructions](/api-reference/onboarding/create-managed-account#account-opening-fees) before retrying with the same `reference_id`.
+
 For [managed account creation](/api-reference/onboarding/create-managed-account), `400` can return `Compliance submission was rejected. The account creation fee was not charged. Correct the request and retry with a new reference_id.`
 
 That rejection requires a corrected request and a new `reference_id`. For `504`, keep the same `reference_id`. Neither message reports an account creation fee charge.
