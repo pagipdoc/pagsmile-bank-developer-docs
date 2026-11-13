@@ -14,7 +14,17 @@ KYB callbacks notify you of compliance results for managed accounts. An `APPROVE
 
 <Tabs>
   <Tab title="USER" icon="user">
-    Create an active [event subscription](/api-reference/webhooks/create-event-subscription) for `VA_ACCOUNT_KYB` under the owning USER. Set a callback URL and signing credential.
+    Configure your webhook before submitting a VA or PA creation request so your receiver is ready for compliance updates.
+
+    1. Sign in to the Pagsmile Banking portal as the owning USER and open **API Keys**.
+    2. Under **User Level Credentials (OpenVA & Onboarding)**, go to **Webhooks** and select **Add Webhook**.
+    3. Enter your HTTPS callback URL, select **VA ACCOUNT KYB** under **Events**, and save. Confirm the webhook status is **Active**.
+
+    <Frame caption="Add a USER-level webhook for VA ACCOUNT KYB events">
+      <img src="/images/onboarding/va-account-kyb-webhook.png" alt="Pagsmile Banking API Keys page highlighting User Level Credentials, Add Webhook, and the active VA ACCOUNT KYB event" />
+    </Frame>
+
+    To configure the webhook through the API, use the owning USER credential and set `event_type` to `5` (`VA_ACCOUNT_KYB`). [Create event subscription](/api-reference/webhooks/create-event-subscription)
 
     The callback's `user_id` identifies the subscription owner. `subject_type` identifies the model: `VA_MOR`, `VA` or `PA`.
   </Tab>
