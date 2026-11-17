@@ -8264,11 +8264,11 @@
           },
           "document_front": {
             "type": "string",
-            "description": "Front image content or reference required by the verification template. Must not be blank."
+            "description": "Front image content or reference required by the verification template. Must not be blank. For CPF verification with API_BODY, we recommend sending a JPEG image as a Base64 data URI (`data:image/jpeg;base64,<base64-data>`)."
           },
           "document_back": {
             "type": "string",
-            "description": "Back image content or reference required by the verification template. Must not be blank."
+            "description": "Back image content or reference required by the verification template. Must not be blank. For CPF verification with API_BODY, we recommend sending a JPEG image as a Base64 data URI (`data:image/jpeg;base64,<base64-data>`)."
           }
         },
         "required": [

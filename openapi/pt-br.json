@@ -8214,11 +8214,11 @@
           },
           "document_front": {
             "type": "string",
-            "description": "Conteúdo ou referência da imagem da frente conforme o modelo de verificação. Não pode ficar em branco."
+            "description": "Conteúdo ou referência da imagem da frente conforme o modelo de verificação. Não pode ficar em branco. Para verificação de CPF com API_BODY, recomendamos enviar uma imagem JPEG como URI de dados em Base64 (`data:image/jpeg;base64,<base64-data>`)."
           },
           "document_back": {
             "type": "string",
-            "description": "Conteúdo ou referência da imagem do verso conforme o modelo de verificação. Não pode ficar em branco."
+            "description": "Conteúdo ou referência da imagem do verso conforme o modelo de verificação. Não pode ficar em branco. Para verificação de CPF com API_BODY, recomendamos enviar uma imagem JPEG como URI de dados em Base64 (`data:image/jpeg;base64,<base64-data>`)."
           }
         },
         "required": [
