@@ -1,0 +1,543 @@
+---
+title: "Objects and enums"
+sidebarTitle: "Objects and enums"
+description: "Look up shared JSON objects, numeric enum values and string exceptions across accounts, Pix, transactions, webhooks, account closure and MED."
+keywords: ["objects", "enums", "status codes", "document type", "payment method", "MED"]
+---
+
+Find the meaning of a field value across the Open API v3. Expand an enum to see its numeric mapping and the restrictions that apply to each endpoint.
+
+<Note>
+  Send JSON numbers for numeric fields, such as `"model": 2`. Callback fields can use [string enum names](#string-enum-fields). A shared enum can contain more values than an endpoint accepts; check the endpoint schema before sending a request.
+</Note>
+
+## JSON conventions
+
+<AccordionGroup>
+<Accordion title="JSON formats and timestamps">
+
+| Data | JSON representation | Integration rule |
+| --- | --- | --- |
+| Numeric enums | `2` | Do not replace a number with a label such as `"ACTIVE"`, unless the field is explicitly a string. |
+| Amounts, fees and balances | `"10.50"` | Use decimal strings and decimal arithmetic. Follow endpoint precision rules. |
+| Account and document identifiers | `"00123456"` | Preserve leading zeros; do not parse identifiers as numbers. |
+| Timestamps | Integer | `time` and explicitly documented millisecond fields use Unix milliseconds. Check the unit of each field. |
+| Durations | Integer | Dynamic QR `expires` is seconds, not an epoch timestamp. |
+| Missing or unpopulated data | `0`, `""`, `null` or an empty collection, depending on the field | Follow the field's schema. An unspecified enum is not a successful or final outcome. |
+
+`updated_at` in managed-account and webhook-subscription responses can contain Unix seconds or milliseconds. `0` means unavailable; a nonzero value below `1000000000000` is seconds. Managed-account `activated_at` records compliance approval time, not proof of bank-account activation.
+
+</Accordion>
+
+<Accordion title="Shared object shapes">
+
+These are common field groups. The linked endpoint documents the complete shape, nullability and field behavior.
+
+| Object | Common fields | Reference |
+| --- | --- | --- |
+| Bank account reference | String `ispb` and `account_number` | [Managed account details](/api-reference/onboarding/get-managed-account) |
+| Transaction party | `name`, `document_id`, numeric `document_type`, bank identifiers and numeric `bank_account_type` | [Account statement](/api-reference/accounts/get-account-statement) |
+| Transaction details | Parties, IDs, numeric `txn_status` and `source_type`, decimal-string amounts and fees, timestamps and payment details | [Payment details](/api-reference/payout/get-payment-details) |
+| Statement entry | Transaction IDs, `amount`, `is_credit`, parties, numeric type/status/method/variant and parent IDs | [Account statement](/api-reference/accounts/get-account-statement) |
+| Account and balances | Identifiers, balances, `pix_keys`, `limit_config`, `webhooks` and `fee_configs` | [Account balance](/api-reference/accounts/get-account-balance) |
+| Managed account | `reference_id`, model, account and compliance statuses, holder data, lifecycle times, `account` and `linked_account` | [Managed account details](/api-reference/onboarding/get-managed-account) |
+| Webhook subscription | `webhook_id`, string `event_type`, `callback_url`, numeric `status`, lifecycle times and subscription identifiers | [Subscription details](/api-reference/webhooks/get-event-subscription) |
+| Page metadata | `page`, `page_size`, `total` and `total_pages` | [List managed accounts](/api-reference/onboarding/list-managed-accounts) |
+| Statement cursor | Integer `timestamp`, string `id` and numeric `direction` | [Account statement](/api-reference/accounts/get-account-statement) |
+| MED case | IDs, numeric status, decimal-string amounts, deadlines, original transaction, timeline and linked infraction/return summaries | [MED case details](/api-reference/med/get-med-case-details) |
+
+Do not interchange page-number pagination with statement cursors. A managed account's `account` can be `null` until both bank identifiers are available; `linked_account` is the PA's parent account and is `null` for MOR and VA.
+
+</Accordion>
+</AccordionGroup>
+
+## Accounts and identity
+
+Use these definitions with [managed accounts](/api-reference/onboarding/get-managed-account) and [transaction parties](/api-reference/accounts/get-account-statement). Account status and compliance status describe separate stages.
+
+<AccordionGroup>
+
+<Accordion title="Document type · document_type">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `CPF` |
+| `2` | `CNPJ` |
+
+Numeric in transaction parties and onboarding requests. CPF identifies an individual; CNPJ identifies a company. Onboarding requests accept only `1` or `2`. Managed-account query responses return document type as a string.
+
+</Accordion>
+
+<Accordion title="Bank account type · bank_account_type">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `CHECKING` |
+| `2` | `SALARY` |
+| `3` | `SAVINGS` |
+| `4` | `PAYMENT` |
+| `5` | `TRANSCTIONAL_PI` |
+| `6` | `GUARANTEED` |
+| `7` | `DEPOSIT` |
+
+Bank-detail payout requests accept only `1`–`4`. The additional values belong to the response contract. Preserve the published spelling `TRANSCTIONAL_PI` when reading named callback values.
+
+</Accordion>
+
+<Accordion title="Managed account model · model">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `MOR` |
+| `2` | `VA` |
+| `3` | `PA` |
+
+Creation requests select `1`, `2` or `3`. Each model has its own required fields. See [Create managed account](/api-reference/onboarding/create-managed-account).
+
+</Accordion>
+
+<Accordion title="Managed account status · status">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `PENDING` |
+| `2` | `ACTIVE` |
+| `3` | `FROZEN` |
+| `4` | `CLOSED` |
+| `5` | `REJECTED` |
+| `6` | `EXPIRED` |
+| `7` | `PENDING_SUBMISSION` |
+
+Get and list do not currently emit `7`; unmapped statuses return `0`. The create response maps `0`–`6`. Pending applicant submission is represented by `compliance_status = 2`. Confirm `status = 2` and the returned bank account before treating an account as active.
+
+</Accordion>
+
+<Accordion title="Compliance mode · compliance_mode">
+
+| Value | Name |
+| --- | --- |
+| `1` | `HOSTED_LINK` |
+| `2` | `API_BODY` |
+| `3` | `PROVIDER_SESSION` |
+
+`1` returns a hosted verification link; `2` submits a KYC/KYB payload; `3` uses provider-session information. Omit this field for MOR.
+
+</Accordion>
+
+<Accordion title="Compliance status · compliance_status">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `PENDING` |
+| `2` | `PENDING_SUBMISSION` |
+| `3` | `APPROVED` |
+| `4` | `REJECTED` |
+| `5` | `EXPIRED` |
+| `6` | `CREATION_FAILED` |
+| `7` | `REVIEWING` |
+| `8` | `ERROR` |
+| `9` | `FORCE_APPROVED` |
+
+Queries use numbers. KYB callbacks use these names as strings, without a `COMPLIANCE_STATUS_` prefix, and do not include `UNSPECIFIED`. `APPROVED` or `FORCE_APPROVED` alone does not prove account activation.
+
+</Accordion>
+
+</AccordionGroup>
+
+## Pix keys and QR codes
+
+Key type, key status and QR type are independent fields. Follow the [Pix key rules](/api-reference/pix-keys/overview) and [QR code details](/api-reference/payin/get-qr-code-details) for each operation.
+
+<AccordionGroup>
+
+<Accordion title="Pix key type · pix_key_type">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `CPF` |
+| `2` | `CNPJ` |
+| `3` | `EMAIL` |
+| `4` | `PHONE` |
+| `5` | `EVP` |
+
+Creation requests accept `1`–`5`. Static QR generation accepts only `5` (a random EVP key).
+
+</Accordion>
+
+<Accordion title="Pix key status · status">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `ACTIVE` |
+| `2` | `INACTIVE` |
+| `3` | `BLOCKED` |
+| `4` | `DELETED` |
+
+Only `1` can receive payments. Creation returns `1`, `2` or `3`; the balance query includes only active keys.
+
+</Accordion>
+
+<Accordion title="QR code type · qr_code_type">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `NOT_SET` |
+| `11` | `STATIC` |
+| `12` | `DYNAMIC_INSTANT_PAYMENT` |
+| `13` | `DYNAMIC_EXPIRE_PAYMENT` |
+| `14` | `COMPOSITE_PAYMENT` |
+
+Payment initialization supports types `11`, `12` and `13`. QR type does not indicate whether a payment completed; inspect `is_paid` and the transaction result separately.
+
+</Accordion>
+
+</AccordionGroup>
+
+## Transactions and statements
+
+Read the enum in the context of its endpoint. [Payment status](/api-reference/payout/get-payment-status), [payment details](/api-reference/payout/get-payment-details) and [refund status](/api-reference/refunds/get-refund-status) expose different subsets.
+
+<AccordionGroup>
+
+<Accordion title="Transaction status · txn_status">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `PENDING` |
+| `2` | `COMPLETED` |
+| `3` | `FAILED` |
+| `4` | `CANCELLED` |
+| `5` | `PROCESSING` |
+| `6` | `REFUNDED` |
+| `7` | `PARTIALLY_REFUNDED` |
+| `8` | `DISPUTED` |
+
+The payment-status endpoint returns `0`–`5`; `2`, `3` and `4` are final payment statuses. Details and statements can include display statuses `6`–`8`. Refund status uses `0`, `1`, `2`, `3`, `5`; a completed partial refund is also `2`. A recipient-side refund-status query returns `5` for every non-completed refund, including failures.
+
+</Accordion>
+
+<Accordion title="Transaction type · txn_type">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `PAYMENT` |
+| `2` | `REFUND` |
+| `3` | `TRANSFER` |
+| `4` | `WITHDRAWAL` |
+| `5` | `DEPOSIT` |
+| `6` | `DISPUTE` |
+
+The statement query returns PAYMENT, REFUND and DISPUTE entries. Its request field is `transaction_type`, which accepts only `0`, `1`, `2` and `6`. Other shared enum values are rejected as filters.
+
+</Accordion>
+
+<Accordion title="Payment method · payment_method">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `PIX` |
+| `2` | `CARD` |
+| `3` | `TED` |
+| `4` | `BOLETO` |
+| `5` | `BOOK` |
+
+A value in this shared enum does not imply that the method is enabled for your account.
+
+</Accordion>
+
+<Accordion title="Payment variant · payment_variant">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `PIX_MANUAL` |
+| `2` | `PIX_KEY` |
+| `3` | `STATIC_QRCODE` |
+| `4` | `DYNAMIC_QRCODE` |
+| `5` | `AUTO_PIX` |
+| `6` | `TED_MANUAL` |
+| `7` | `BOOK_MANUAL` |
+| `8` | `BOLETO` |
+| `9` | `DYNAMIC_BILLING` |
+| `10` | `DYNAMIC_BOLETO` |
+
+</Accordion>
+
+<Accordion title="Source type · source_type">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `APP` |
+| `2` | `API` |
+| `3` | `SCHEDULE` |
+| `4` | `BATCH` |
+
+QR-code transaction details and refund details currently leave this field at `0`, including for API-initiated refunds. Do not infer the origin from an unpopulated value.
+
+</Accordion>
+
+<Accordion title="Funds direction · funds_type">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `CREDIT` |
+| `2` | `DEBIT` |
+
+Statement filter. `0` selects both directions, `1` selects credits to the target account, and `2` selects debits from it. The entry itself uses the boolean `is_credit`.
+
+</Accordion>
+
+<Accordion title="Cursor direction · direction">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `FORWARD` |
+| `2` | `BACKWARD` |
+
+The statement response supplies direction `1` for the next page. Reuse the returned cursor and `snapshot_timestamp`. `0` defaults to forward pagination; only `2` requests backward pagination.
+
+</Accordion>
+
+</AccordionGroup>
+
+## Webhook subscriptions
+
+[Create subscriptions](/api-reference/webhooks/create-event-subscription) with a numeric `event_type`. Get, list and update return event names as strings. Subscription status describes configuration, not delivery success.
+
+<AccordionGroup>
+
+<Accordion title="Event type · event_type">
+
+| Value | Request label | Name in get/list/update |
+| --- | --- | --- |
+| `1` | `PIX_IN` | `"PIX_PAYMENT_IN"` |
+| `2` | `PIX_OUT` | `"PIX_PAYMENT_OUT"` |
+| `3` | `REFUND_IN` | `"PIX_REFUND_IN"` |
+| `4` | `REFUND_OUT` | `"PIX_REFUND_OUT"` |
+| `5` | `VA_ACCOUNT_KYB` | `"VA_ACCOUNT_KYB"` |
+| `6` | `MASTER_ACCOUNT_KYB` | `"MASTER_ACCOUNT_KYB"` |
+
+ACCOUNT and USER credentials accept `1`–`5`; PLATFORM accepts only `6`. Omitted or zero event types are rejected. Managed-account KYB subscriptions require USER credentials. ID-based subscription queries can return other event names.
+
+</Accordion>
+
+<Accordion title="Subscription status · status">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `ACTIVE` |
+| `2` | `INACTIVE` |
+
+</Accordion>
+
+</AccordionGroup>
+
+## Account closure
+
+Use these values with [closure eligibility and progress](/api-reference/accounts/close-account/overview). A closure operation has its own status, separate from the managed account status.
+
+<AccordionGroup>
+
+<Accordion title="Closure status · status">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `CHECKING` |
+| `2` | `WAITING` |
+| `3` | `DELETING_KEYS` |
+| `4` | `CLOSED` |
+| `5` | `COMPLETED` |
+| `6` | `REJECTED` |
+
+`4` means the account is closed but cleanup may remain. `5` means cleanup is complete as well.
+
+</Accordion>
+
+<Accordion title="Closure reason · reason">
+
+| Value | Name |
+| --- | --- |
+| `1` | `MERCHANT_REQUESTED` |
+| `2` | `USER_OFFBOARDING` |
+| `3` | `COMPLIANCE_EXIT` |
+
+</Accordion>
+
+<Accordion title="Eligibility issue kind · kind">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `WAITING` |
+| `2` | `BLOCKING` |
+| `3` | `RETRYABLE` |
+| `4` | `MANUAL` |
+
+`4` requires operations review. Inspect the issue details before retrying closure.
+
+</Accordion>
+
+</AccordionGroup>
+
+## MED and infractions
+
+[MED cases](/api-reference/med/overview), linked infractions and linked returns use different status enums. Use numeric fields for program logic; `status_display` and `freeze_status` are descriptive strings.
+
+<AccordionGroup>
+
+<Accordion title="Case status · status">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `CREATED` |
+| `2` | `TRACKED` |
+| `3` | `AWAITING_ANALYSIS` |
+| `4` | `ANALYZED` |
+| `5` | `RETURN_PROCESSING` |
+| `6` | `COMPLETED` |
+| `7` | `CANCELLED` |
+| `8` | `FAILED` |
+
+`6` does not guarantee full recovery of funds. Check returned amounts and the linked return result.
+
+</Accordion>
+
+<Accordion title="Infraction task status · status">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `RECEIVED` |
+| `2` | `BLOCKING_PENDING` |
+| `3` | `BLOCKED` |
+| `4` | `ANALYSIS_PENDING` |
+| `5` | `CLOSED_AGREED` |
+| `6` | `CLOSED_DISAGREED` |
+| `7` | `CANCELLED` |
+| `8` | `FAILED` |
+
+</Accordion>
+
+<Accordion title="Return task status · status">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `RECEIVED` |
+| `2` | `PROCESSING` |
+| `3` | `ACCEPTED_FULL` |
+| `4` | `ACCEPTED_PARTIAL` |
+| `5` | `REJECTED` |
+| `6` | `CLOSED` |
+| `7` | `CANCELLED` |
+| `8` | `FAILED` |
+
+These are MED return statuses, not the transaction/refund status enum. Read `refunded_amount` to determine how much has been returned.
+
+</Accordion>
+
+<Accordion title="Processing mode · flow_type">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `AUTOMATED` |
+| `2` | `MANUAL` |
+
+This numeric MED field is unrelated to transaction callback `flow_type` strings such as `FLOW_TYPE_IN`, `FLOW_TYPE_OUT` and `FLOW_TYPE_TRANSFER`.
+
+</Accordion>
+
+<Accordion title="Fraud situation · fraud_type">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `SCAM` |
+| `2` | `ACCOUNT_TAKEOVER` |
+| `3` | `COERCION` |
+| `4` | `SOCIAL_ENGINEERING` |
+| `5` | `OTHER` |
+| `6` | `UNKNOWN` |
+
+Use the same mapping for the create request field `original_fraud_situation`. Send `1`–`6` to describe the complaint; downstream acceptance of an omitted/unspecified situation is unconfirmed.
+
+</Accordion>
+
+<Accordion title="Timeline event · event_type">
+
+| Value | Name |
+| --- | --- |
+| `0` | `UNSPECIFIED` |
+| `1` | `CASE_CREATED` |
+| `2` | `CASE_TRACKED` |
+| `3` | `ANALYSIS_AWAITING` |
+| `4` | `ANALYZED` |
+| `5` | `REFUND_TRIGGERED` |
+| `6` | `REFUND_UPDATED` |
+| `7` | `CASE_COMPLETED` |
+| `8` | `CASE_CANCELLED` |
+| `9` | `INFRACTION_RECEIVED` |
+| `10` | `INFRACTION_CLOSED` |
+| `11` | `REFUND_REQUEST_RECEIVED` |
+| `12` | `REFUND_REQUEST_CLOSED` |
+| `13` | `SLA_BREACHED` |
+
+</Accordion>
+
+</AccordionGroup>
+
+## String enum fields
+
+Keep these fields as strings. Do not apply the numeric tables above to callback payloads or fee configuration objects.
+
+| Context | Field | Representation |
+| --- | --- | --- |
+| Managed-account queries | `document_type` | `"CPF"`, `"CNPJ"`, or `""` when unavailable. |
+| KYB callbacks | `event_type` | `"VA_ACCOUNT_KYB"`. |
+| KYB callbacks | `subject_type` | `"VA_MOR"` for MOR, `"VA"` for VA, `"PA"` for PA. |
+| KYB callbacks | `status` | A compliance name such as `"APPROVED"`; see the compliance-status table. |
+| Transaction callbacks | Status, type, method, variant and party enum fields | Full enum names, such as `"TXN_STATUS_COMPLETED"`, `"PAYMENT_METHOD_PIX"`, `"DOCUMENT_TYPE_CNPJ"` or `"BANK_ACCOUNT_TYPE_PAYMENT"`. Accepted names depend on the event schema. |
+| Transaction callbacks | `flow_type` | `"FLOW_TYPE_IN"`, `"FLOW_TYPE_OUT"` or `"FLOW_TYPE_TRANSFER"`, depending on the event. |
+| Account balance `fee_configs` | Every field, including `fee_kind` | Strings; `charge_type` is `"PERCENTAGE"` or `"FIXED"`. |
+| MED objects | `status_display`, `freeze_status` | Descriptive strings; use the adjacent numeric status for decisions. |
+
+<Accordion title="KYB result codes · result_code">
+
+`result_code` is independent of callback `status`. Empty or unsupported codes become `"UNKNOWN"`. `READY_FOR_REVIEW` and `RESUBMIT_REQUIRED` are result codes, not status values.
+
+| String value |
+| --- |
+| `"PENDING"` |
+| `"PENDING_SUBMISSION"` |
+| `"REVIEWING"` |
+| `"READY_FOR_REVIEW"` |
+| `"APPROVED"` |
+| `"REJECTED"` |
+| `"EXPIRED"` |
+| `"ERROR"` |
+| `"UNKNOWN"` |
+| `"FORCE_APPROVED"` |
+| `"RESUBMIT_REQUIRED"` |
+| `"CREATION_FAILED"` |
+
+</Accordion>
+
+For complete event payloads, see [KYB callbacks](/api-reference/onboarding/kyb-callbacks) and [transaction callbacks](/api-reference/webhooks/transaction-callbacks). The TED request field `purpose` is currently ignored; omit it rather than using a legacy purpose enum.

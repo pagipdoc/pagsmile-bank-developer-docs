@@ -140,6 +140,7 @@
                 "group": "Overview",
                 "pages": [
                   "api-reference/overview",
+                  "api-reference/object-and-enums-references",
                   "api-reference/workflows"
                 ],
                 "icon": "book-open"
@@ -330,6 +331,7 @@
                 "group": "Visão geral",
                 "pages": [
                   "pt-br/api-reference/overview",
+                  "pt-br/api-reference/object-and-enums-references",
                   "pt-br/api-reference/workflows"
                 ],
                 "icon": "book-open"

@@ -73,7 +73,7 @@ O escopo da credencial não substitui as verificações de conta, titularidade o
 
 Envie quantias monetárias como strings decimais em BRL, por exemplo `"10.50"`, e não como números JSON. Siga as regras de cada endpoint para quantias positivas, opcionais e precisão decimal.
 
-Timestamps numéricos, como `time`, `created_at` e `snapshot_timestamp`, usam milissegundos Unix. Preserve-os como inteiros e converta-os para o fuso horário de exibição quando necessário.
+`time` e campos explicitamente documentados em milissegundos Unix, como `created_at` e `snapshot_timestamp` do extrato, usam milissegundos. Preserve os timestamps como inteiros e confira a unidade de cada campo antes de convertê-los para o fuso horário de exibição. Valores de `updated_at` de contas gerenciadas e assinaturas de eventos podem conter segundos ou milissegundos; consulte [Convenções JSON](/pt-br/api-reference/object-and-enums-references#convenções-json).
 
 Consulte separadamente os campos de duração e de data. Não interprete uma duração de validade como um timestamp Unix.
 
@@ -192,6 +192,9 @@ Leia a [visão geral de MED](/pt-br/api-reference/med/overview) antes de enviar 
 ## Relacionados
 
 <CardGroup cols={2}>
+  <Card title="Objetos e enums" icon="list" href="/pt-br/api-reference/object-and-enums-references">
+    Consulte objetos compartilhados, valores numéricos e campos de enum em string.
+  </Card>
   <Card title="Ambientes e credenciais" icon="signature" href="/pt-br/environments-and-credentials">
     Escolha o ambiente, assine requisições e verifique callbacks.
   </Card>
