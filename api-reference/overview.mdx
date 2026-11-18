@@ -73,7 +73,7 @@ The credential scope does not replace the endpoint's account, ownership or statu
 
 Send monetary amounts as decimal strings in BRL, for example `"10.50"`, rather than JSON numbers. Follow each endpoint's rules for positive amounts, optional amounts and decimal precision.
 
-Numeric timestamps, such as `time`, `created_at` and `snapshot_timestamp`, use Unix milliseconds. Preserve them as integers and convert them to your display time zone when needed.
+`time` and fields explicitly documented as Unix milliseconds, such as statement `created_at` and `snapshot_timestamp`, use milliseconds. Preserve timestamps as integers and check each field's unit before converting them to your display time zone. Managed-account and webhook-subscription `updated_at` values can contain seconds or milliseconds; see [JSON conventions](/api-reference/object-and-enums-references#json-conventions).
 
 Read duration and date fields separately. Do not treat an expiration duration as a Unix timestamp.
 
@@ -192,6 +192,9 @@ Read the [MED overview](/api-reference/med/overview) before submitting or cancel
 ## Related
 
 <CardGroup cols={2}>
+  <Card title="Objects and enums" icon="list" href="/api-reference/object-and-enums-references">
+    Look up shared objects, numeric values and string enum fields.
+  </Card>
   <Card title="Environments and credentials" icon="signature" href="/environments-and-credentials">
     Choose your environment, sign requests and verify callbacks.
   </Card>
