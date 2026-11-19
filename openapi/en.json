@@ -25,7 +25,7 @@
   ],
   "tags": [
     {
-      "name": "Onboarding",
+      "name": "Account opening",
       "summary": "Open and track managed accounts.",
       "kind": "nav",
       "description": "Open and track managed accounts."
@@ -1030,7 +1030,7 @@
         "summary": "Create managed account",
         "description": "Creates an MOR, VA or PA managed account under the owning USER and returns its reference, current status and verification URL. Before calling, ask Pagsmile Support to confirm the opening fee is configured. Confirm sufficient available balance on the MA for MOR and VA, or on the account in `linked_account` for PA.",
         "tags": [
-          "Onboarding"
+          "Account opening"
         ],
         "parameters": [
           {
@@ -3027,7 +3027,7 @@
         "summary": "Get managed account details",
         "description": "Returns account, compliance and bank account details for a managed account owned by your USER.",
         "tags": [
-          "Onboarding"
+          "Account opening"
         ],
         "parameters": [
           {
@@ -5396,7 +5396,7 @@
         "summary": "List managed accounts",
         "description": "Returns managed accounts visible to your USER with optional model, status, tax ID and pagination fields.",
         "tags": [
-          "Onboarding"
+          "Account opening"
         ],
         "parameters": [
           {
@@ -5980,7 +5980,7 @@
         "summary": "Receive KYB callbacks",
         "description": "Delivers compliance status updates for managed accounts to an active USER-owned event subscription.",
         "tags": [
-          "Onboarding"
+          "Account opening"
         ],
         "requestBody": {
           "required": true,

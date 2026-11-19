@@ -1,11 +1,24 @@
 ---
 title: "Fluxos de várias etapas"
 sidebarTitle: "Fluxos"
-description: "Cinco fluxos completos da Pagsmile Open API, de pagamentos Pix ao encerramento de conta, com diagramas, etapas e definições Arazzo 1.0."
+description: "Adicione saldo à MA antes de abrir contas gerenciadas e siga cinco fluxos da API para pagamentos Pix, recebimentos, devoluções e encerramento com definições Arazzo 1.0."
 keywords: ["arazzo", "fluxo", "openapi 3.2", "consulta periódica", "pagamento pix"]
 ---
 
-Estes fluxos mostram a ordem das chamadas em tarefas comuns da Pagsmile Open API e o campo que cada etapa passa para a seguinte. Cada um também está definido em um arquivo [Arazzo 1.0](https://spec.openapis.org/arazzo/latest.html) legível por máquina, que aponta para a descrição OpenAPI 3.2 pelo `operationId`.
+Comece preparando a MA existente para pagar as tarifas de abertura. Os cinco fluxos da API a seguir mostram a ordem das chamadas de pagamentos, devoluções e encerramento, e o campo que cada etapa passa para a seguinte. Esses cinco fluxos também estão definidos em arquivos [Arazzo 1.0](https://spec.openapis.org/arazzo/latest.html) legíveis por máquina, que apontam para a descrição OpenAPI 3.2 pelo `operationId`.
+
+## Adicionar saldo à MA antes de abrir contas gerenciadas
+
+Conclua primeiro o [cadastro da MA e a configuração da API](/pt-br/quickstart). A MA e sua conta bancária precisam estar ACTIVE, e o USER titular precisa ter a criação de contas gerenciadas habilitada. Contate o Suporte Pagsmile para configurar a tarifa de abertura aplicável antes de enviar uma requisição de criação.
+
+| Etapa | Ação | O que confirmar |
+| --- | --- | --- |
+| [Chaves Pix](/pt-br/api-reference/pix-keys/overview) | Use uma chave existente ou crie uma na MA recebedora. | O status da chave é `1` (ACTIVE) antes de compartilhá-la. |
+| [Recebimentos](/pt-br/api-reference/payin/overview) | Compartilhe a chave com um pagador ou gere um QR Code Pix. O pagador envia os recursos para a MA. | Uma chave ou um QR code, isoladamente, não confirma o recebimento. |
+| [Contas e saldos](/pt-br/api-reference/accounts/overview) | [Consulte o saldo](/pt-br/api-reference/accounts/get-account-balance) e concilie o recebimento usando o [extrato](/pt-br/api-reference/accounts/get-account-statement). | Confira o valor e a conta recebedora. Confirme que `available_amount` cobre a tarifa aplicável. |
+| [Abertura de contas](/pt-br/api-reference/onboarding/overview) | Crie MOR, VA ou PA com credenciais USER. Configure callbacks KYB antes de criar VA ou PA. | Confirme que o status da nova conta é `2` (ACTIVE) e que os dados bancários estão disponíveis antes do uso. |
+
+MOR e VA cobram da MA titular. PA cobra da conta superior direta selecionada em `linked_account`, que pode ser a MA ou uma VA diretamente abaixo dela. Confirme o saldo disponível na conta efetivamente cobrada. O extrato ajuda a conciliar o depósito; sua consulta não é uma chamada prévia exigida pelo endpoint de criação. Consulte [Tarifas de abertura de conta](/pt-br/api-reference/onboarding/create-managed-account#tarifas-de-abertura-de-conta) e o [fluxo completo de abertura](/pt-br/api-reference/onboarding/overview#fluxo-de-abertura).
 
 ## Arquivos legíveis por máquina
 
@@ -26,7 +39,7 @@ O repositório da documentação contém os arquivos OpenAPI e Arazzo abaixo. Ca
 | --- | --- |
 | `openapi/en.json` | Descrição OpenAPI 3.2 em inglês |
 | `openapi/pt-br.json` | Descrição OpenAPI 3.2 em português do Brasil |
-| `arazzo/pagsmile-workflows.pt-br.arazzo.yaml` | Os cinco fluxos desta página |
+| `arazzo/pagsmile-workflows.pt-br.arazzo.yaml` | Os cinco fluxos de operações da API abaixo |
 
 <Accordion title="Arquivo Arazzo completo" icon="file-arrow-down">
 

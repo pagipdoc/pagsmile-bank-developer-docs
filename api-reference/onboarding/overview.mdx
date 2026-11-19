@@ -1,20 +1,38 @@
 ---
-title: "Managed account onboarding"
+title: "Account opening overview"
 sidebarTitle: "Overview"
-description: "Open MOR, VA and PA managed accounts with USER credentials. Follow compliance submission, track account status and confirm bank account details before use."
-keywords: ["managed account", "onboarding", "MOR", "VA", "PA"]
+description: "Prepare and fund the paying account, then open MOR, VA and PA managed accounts with USER credentials. Track compliance and confirm account activation."
+keywords: ["managed account", "account opening", "MA funding", "MOR", "VA", "PA"]
 ---
 
-Managed account onboarding lets you create MOR, VA and PA accounts under a USER. Confirm the account's current status and bank account details before using it.
+Open MOR, VA and PA managed accounts under the owning USER. Start with an ACTIVE MA, configure the opening fee with Pagsmile Support and fund the account that will pay it. After creation, confirm the new account's status and bank account details before using it.
+
+## Prepare funds before opening
+
+Follow the navigation from **Pix keys** to **Pay-ins**, **Accounts and funds**, then **Account opening**. Use this sequence to fund an existing MA through Pix before opening managed accounts.
+
+<Steps>
+  <Step title="Confirm the MA and fee configuration">
+    The owning USER must have exactly one valid ACTIVE MA with an active bank account and managed account creation enabled. Contact Pagsmile Support to configure the applicable opening fee. MOR and VA charge the MA; PA charges the direct parent selected in `linked_account`.
+  </Step>
+  <Step title="Prepare an ACTIVE Pix key">
+    Use an existing ACTIVE key on the receiving account or [create a Pix key](/api-reference/pix-keys/create-pix-key). Confirm the returned key status is `1` (ACTIVE) before sharing it.
+  </Step>
+  <Step title="Receive the funds">
+    Share the key with the payer, or use a [Pix QR code](/api-reference/payin/overview). The payer sends funds to the existing account. Creating a key or generating a QR code does not fund the account.
+  </Step>
+  <Step title="Confirm the available balance and receipt">
+    [Get account balance](/api-reference/accounts/get-account-balance) for the paying account and check `available_amount` against the applicable fee. Use the [account statement](/api-reference/accounts/get-account-statement) to match the receipt's amount and receiving account.
+
+    For MOR and VA, check the MA. For PA, check the selected direct parent. A statement entry helps reconcile the receipt; the opening fee requires sufficient available funds on the account actually charged. See [Account-opening fees](/api-reference/onboarding/create-managed-account#account-opening-fees) for fee errors and retry rules.
+  </Step>
+</Steps>
 
 ## Opening workflow
 
 <Steps>
   <Step title="Choose the account model">
     Compare MOR, VA and PA in [Account models](/account-models), then use the matching request variant in [Create managed account](/api-reference/onboarding/create-managed-account).
-  </Step>
-  <Step title="Confirm the opening fee and balance">
-    Contact Pagsmile Support to confirm the fee is configured. Ask the owning MA account holder to confirm enough available balance on the MA for MOR and VA, or on the selected direct parent for PA. See [Account-opening fees](/api-reference/onboarding/create-managed-account#account-opening-fees) for the fee errors and how to retry.
   </Step>
   <Step title="Configure KYB callbacks for VA or PA">
     Register your HTTPS callback URL for **VA ACCOUNT KYB** under the owning USER before creating the account. [Webhook setup](/api-reference/onboarding/kyb-callbacks#before-you-receive-callbacks)
@@ -55,10 +73,10 @@ All three operations use POST with a JSON body. Their account scope comes from t
     Follow [Sign requests](/environments-and-credentials#sign-requests) for the headers and HMAC-SHA256 signature.
   </Tab>
   <Tab title="ACCOUNT" icon="building-columns">
-    <Warning>ACCOUNT credentials cannot call these managed account onboarding operations. Use the owning USER credential.</Warning>
+    <Warning>ACCOUNT credentials cannot call these managed account operations. Use the owning USER credential.</Warning>
   </Tab>
   <Tab title="PLATFORM" icon="server">
-    <Warning>PLATFORM credentials cannot call these managed account onboarding operations. Use the owning USER credential.</Warning>
+    <Warning>PLATFORM credentials cannot call these managed account operations. Use the owning USER credential.</Warning>
   </Tab>
 </Tabs>
 

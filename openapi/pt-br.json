@@ -25,7 +25,7 @@
   ],
   "tags": [
     {
-      "name": "Onboarding",
+      "name": "Abertura de contas",
       "summary": "Abra e acompanhe contas gerenciadas.",
       "kind": "nav",
       "description": "Abra e acompanhe contas gerenciadas."
@@ -1028,9 +1028,9 @@
       "post": {
         "operationId": "createManagedAccount",
         "summary": "Criar conta gerenciada",
-        "description": "Cria uma conta gerenciada MOR, VA ou PA para o USER titular e retorna sua referência, o status atual e a URL de verificação.",
+        "description": "Cria uma conta gerenciada MOR, VA ou PA para o USER titular e retorna sua referência, o status atual e a URL de verificação. Antes de chamar, peça ao Suporte Pagsmile para confirmar a configuração da tarifa de abertura. Confirme saldo disponível suficiente na MA para MOR e VA ou na conta em `linked_account` para PA.",
         "tags": [
-          "Onboarding"
+          "Abertura de contas"
         ],
         "parameters": [
           {
@@ -2977,7 +2977,7 @@
         "summary": "Consultar detalhes da conta gerenciada",
         "description": "Retorna os dados da conta, de conformidade e bancários de uma conta gerenciada que pertence ao seu USER.",
         "tags": [
-          "Onboarding"
+          "Abertura de contas"
         ],
         "parameters": [
           {
@@ -5346,7 +5346,7 @@
         "summary": "Listar contas gerenciadas",
         "description": "Retorna contas gerenciadas visíveis para seu USER com campos opcionais de modelo, status, CPF/CNPJ e paginação.",
         "tags": [
-          "Onboarding"
+          "Abertura de contas"
         ],
         "parameters": [
           {
@@ -5930,7 +5930,7 @@
         "summary": "Receber callbacks KYB",
         "description": "Envia atualizações do status de conformidade de contas gerenciadas para uma assinatura de eventos ativa de titularidade USER.",
         "tags": [
-          "Onboarding"
+          "Abertura de contas"
         ],
         "requestBody": {
           "required": true,

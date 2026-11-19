@@ -45,7 +45,7 @@ Escolha as credenciais conforme a família do endpoint. Os cabeçalhos de seleç
 
 | Família de endpoints | Credenciais | Seleção de conta |
 | --- | --- | --- |
-| Onboarding de contas gerenciadas | USER | Omita os cabeçalhos de seleção de conta. |
+| Contas gerenciadas | USER | Omita os cabeçalhos de seleção de conta. |
 | Contas, chaves Pix, recebimentos, pagamentos, devoluções e MED | ACCOUNT ou USER | Conta vinculada ou conta pertencente ao USER. |
 | Assinaturas de eventos | ACCOUNT, USER ou PLATFORM | As regras dependem do escopo da assinatura de eventos. |
 
@@ -53,17 +53,17 @@ Escolha as credenciais conforme a família do endpoint. Os cabeçalhos de seleç
   <Tab title="ACCOUNT" icon="building-columns">
     Nos endpoints de conta, use a conta vinculada à sua credencial. Você pode omitir `X-ISPB` e `X-Account-Number`. Se enviar esses cabeçalhos, envie ambos com os dados da conta vinculada.
 
-    As assinaturas de eventos usam o escopo da conta. Credenciais ACCOUNT não podem chamar endpoints de onboarding de contas gerenciadas.
+    As assinaturas de eventos usam o escopo da conta. Credenciais ACCOUNT não podem chamar endpoints de contas gerenciadas.
   </Tab>
   <Tab title="USER" icon="user">
     Nos endpoints de conta, envie `X-ISPB` e `X-Account-Number` de uma conta que pertença ao USER. Inclua ambos na [assinatura](/pt-br/environments-and-credentials#assinar-requisições).
 
-    Omita os cabeçalhos de seleção de conta no onboarding de contas gerenciadas e nas assinaturas de eventos com escopo USER. A assinatura de eventos pode exigir `account_number` no corpo da requisição; siga as regras do endpoint.
+    Omita os cabeçalhos de seleção de conta nas operações de contas gerenciadas e nas assinaturas de eventos com escopo USER. A assinatura de eventos pode exigir `account_number` no corpo da requisição; siga as regras do endpoint.
   </Tab>
   <Tab title="PLATFORM" icon="server">
     Credenciais PLATFORM permitem assinaturas de eventos com escopo da plataforma. Omita os cabeçalhos de seleção de conta e confira os eventos permitidos na [referência de assinaturas de eventos](/pt-br/api-reference/webhooks/create-event-subscription).
 
-    <Warning>Credenciais PLATFORM não podem chamar os endpoints de conta ou de onboarding de contas gerenciadas listados aqui. Use ACCOUNT ou USER conforme o endpoint.</Warning>
+    <Warning>Credenciais PLATFORM não podem chamar os endpoints de conta ou de contas gerenciadas listados aqui. Use ACCOUNT ou USER conforme o endpoint.</Warning>
   </Tab>
 </Tabs>
 
@@ -92,17 +92,9 @@ Para [casos MED](/pt-br/api-reference/med/list-med-cases) e [notificações de i
 
 ## Mapa de endpoints
 
+Para criar contas gerenciadas, prepare primeiro a MA existente. Siga [Chaves Pix → Recebimentos → Contas e saldos → Abertura de contas](/pt-br/api-reference/workflows#adicionar-saldo-à-ma-antes-de-abrir-contas-gerenciadas) para receber os recursos e confirmar que a conta pagadora pode cobrir a tarifa de abertura configurada.
+
 Cada link abaixo leva ao schema da requisição, ao schema da resposta e às regras de integração da operação.
-
-### Onboarding
-
-| Endpoint | O que faz |
-| --- | --- |
-| [Criar conta gerenciada](/pt-br/api-reference/onboarding/create-managed-account) | Cria uma conta gerenciada MOR, VA ou PA. |
-| [Consultar conta gerenciada](/pt-br/api-reference/onboarding/get-managed-account) | Consulta uma conta gerenciada. |
-| [Listar contas gerenciadas](/pt-br/api-reference/onboarding/list-managed-accounts) | Lista contas gerenciadas no escopo USER. |
-
-Consulte a [visão geral de onboarding](/pt-br/api-reference/onboarding/overview) e os [callbacks de KYB](/pt-br/api-reference/onboarding/kyb-callbacks) para acompanhar a abertura de conta.
 
 ### Chaves Pix
 
@@ -112,18 +104,6 @@ Consulte a [visão geral de onboarding](/pt-br/api-reference/onboarding/overview
 | [Excluir chave Pix](/pt-br/api-reference/pix-keys/delete-pix-key) | Remove uma chave Pix de uma conta. |
 
 Veja a [visão geral de chaves Pix](/pt-br/api-reference/pix-keys/overview) para formatos de chave e regras do ciclo de vida.
-
-### Contas e fundos
-
-| Endpoint | O que faz |
-| --- | --- |
-| [Consultar saldo da conta](/pt-br/api-reference/accounts/get-account-balance) | Consulta a conta selecionada e seus saldos. |
-| [Consultar extrato da conta](/pt-br/api-reference/accounts/get-account-statement) | Consulta os lançamentos da conta selecionada. |
-| [Verificar elegibilidade para encerramento](/pt-br/api-reference/accounts/close-account/check-eligibility) | Verifica se a conta pode ser encerrada. |
-| [Encerrar conta](/pt-br/api-reference/accounts/close-account/close-account) | Envia uma solicitação de encerramento de conta. |
-| [Consultar andamento do encerramento](/pt-br/api-reference/accounts/close-account/get-closure-progress) | Consulta o andamento de uma operação de encerramento. |
-
-Use o mesmo endpoint de saldo para a subconta selecionada; ele não lista todas as subcontas. Veja [Contas](/pt-br/api-reference/accounts/overview) e [Encerramento de conta](/pt-br/api-reference/accounts/close-account/overview).
 
 ### Recebimentos Pix
 
@@ -135,6 +115,28 @@ Use o mesmo endpoint de saldo para a subconta selecionada; ele não lista todas 
 | [Consultar detalhes da transação](/pt-br/api-reference/payin/get-transaction-details) | Consulta os detalhes de um recebimento Pix. |
 
 Siga o [fluxo de recebimento](/pt-br/api-reference/payin/overview) e processe os [callbacks de recebimento](/pt-br/api-reference/payin/callbacks).
+
+### Contas e saldos
+
+| Endpoint | O que faz |
+| --- | --- |
+| [Consultar saldo da conta](/pt-br/api-reference/accounts/get-account-balance) | Consulta a conta selecionada e seus saldos. |
+| [Consultar extrato da conta](/pt-br/api-reference/accounts/get-account-statement) | Consulta os lançamentos da conta selecionada. |
+| [Verificar elegibilidade para encerramento](/pt-br/api-reference/accounts/close-account/check-eligibility) | Verifica se a conta pode ser encerrada. |
+| [Encerrar conta](/pt-br/api-reference/accounts/close-account/close-account) | Envia uma solicitação de encerramento de conta. |
+| [Consultar andamento do encerramento](/pt-br/api-reference/accounts/close-account/get-closure-progress) | Consulta o andamento de uma operação de encerramento. |
+
+Use o mesmo endpoint de saldo para a subconta selecionada; ele não lista todas as subcontas. Veja [Contas](/pt-br/api-reference/accounts/overview) e [Encerramento de conta](/pt-br/api-reference/accounts/close-account/overview).
+
+### Abertura de contas
+
+| Endpoint | O que faz |
+| --- | --- |
+| [Criar conta gerenciada](/pt-br/api-reference/onboarding/create-managed-account) | Cria uma conta gerenciada MOR, VA ou PA. |
+| [Consultar conta gerenciada](/pt-br/api-reference/onboarding/get-managed-account) | Consulta uma conta gerenciada. |
+| [Listar contas gerenciadas](/pt-br/api-reference/onboarding/list-managed-accounts) | Lista contas gerenciadas no escopo USER. |
+
+Consulte a [visão geral da abertura de contas](/pt-br/api-reference/onboarding/overview) e os [callbacks de KYB](/pt-br/api-reference/onboarding/kyb-callbacks) para acompanhar a abertura de conta.
 
 ### Pagamentos
 
