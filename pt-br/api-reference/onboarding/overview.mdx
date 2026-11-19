@@ -1,17 +1,41 @@
 ---
-title: "Onboarding de contas gerenciadas"
+title: "Visão geral da abertura de contas"
 sidebarTitle: "Visão geral"
-description: "Abra contas gerenciadas MOR, VA e PA com credenciais USER. Acompanhe o envio de dados de conformidade, consulte o status e confirme os dados bancários antes do uso."
-keywords: ["conta gerenciada", "onboarding", "MOR", "VA", "PA"]
+description: "Prepare e adicione saldo à conta pagadora, depois abra contas gerenciadas MOR, VA e PA com credenciais USER. Acompanhe a conformidade e confirme a ativação."
+keywords: ["conta gerenciada", "abertura de conta", "saldo da MA", "MOR", "VA", "PA"]
 ---
 
-O onboarding de contas gerenciadas permite que você crie contas MOR, VA e PA vinculadas a um USER. Confirme o status atual e os dados bancários da conta antes de usá-la.
+Abra contas gerenciadas MOR, VA e PA vinculadas ao USER titular. Comece com uma MA ACTIVE, configure a tarifa de abertura com o Suporte Pagsmile e adicione saldo à conta que pagará a tarifa. Após a criação, confirme o status e os dados bancários da nova conta antes de usá-la.
+
+## Preparar o saldo antes da abertura
+
+Siga a navegação de **Chaves Pix** para **Recebimentos**, **Contas e saldos** e **Abertura de contas**. Use esta sequência para adicionar saldo a uma MA existente via Pix antes de abrir contas gerenciadas.
+
+<Steps>
+  <Step title="Confirmar a MA e a configuração da tarifa">
+    O USER titular precisa ter exatamente uma MA válida ACTIVE, com conta bancária ativa e criação de contas gerenciadas habilitada. Contate o Suporte Pagsmile para configurar a tarifa de abertura aplicável. MOR e VA cobram da MA; PA cobra da conta superior direta selecionada em `linked_account`.
+  </Step>
+  <Step title="Preparar uma chave Pix ACTIVE">
+    Use uma chave ACTIVE existente na conta recebedora ou [crie uma chave Pix](/pt-br/api-reference/pix-keys/create-pix-key). Confirme que o status retornado é `1` (ACTIVE) antes de compartilhá-la.
+  </Step>
+  <Step title="Receber os recursos">
+    Compartilhe a chave com o pagador ou use um [QR Code Pix](/pt-br/api-reference/payin/overview). O pagador envia os recursos para a conta existente. Criar uma chave ou gerar um QR code não adiciona saldo à conta.
+  </Step>
+  <Step title="Confirmar o saldo disponível e o recebimento">
+    [Consulte o saldo](/pt-br/api-reference/accounts/get-account-balance) da conta pagadora e compare `available_amount` com a tarifa aplicável. Use o [extrato da conta](/pt-br/api-reference/accounts/get-account-statement) para conferir o valor recebido e a conta recebedora.
+
+    Para MOR e VA, confira a MA. Para PA, confira a conta superior direta selecionada. O lançamento no extrato ajuda a conciliar o recebimento; a tarifa de abertura exige saldo disponível suficiente na conta efetivamente cobrada. Consulte [Tarifas de abertura de conta](/pt-br/api-reference/onboarding/create-managed-account#tarifas-de-abertura-de-conta) para erros de tarifa e regras de nova tentativa.
+  </Step>
+</Steps>
 
 ## Fluxo de abertura
 
 <Steps>
   <Step title="Escolher o modelo de conta">
     Compare MOR, VA e PA em [Modelos de conta](/pt-br/account-models). Depois, use a variante correspondente em [Criar conta gerenciada](/pt-br/api-reference/onboarding/create-managed-account).
+  </Step>
+  <Step title="Configurar callbacks KYB para VA ou PA">
+    Cadastre a URL HTTPS do callback para **VA ACCOUNT KYB** no escopo do USER titular antes de criar a conta. Consulte [Configuração do webhook](/pt-br/api-reference/onboarding/kyb-callbacks#antes-de-receber-callbacks).
   </Step>
   <Step title="Criar a conta gerenciada">
     Assine a requisição com a credencial do USER titular. Guarde o `reference_id` retornado para consultar a conta depois.
@@ -49,10 +73,10 @@ As três operações usam POST com corpo JSON. Seu escopo vem do USER titular, n
     Siga [Assinar requisições](/pt-br/environments-and-credentials#assinar-requisições) para os cabeçalhos e a assinatura HMAC-SHA256.
   </Tab>
   <Tab title="ACCOUNT" icon="building-columns">
-    <Warning>Credenciais ACCOUNT não podem chamar estas operações de onboarding de contas gerenciadas. Use a credencial do USER titular.</Warning>
+    <Warning>Credenciais ACCOUNT não podem chamar estas operações de contas gerenciadas. Use a credencial do USER titular.</Warning>
   </Tab>
   <Tab title="PLATFORM" icon="server">
-    <Warning>Credenciais PLATFORM não podem chamar estas operações de onboarding de contas gerenciadas. Use a credencial do USER titular.</Warning>
+    <Warning>Credenciais PLATFORM não podem chamar estas operações de contas gerenciadas. Use a credencial do USER titular.</Warning>
   </Tab>
 </Tabs>
 

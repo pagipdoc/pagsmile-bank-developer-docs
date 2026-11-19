@@ -1,6 +1,6 @@
 ---
 title: "Create managed account"
-sidebarTitle: "Create account"
+sidebarTitle: "Create managed account"
 description: "Create an MOR, VA or PA account with USER credentials. Returns the account reference, current status and a hosted verification URL when available."
 openapi: "openapi/en.json POST /v3/onboarding/managed_accounts/create"
 keywords: ["/v3/onboarding/managed_accounts/create", "managed account", "MOR", "VA", "PA"]
@@ -39,6 +39,8 @@ To receive compliance updates for VA or PA, register your callback URL before se
 Before you send the creation request, contact Pagsmile Support to confirm that the account-opening fee is configured. For PA, confirm the applicable KYC or KYB fee for the applicant's document type.
 
 Ask the owning MA account holder to confirm the payer has enough available BRL balance to cover the fee. The owning MA pays for MOR and VA. The direct parent in `linked_account` pays for PA. The paying bank account must be ACTIVE and have no closure in progress.
+
+If the paying account needs funds, follow [Prepare funds before opening](/api-reference/onboarding/overview#prepare-funds-before-opening): prepare an ACTIVE Pix key, receive the payment, then check the available balance and matching statement entry before creating the managed account.
 
 Creation cannot succeed until the fee is charged. Both fee errors return HTTP `200` with a business `code` and `data: null`. See the named response examples for the full JSON bodies.
 

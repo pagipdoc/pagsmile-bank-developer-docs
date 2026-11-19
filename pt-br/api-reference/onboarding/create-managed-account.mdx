@@ -1,6 +1,6 @@
 ---
 title: "Criar conta gerenciada"
-sidebarTitle: "Criar conta"
+sidebarTitle: "Criar conta gerenciada"
 description: "Crie uma conta MOR, VA ou PA com credenciais USER. Retorna a referência da conta, o status atual e uma URL de verificação hospedada quando disponível."
 openapi: "openapi/pt-br.json POST /v3/onboarding/managed_accounts/create"
 keywords: ["/v3/onboarding/managed_accounts/create", "conta gerenciada", "MOR", "VA", "PA"]
@@ -31,6 +31,25 @@ Cria uma conta MOR, VA ou PA para o USER titular. A PA sempre exige uma conta su
 </Tabs>
 
 Assine exatamente o corpo JSON que você envia. Veja os cabeçalhos obrigatórios e as regras de IP em [Assinar requisições](/pt-br/environments-and-credentials#assinar-requisições).
+
+Para receber atualizações de conformidade de VA ou PA, cadastre a URL do callback antes de enviar a requisição de criação. Consulte [Configuração dos callbacks KYB](/pt-br/api-reference/onboarding/kyb-callbacks#antes-de-receber-callbacks).
+
+### Tarifas de abertura de conta
+
+Antes de enviar a requisição de criação, contate o Suporte Pagsmile para confirmar a configuração da tarifa de abertura. Para PA, confirme a tarifa KYC ou KYB aplicável ao tipo de documento do solicitante.
+
+A MA titular paga a abertura de MOR e VA. A conta superior direta em `linked_account` paga a abertura de PA. A conta bancária pagadora precisa estar ACTIVE, sem encerramento em andamento, e ter saldo disponível em BRL suficiente para a tarifa.
+
+Se precisar adicionar saldo, siga [Preparar o saldo antes da abertura](/pt-br/api-reference/onboarding/overview#preparar-o-saldo-antes-da-abertura): prepare uma chave Pix ACTIVE, receba o pagamento e confira o saldo disponível e o lançamento correspondente no extrato antes de criar a conta gerenciada.
+
+A criação não pode ser concluída até a cobrança da tarifa. Os dois erros de tarifa abaixo retornam HTTP `200`, com um `code` de negócio e `data: null`.
+
+| Código de negócio | Significado | O que fazer |
+| --- | --- | --- |
+| `4004004` | Configuração da tarifa de abertura não encontrada | Peça ao Suporte Pagsmile para configurar a tarifa e tente novamente com o mesmo `reference_id` e corpo da requisição. |
+| `4001999` | Saldo insuficiente para a tarifa de abertura | Adicione saldo à conta pagadora e tente novamente com o mesmo `reference_id` e corpo da requisição. |
+
+Assine cada nova tentativa com nonce e timestamp novos. Uma tentativa correspondente reutiliza uma cobrança já confirmada. MOR pode reservar a solicitação antes da cobrança; preserve o `reference_id` original mesmo quando `data` for `null`.
 
 ## Escolher um modelo de conta
 

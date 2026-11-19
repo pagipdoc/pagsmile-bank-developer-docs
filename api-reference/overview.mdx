@@ -45,7 +45,7 @@ Choose credentials for the endpoint family. Account-target headers select an acc
 
 | Endpoint family | Credentials | Account selection |
 | --- | --- | --- |
-| Managed-account onboarding | USER | Omit account-target headers. |
+| Managed accounts | USER | Omit account-target headers. |
 | Accounts, Pix keys, pay-ins, payouts, refunds and MED | ACCOUNT or USER | Bound account or USER-owned target. |
 | Webhook subscriptions | ACCOUNT, USER or PLATFORM | Rules depend on the subscription scope. |
 
@@ -53,17 +53,17 @@ Choose credentials for the endpoint family. Account-target headers select an acc
   <Tab title="ACCOUNT" icon="building-columns">
     For account-scoped endpoints, use the account bound to your credential. You can omit `X-ISPB` and `X-Account-Number`. If you send them, send both and match the bound account.
 
-    Webhook subscriptions use the account scope. ACCOUNT credentials cannot call managed-account onboarding endpoints.
+    Webhook subscriptions use the account scope. ACCOUNT credentials cannot call managed-account endpoints.
   </Tab>
   <Tab title="USER" icon="user">
     For account-scoped endpoints, send both `X-ISPB` and `X-Account-Number` for an account owned by the USER. Include both headers in the [signature](/environments-and-credentials#sign-requests).
 
-    Omit account-target headers for managed-account onboarding and USER-scoped webhook subscriptions. A subscription may require `account_number` in the request body; follow its endpoint rules.
+    Omit account-target headers for managed-account operations and USER-scoped webhook subscriptions. A subscription may require `account_number` in the request body; follow its endpoint rules.
   </Tab>
   <Tab title="PLATFORM" icon="server">
     PLATFORM credentials support platform-scoped webhook subscriptions. Omit account-target headers and check the allowed events in the [subscription reference](/api-reference/webhooks/create-event-subscription).
 
-    <Warning>PLATFORM credentials cannot call the account-scoped or managed-account onboarding endpoints listed here. Use ACCOUNT or USER as required by the endpoint.</Warning>
+    <Warning>PLATFORM credentials cannot call the account-scoped or managed-account endpoints listed here. Use ACCOUNT or USER as required by the endpoint.</Warning>
   </Tab>
 </Tabs>
 
@@ -92,17 +92,9 @@ For [MED cases](/api-reference/med/list-med-cases) and [infraction reports](/api
 
 ## Endpoint map
 
+For managed account creation, prepare the existing MA first. Follow [Pix keys → Pay-ins → Accounts and funds → Account opening](/api-reference/workflows#fund-the-ma-before-opening-managed-accounts) to receive funds and confirm the paying account can cover the configured opening fee.
+
 Each link below leads to the request schema, response schema and integration rules for that operation.
-
-### Onboarding
-
-| Endpoint | What it does |
-| --- | --- |
-| [Create managed account](/api-reference/onboarding/create-managed-account) | Create a MOR, VA or PA managed account. |
-| [Get managed account](/api-reference/onboarding/get-managed-account) | Retrieve a managed account. |
-| [List managed accounts](/api-reference/onboarding/list-managed-accounts) | List managed accounts in the USER scope. |
-
-Read the [onboarding overview](/api-reference/onboarding/overview) and [KYB callbacks](/api-reference/onboarding/kyb-callbacks) for the account-opening workflow.
 
 ### Pix keys
 
@@ -112,6 +104,17 @@ Read the [onboarding overview](/api-reference/onboarding/overview) and [KYB call
 | [Delete Pix key](/api-reference/pix-keys/delete-pix-key) | Remove a Pix key from an account. |
 
 See the [Pix keys overview](/api-reference/pix-keys/overview) for key formats and lifecycle rules.
+
+### Pix pay-ins
+
+| Endpoint | What it does |
+| --- | --- |
+| [Generate dynamic QR code](/api-reference/payin/generate-dynamic-qr-code) | Generate a dynamic Pix QR code. |
+| [Generate static QR code](/api-reference/payin/generate-static-qr-code) | Generate a static Pix QR code. |
+| [Get QR code details](/api-reference/payin/get-qr-code-details) | Retrieve a QR code's details. |
+| [Get transaction details](/api-reference/payin/get-transaction-details) | Retrieve details of a Pix pay-in. |
+
+Follow the [pay-in workflow](/api-reference/payin/overview) and process [pay-in callbacks](/api-reference/payin/callbacks).
 
 ### Accounts and funds
 
@@ -125,16 +128,15 @@ See the [Pix keys overview](/api-reference/pix-keys/overview) for key formats an
 
 Use the same balance endpoint for the selected subaccount; it does not enumerate all subaccounts. See [Accounts overview](/api-reference/accounts/overview) and [Account closure](/api-reference/accounts/close-account/overview).
 
-### Pix pay-ins
+### Account opening
 
 | Endpoint | What it does |
 | --- | --- |
-| [Generate dynamic QR code](/api-reference/payin/generate-dynamic-qr-code) | Generate a dynamic Pix QR code. |
-| [Generate static QR code](/api-reference/payin/generate-static-qr-code) | Generate a static Pix QR code. |
-| [Get QR code details](/api-reference/payin/get-qr-code-details) | Retrieve a QR code's details. |
-| [Get transaction details](/api-reference/payin/get-transaction-details) | Retrieve details of a Pix pay-in. |
+| [Create managed account](/api-reference/onboarding/create-managed-account) | Create a MOR, VA or PA managed account. |
+| [Get managed account](/api-reference/onboarding/get-managed-account) | Retrieve a managed account. |
+| [List managed accounts](/api-reference/onboarding/list-managed-accounts) | List managed accounts in the USER scope. |
 
-Follow the [pay-in workflow](/api-reference/payin/overview) and process [pay-in callbacks](/api-reference/payin/callbacks).
+Read the [account opening overview](/api-reference/onboarding/overview) and [KYB callbacks](/api-reference/onboarding/kyb-callbacks) for the account-opening workflow.
 
 ### Payouts
 

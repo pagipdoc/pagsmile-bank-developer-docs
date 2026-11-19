@@ -1,11 +1,24 @@
 ---
 title: "Multi-step workflows"
 sidebarTitle: "Workflows"
-description: "Five end-to-end Pagsmile Open API flows, from Pix payouts to account closure, with diagrams, steps and machine-readable Arazzo 1.0 definitions."
+description: "Fund the MA before opening managed accounts, then follow five API workflows for Pix payouts, pay-ins, refunds and account closure with Arazzo 1.0 definitions."
 keywords: ["arazzo", "workflow", "openapi 3.2", "polling", "pix payout"]
 ---
 
-These workflows show the order of calls for common Pagsmile Open API tasks and the field each step passes to the next. Each one is also defined in a machine-readable [Arazzo 1.0](https://spec.openapis.org/arazzo/latest.html) file that points to the OpenAPI 3.2 description by `operationId`.
+Start by preparing the existing MA to pay account-opening fees. The five API workflows that follow show the order of calls for payments, refunds and closure, and the field each step passes to the next. Those five workflows are also defined in machine-readable [Arazzo 1.0](https://spec.openapis.org/arazzo/latest.html) files that point to the OpenAPI 3.2 description by `operationId`.
+
+## Fund the MA before opening managed accounts
+
+Complete [MA registration and API setup](/quickstart) first. The MA and its bank account must be ACTIVE, and the owning USER must have managed account creation enabled. Contact Pagsmile Support to configure the applicable opening fee before submitting a creation request.
+
+| Stage | Action | What to confirm |
+| --- | --- | --- |
+| [Pix keys](/api-reference/pix-keys/overview) | Use an existing key or create one on the receiving MA. | Key status is `1` (ACTIVE) before sharing it. |
+| [Pay-ins](/api-reference/payin/overview) | Share the key with a payer, or generate a Pix QR code. The payer sends funds to the MA. | A key or QR code alone does not confirm receipt. |
+| [Accounts and funds](/api-reference/accounts/overview) | Call [Get account balance](/api-reference/accounts/get-account-balance) and reconcile the receipt using the [statement](/api-reference/accounts/get-account-statement). | Match the amount and receiving account. Confirm `available_amount` can cover the applicable fee. |
+| [Account opening](/api-reference/onboarding/overview) | Create MOR, VA or PA with USER credentials. Configure KYB callbacks before creating VA or PA. | Confirm the new account's status is `2` (ACTIVE) and its bank account details are available before use. |
+
+MOR and VA charge the owning MA. PA charges the direct parent selected in `linked_account`, which can be the MA or a VA directly under it. Confirm available funds on the account actually charged. Statement queries help reconcile the deposit; they are not a prerequisite call enforced by the creation endpoint. See [Account-opening fees](/api-reference/onboarding/create-managed-account#account-opening-fees) and the full [opening workflow](/api-reference/onboarding/overview#opening-workflow).
 
 ## Machine-readable files
 
@@ -26,7 +39,7 @@ The documentation repository contains the OpenAPI and Arazzo files below. Each A
 | --- | --- |
 | `openapi/en.json` | OpenAPI 3.2 description, English |
 | `openapi/pt-br.json` | OpenAPI 3.2 description, Brazilian Portuguese |
-| `arazzo/pagsmile-workflows.en.arazzo.yaml` | The five workflows on this page |
+| `arazzo/pagsmile-workflows.en.arazzo.yaml` | The five API workflows below |
 
 <Accordion title="Complete Arazzo file" icon="file-arrow-down">
 

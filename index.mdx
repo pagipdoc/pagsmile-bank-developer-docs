@@ -29,18 +29,20 @@ import { ConnectionMap } from "/snippets/connection-map.jsx";
 
 ## Build by product
 
+Before opening managed accounts, [fund the existing MA and confirm the opening fee](/api-reference/workflows#fund-the-ma-before-opening-managed-accounts). Follow the first four product groups in order.
+
 <CardGroup cols={4}>
-  <Card title="Onboarding" icon="user-plus" href="/api-reference/onboarding/overview">
-    Create and query MOR, VA and PA managed accounts.
-  </Card>
-  <Card title="Accounts" icon="building-columns" href="/api-reference/accounts/overview">
-    Balance, statement entries and account closure.
-  </Card>
   <Card title="Pix keys" icon="key" href="/api-reference/pix-keys/overview">
     Register and delete the keys that receive Pix.
   </Card>
   <Card title="Pay-ins" icon="qrcode" href="/api-reference/payin/overview">
     Dynamic and static Pix QR codes and pay-in details.
+  </Card>
+  <Card title="Accounts and funds" icon="building-columns" href="/api-reference/accounts/overview">
+    Balance, statement entries and account closure.
+  </Card>
+  <Card title="Account opening" icon="user-plus" href="/api-reference/onboarding/overview">
+    Create and query MOR, VA and PA managed accounts.
   </Card>
   <Card title="Payouts" icon="paper-plane" href="/api-reference/payout/overview">
     Pix by key, QR code or bank details, TED and internal transfers.
@@ -58,10 +60,10 @@ import { ConnectionMap } from "/snippets/connection-map.jsx";
 
 <Accordion title="How the products connect" icon="diagram-project">
 
-Onboarding creates managed accounts. An account receives pay-ins, sends payouts, owns Pix keys and has statements.
+Account opening creates managed accounts under an existing MA. An account receives pay-ins, sends payouts, owns Pix keys and has statements.
 
 <Tree>
-  <Tree.Folder name="Onboarding" defaultOpen>
+  <Tree.Folder name="Account opening" defaultOpen>
     <Tree.Folder name="Account" defaultOpen>
       <Tree.Folder name="Pay-ins" defaultOpen>
         <Tree.File name="Refunds" />

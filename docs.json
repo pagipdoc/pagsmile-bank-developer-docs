@@ -146,17 +146,6 @@
                 "icon": "book-open"
               },
               {
-                "group": "Onboarding",
-                "pages": [
-                  "api-reference/onboarding/overview",
-                  "api-reference/onboarding/create-managed-account",
-                  "api-reference/onboarding/get-managed-account",
-                  "api-reference/onboarding/list-managed-accounts",
-                  "api-reference/onboarding/kyb-callbacks"
-                ],
-                "icon": "user-plus"
-              },
-              {
                 "group": "Pix keys",
                 "pages": [
                   "api-reference/pix-keys/overview",
@@ -164,6 +153,18 @@
                   "api-reference/pix-keys/delete-pix-key"
                 ],
                 "icon": "key"
+              },
+              {
+                "group": "Pay-ins",
+                "pages": [
+                  "api-reference/payin/overview",
+                  "api-reference/payin/generate-dynamic-qr-code",
+                  "api-reference/payin/generate-static-qr-code",
+                  "api-reference/payin/get-qr-code-details",
+                  "api-reference/payin/get-transaction-details",
+                  "api-reference/payin/callbacks"
+                ],
+                "icon": "qrcode"
               },
               {
                 "group": "Accounts and funds",
@@ -184,16 +185,15 @@
                 "icon": "building-columns"
               },
               {
-                "group": "Pay-ins",
+                "group": "Account opening",
                 "pages": [
-                  "api-reference/payin/overview",
-                  "api-reference/payin/generate-dynamic-qr-code",
-                  "api-reference/payin/generate-static-qr-code",
-                  "api-reference/payin/get-qr-code-details",
-                  "api-reference/payin/get-transaction-details",
-                  "api-reference/payin/callbacks"
+                  "api-reference/onboarding/overview",
+                  "api-reference/onboarding/create-managed-account",
+                  "api-reference/onboarding/get-managed-account",
+                  "api-reference/onboarding/list-managed-accounts",
+                  "api-reference/onboarding/kyb-callbacks"
                 ],
-                "icon": "qrcode"
+                "icon": "user-plus"
               },
               {
                 "group": "Payouts",
@@ -337,17 +337,6 @@
                 "icon": "book-open"
               },
               {
-                "group": "Onboarding",
-                "pages": [
-                  "pt-br/api-reference/onboarding/overview",
-                  "pt-br/api-reference/onboarding/create-managed-account",
-                  "pt-br/api-reference/onboarding/get-managed-account",
-                  "pt-br/api-reference/onboarding/list-managed-accounts",
-                  "pt-br/api-reference/onboarding/kyb-callbacks"
-                ],
-                "icon": "user-plus"
-              },
-              {
                 "group": "Chaves Pix",
                 "pages": [
                   "pt-br/api-reference/pix-keys/overview",
@@ -355,6 +344,18 @@
                   "pt-br/api-reference/pix-keys/delete-pix-key"
                 ],
                 "icon": "key"
+              },
+              {
+                "group": "Recebimentos",
+                "pages": [
+                  "pt-br/api-reference/payin/overview",
+                  "pt-br/api-reference/payin/generate-dynamic-qr-code",
+                  "pt-br/api-reference/payin/generate-static-qr-code",
+                  "pt-br/api-reference/payin/get-qr-code-details",
+                  "pt-br/api-reference/payin/get-transaction-details",
+                  "pt-br/api-reference/payin/callbacks"
+                ],
+                "icon": "qrcode"
               },
               {
                 "group": "Contas e saldos",
@@ -375,16 +376,15 @@
                 "icon": "building-columns"
               },
               {
-                "group": "Recebimentos",
+                "group": "Abertura de contas",
                 "pages": [
-                  "pt-br/api-reference/payin/overview",
-                  "pt-br/api-reference/payin/generate-dynamic-qr-code",
-                  "pt-br/api-reference/payin/generate-static-qr-code",
-                  "pt-br/api-reference/payin/get-qr-code-details",
-                  "pt-br/api-reference/payin/get-transaction-details",
-                  "pt-br/api-reference/payin/callbacks"
+                  "pt-br/api-reference/onboarding/overview",
+                  "pt-br/api-reference/onboarding/create-managed-account",
+                  "pt-br/api-reference/onboarding/get-managed-account",
+                  "pt-br/api-reference/onboarding/list-managed-accounts",
+                  "pt-br/api-reference/onboarding/kyb-callbacks"
                 ],
-                "icon": "qrcode"
+                "icon": "user-plus"
               },
               {
                 "group": "Pagamentos",
